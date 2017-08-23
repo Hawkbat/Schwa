@@ -1,0 +1,31 @@
+TODO
+
+Validate number literals to ensure they fit within the valid range; this should probably be in the analyzer
+Add binary, hex, and octal literal support
+
+Figure out short-circuiting for boolean operations-- super important!
+
+Exports and imports
+	Imports require definition of type signatures
+	Have two different import syntaxes; explicit (with type signatures spelled out) and implicit (resolved at compile time)
+	Note that only immutable globals (constants) can be imported/exported
+	Also have both whole-module imports (import bar) and named imports (import Foo from bar)
+	Aliasing should also be possible: (import bar as bar), (import void Foo() from bar as Foobar), (export Foo as Bar)
+
+Pointers/Memory access
+	I'd prefer something more structured and less dangerous than pure pointers
+	Maybe have syntax for statically "mapping" the memory space with structs and fixed-length arrays
+	Mapping syntax would be a good place to set up the Data section stuff, too
+
+Structs
+	For locals/globals, allocate suffixed properties (e.g. v: { x, y } becomes "v.x", "v.y") and use scope trickery
+	For in-memory use, use static offsets from the struct pointer
+
+Arrays
+	Same as structs; always fixed-size, let user code keep a dynamic length separately if desired
+
+LEB is failing on small negative signed numbers due to lack of Long support; HIGH PRIORITY!
+
+If structs are memory-mapped only, we could have byte and short types there!
+Given alignment concerns it might still be better to just use whole ints and bit masking, though
+Alignment can't be smaller than 4 if there are no datatypes to offset it less than 4

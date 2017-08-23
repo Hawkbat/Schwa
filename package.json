@@ -1,0 +1,19 @@
+{
+  "name": "wascript",
+  "version": "0.1.0",
+  "description": "Web Assembly Script",
+  "main": "out/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "leb": "^0.3.0",
+    "long": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/long": "^3.0.31",
+    "@types/node": "^7.0.27"
+  }
+}

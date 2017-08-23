@@ -1,0 +1,16 @@
+<html>
+
+<head>
+	<script>
+		function instantiate(bytes, imports) {
+			return WebAssembly.compile(bytes).then(m => new WebAssembly.Instance(m, imports))
+		}
+		fetch('test.wasm').then(res => res.arrayBuffer()).then(bytes => instantiate(bytes, {})).then(instance => console.log(instance.exports.add(2, 3)))
+	</script>
+</head>
+
+<body>
+
+</body>
+
+</html>
