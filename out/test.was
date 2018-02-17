@@ -30,3 +30,8 @@ export void DoSomething(bool alphabet, ulong soup)
 
 export int add(int a, int b)
 	return a + b
+
+export int inc()
+	int val = int.load(0u) + 1
+	int.store(0u, val)
+	return val

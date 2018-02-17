@@ -3,6 +3,8 @@
 		"alwaysStrict": true,
 		"module": "commonjs",
 		"outDir": "out",
-		"target": "es6"
+		"target": "es6",
+		"declaration": true,
+		"declarationDir": "./out"
 	}
 }

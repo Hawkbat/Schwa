@@ -2,15 +2,15 @@ import { TokenType } from "./token"
 import { AstNode, AstType } from "./ast"
 import { Logger, LogMsg, LogType } from "./log"
 
-type FormatRule = (n: AstNode) => string
+export type FormatRule = (n: AstNode) => string
 
-class Formatter {
+export class Formatter {
 	private ruleMap: { [key: number]: FormatRule } = {}
 
-	constructor(protected logger: Logger, protected ast: AstNode) { }
+	constructor(protected logger: Logger) { }
 
-	public print(): string {
-		return this.printNode(this.ast)
+	public format(ast: AstNode): string {
+		return this.printNode(ast)
 	}
 
 	protected printNode(node: AstNode): string {
@@ -30,8 +30,8 @@ class Formatter {
 }
 
 export class WAScriptFormatter extends Formatter {
-	constructor(logger: Logger, ast: AstNode) {
-		super(logger, ast)
+	constructor(logger: Logger) {
+		super(logger)
 		this.register(AstType.UnaryOp, (n) => n.token.value + this.printNode(n.children[0]))
 		this.register(AstType.BinaryOp, (n) => this.printNode(n.children[0]) + " " + n.token.value + " " + this.printNode(n.children[1]))
 		this.register(AstType.VariableDef, (n) => n.token.value + " " + this.printNode(n.children[0]))

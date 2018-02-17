@@ -1,15 +1,19 @@
 import { Token, TokenType } from "./token"
 import { LogType, LogMsg, Logger } from "./log"
 
-type LexerRule = (row: number, column: number) => Token | undefined
+export type LexerRule = (row: number, column: number) => Token | undefined
 
-class Lexer {
-	private tokens: Token[] = []
+export class Lexer {
 	private rules: LexerRule[] = []
 
-	constructor(protected logger: Logger, protected lines: string[]) { }
+	private lines: string[] = []
+	private tokens: Token[] = []
 
-	lex(): Token[] {
+	constructor(protected logger: Logger) { }
+
+	public lex(lines: string[]): Token[] {
+		this.lines = lines
+		this.tokens = []
 		this.push(new Token(TokenType.BOF, '', 0, 0))
 
 		let depth = 0
@@ -28,20 +32,19 @@ class Lexer {
 				let token: Token
 				for (let rule of this.rules) {
 					token = rule(row, col)
-					if (token) {
-						col += token.value.length - 1
-						if (token.type == TokenType.Comment && this.tokens[this.tokens.length - 1].type != TokenType.BOL) {
-							token.type = TokenType.InlineComment
-							let i = this.tokens.length - 1
-							while (this.tokens[i].type != TokenType.BOL) i--
-							this.tokens.splice(i, 0, token)
-						} else {
-							this.push(token)
-						}
-						break
-					}
+					if (token) break
 				}
-				if (!token) {
+				if (token) {
+					col += token.value.length - 1
+					if (token.type == TokenType.Comment && this.tokens[this.tokens.length - 1].type != TokenType.BOL) {
+						token.type = TokenType.InlineComment
+						let i = this.tokens.length - 1
+						while (this.tokens[i].type != TokenType.BOL) i--
+						this.tokens.splice(i, 0, token)
+					} else {
+						this.push(token)
+					}
+				} else {
 					let end = col
 					while (!token && end < this.lines[row].length) {
 						for (let rule of this.rules) {
@@ -58,7 +61,7 @@ class Lexer {
 			}
 			this.push(new Token(TokenType.EOL, '\n', row, this.lines[row].length))
 		}
-		while (depth > 0) this.push(new Token(TokenType.Dedent, '\b', this.lines.length - 1, --depth))
+		while (depth > 0) this.push(new Token(TokenType.Dedent, '', this.lines.length - 1, --depth))
 		this.push(new Token(TokenType.EOF, '', this.lines.length - 1, this.lines[this.lines.length - 1].length))
 		return this.tokens
 	}
@@ -95,8 +98,8 @@ class Lexer {
 }
 
 export class WAScriptLexer extends Lexer {
-	constructor(logger: Logger, lines: string[]) {
-		super(logger, lines)
+	constructor(logger: Logger) {
+		super(logger)
 
 		this.registerRegex(TokenType.Comment, /\s*\/\/.*/)
 

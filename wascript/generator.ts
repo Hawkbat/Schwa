@@ -8,11 +8,12 @@ import * as WASM from "./wasm"
 import { Writer } from "./io"
 import * as Long from "long"
 
-type GenerateRule = (w: Writer, n: AstNode) => void
+export type GenerateRule = (w: Writer, n: AstNode) => void
 
-class Generator {
+export class Generator {
 	private ruleMap: { [key: number]: GenerateRule } = {}
 
+	protected ast: AstNode
 	protected funcTypes: WASM.FunctionType[] = []
 	protected funcTypeIndices: number[] = []
 	protected funcTypeToTypeIndex: { [key: string]: number } = {}
@@ -27,9 +28,24 @@ class Generator {
 	protected localNames: WASM.LocalName[] = []
 	protected names: WASM.NameEntry[] = []
 
-	constructor(protected logger: Logger, protected ast: AstNode) { }
+	constructor(protected logger: Logger) { }
 
-	generate(name?: string): ArrayBuffer {
+	public generate(ast: AstNode, name?: string): ArrayBuffer {
+		this.ast = ast
+		this.funcTypes = []
+		this.funcTypeIndices = []
+		this.funcTypeToTypeIndex = {}
+		this.varPathToIndex = {}
+		this.funcIndex = 0
+		this.funcPathToIndex = {}
+		this.funcBodies = []
+		this.startFuncIndex = -1
+		this.globals = []
+		this.exports = []
+		this.funcNames = []
+		this.localNames = []
+		this.names = []
+
 		let writer = new Writer()
 		writer.write(this.getModule(name))
 		return writer.toArrayBuffer()
@@ -159,8 +175,8 @@ class Generator {
 }
 
 export class WAScriptGenerator extends Generator {
-	constructor(logger: Logger, ast: AstNode) {
-		super(logger, ast)
+	constructor(logger: Logger) {
+		super(logger)
 
 		this.register(AstType.VariableId, (w, n) => {
 			let nvar = n.scope.getVariable(n.token.value)
@@ -418,6 +434,129 @@ export class WAScriptGenerator extends Generator {
 			let path = func.getPath()
 
 			if (path == "nop") w.uint8(WASM.OpCode.nop)
+			else if (path == "int.loadSByte") {
+				w.uint8(WASM.OpCode.i32_load8_s)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "uint.loadByte") {
+				w.uint8(WASM.OpCode.i32_load8_u)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "int.loadShort") {
+				w.uint8(WASM.OpCode.i32_load16_s)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "uint.loadUShort") {
+				w.uint8(WASM.OpCode.i32_load16_u)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "int.load" || path == "uint.load") {
+				w.uint8(WASM.OpCode.i32_load)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "int.storeSByte" || path == "uint.storeByte") {
+				w.uint8(WASM.OpCode.i32_store8)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "int.storeShort" || path == "uint.storeUShort") {
+				w.uint8(WASM.OpCode.i32_store16)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "int.store" || path == "uint.store") {
+				w.uint8(WASM.OpCode.i32_store)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "long.loadSByte") {
+				w.uint8(WASM.OpCode.i64_load8_s)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "ulong.loadByte") {
+				w.uint8(WASM.OpCode.i64_load8_u)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "long.loadShort") {
+				w.uint8(WASM.OpCode.i64_load16_s)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "ulong.loadUShort") {
+				w.uint8(WASM.OpCode.i64_load16_u)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "long.loadInt") {
+				w.uint8(WASM.OpCode.i64_load32_s)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "ulong.loadUInt") {
+				w.uint8(WASM.OpCode.i64_load32_u)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "long.load" || path == "ulong.load") {
+				w.uint8(WASM.OpCode.i64_load)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "long.storeSByte" || path == "ulong.storeByte") {
+				w.uint8(WASM.OpCode.i64_store8)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "long.storeShort" || path == "ulong.storeUShort") {
+				w.uint8(WASM.OpCode.i64_store16)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "long.storeInt" || path == "ulong.storeUInt") {
+				w.uint8(WASM.OpCode.i64_store32)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "long.store" || path == "ulong.store") {
+				w.uint8(WASM.OpCode.i64_store)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "float.load") {
+				w.uint8(WASM.OpCode.f32_load)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "float.store") {
+				w.uint8(WASM.OpCode.f32_store)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "double.load") {
+				w.uint8(WASM.OpCode.f64_load)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "double.store") {
+				w.uint8(WASM.OpCode.f64_store)
+				w.varuintN(2, 32)
+				w.varuintN(0, 32)
+			}
+			else if (path == "int.clz" || path == "uint.clz") w.uint8(WASM.OpCode.i32_clz)
+			else if (path == "int.ctz" || path == "uint.ctz") w.uint8(WASM.OpCode.i32_ctz)
+			else if (path == "int.popcnt" || path == "uint.popcnt") w.uint8(WASM.OpCode.i32_popcnt)
+			else if (path == "int.eqz" || path == "uint.eqz") w.uint8(WASM.OpCode.i32_eqz)
+			else if (path == "long.clz" || path == "ulong.clz") w.uint8(WASM.OpCode.i64_clz)
+			else if (path == "long.ctz" || path == "ulong.ctz") w.uint8(WASM.OpCode.i64_ctz)
+			else if (path == "long.popcnt" || path == "ulong.popcnt") w.uint8(WASM.OpCode.i64_popcnt)
+			else if (path == "long.eqz" || path == "ulong.eqz") w.uint8(WASM.OpCode.i64_eqz)
 			else if (path == "float.abs") w.uint8(WASM.OpCode.f32_abs)
 			else if (path == "float.copysign") w.uint8(WASM.OpCode.f32_copysign)
 			else if (path == "float.ceil") w.uint8(WASM.OpCode.f32_ceil)

@@ -28,7 +28,7 @@ export class Writer {
 	}
 
 	varuintN(value: number, bits: number) {
-		var leb = LEB.encodeUInt64(value % Math.pow(2, bits))
+		var leb = LEB.encodeUInt32(value % Math.pow(2, bits))
 		for (var i = 0; i < leb.byteLength; i++) this.buf.push(leb.readUInt8(i))
 	}
 
@@ -40,7 +40,7 @@ export class Writer {
 
 	varintN(value: number, bits: number) {
 		value = Math.min(Math.pow(2, bits - 1) - 1, Math.max(-Math.pow(2, bits - 1), value))
-		var leb = LEB.encodeInt64(value)
+		var leb = LEB.encodeInt32(value)
 		for (var i = 0; i < leb.byteLength; i++) this.buf.push(leb.readUInt8(i))
 	}
 

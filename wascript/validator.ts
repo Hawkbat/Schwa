@@ -2,15 +2,15 @@ import { LogType, LogMsg, Logger } from "./log"
 import { TokenType } from "./token"
 import { AstNode, AstType } from "./ast"
 
-type ValidateRule = (n: AstNode) => void
+export type ValidateRule = (n: AstNode) => void
 
-class Validator {
+export class Validator {
 	private ruleMap: { [key: number]: ValidateRule[] } = {}
 
-	constructor(protected logger: Logger, protected ast: AstNode) { }
+	constructor(protected logger: Logger) { }
 
-	public validate() {
-		this.validateNode(this.ast)
+	public validate(ast: AstNode) {
+		this.validateNode(ast)
 	}
 
 	private validateNode(node: AstNode) {
@@ -35,8 +35,8 @@ class Validator {
 }
 
 export class WAScriptValidator extends Validator {
-	constructor(logger: Logger, ast: AstNode) {
-		super(logger, ast)
+	constructor(logger: Logger) {
+		super(logger)
 		this.registerChildrenType(AstType.Program, [AstType.FunctionDef, AstType.Global, AstType.Comment])
 		this.registerChildrenType(AstType.Block, [AstType.VariableDef, AstType.Assignment, AstType.FunctionCall, AstType.Comment, AstType.If, AstType.Else, AstType.ElseIf, AstType.While, AstType.Break, AstType.Continue, AstType.Return, AstType.ReturnVoid])
 		this.registerChildCount(AstType.Access, 2)

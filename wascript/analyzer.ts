@@ -12,24 +12,23 @@ function formatOrdinal(n: number): string {
 	else return str + "th"
 }
 
-type ScopeRule = (n: AstNode, p: Scope) => Scope
-type DataTypeRule = (n: AstNode) => DataType
-type AnalyzeRule = (n: AstNode) => void
+export type ScopeRule = (n: AstNode, p: Scope) => Scope
+export type DataTypeRule = (n: AstNode) => DataType
+export type AnalyzeRule = (n: AstNode) => void
 
-class Analyzer {
+export class Analyzer {
 	private scopeRuleMap: { [key: number]: ScopeRule[] } = {}
 	private dataTypeRuleMap: { [key: number]: DataTypeRule[] } = {}
 	private analysisRuleMap: { [key: number]: AnalyzeRule[] } = {}
-	protected rootScope: Scope
 
-	constructor(protected logger: Logger, protected ast: AstNode) {
-		this.rootScope = new Scope(null, null, '')
-	}
+	protected rootScope: Scope = new Scope(null, null, '')
 
-	public analyze() {
-		this.scopePass(this.ast)
-		this.typePass(this.ast)
-		this.analysisPass(this.ast)
+	constructor(protected logger: Logger) { }
+
+	public analyze(ast: AstNode) {
+		this.scopePass(ast)
+		this.typePass(ast)
+		this.analysisPass(ast)
 	}
 
 	protected scopePass(node: AstNode) {
@@ -97,36 +96,103 @@ class Analyzer {
 		this.analysisRuleMap[type].push(rule)
 	}
 
+	protected registerBuiltinFunc(path: string, type: DataType, params: DataType[]) {
+		let parts = path.split('.')
+		let id = parts.pop()
+		let scope = this.rootScope
+		for (let i = 0; i < parts.length; i++) {
+			if (!scope.scopes[parts[i]]) scope.scopes[parts[i]] = new Scope(null, scope, parts[i])
+			scope = scope.scopes[parts[i]]
+		}
+		scope.funcs[id] = new Function(null, scope, id, type, params)
+	}
+
 	protected logError(msg: string, node: AstNode) {
 		this.logger.log(new LogMsg(LogType.Error, "Analyzer", msg, node.token.row, node.token.column, node.token.value.length))
 	}
 }
 
 export class WAScriptAnalyzer extends Analyzer {
-	constructor(logger: Logger, ast: AstNode) {
-		super(logger, ast)
-		this.rootScope.funcs["nop"] = new Function(null, this.rootScope, "nop", DataType.None, [])
-		this.rootScope.scopes["float"] = new Scope(null, this.rootScope, 'float')
-		this.rootScope.scopes["float"].funcs["abs"] = new Function(null, this.rootScope.scopes["float"], "abs", DataType.Float, [DataType.Float])
-		this.rootScope.scopes["float"].funcs["ceil"] = new Function(null, this.rootScope.scopes["float"], "ceil", DataType.Float, [DataType.Float])
-		this.rootScope.scopes["float"].funcs["floor"] = new Function(null, this.rootScope.scopes["float"], "floor", DataType.Float, [DataType.Float])
-		this.rootScope.scopes["float"].funcs["truncate"] = new Function(null, this.rootScope.scopes["float"], "truncate", DataType.Float, [DataType.Float])
-		this.rootScope.scopes["float"].funcs["round"] = new Function(null, this.rootScope.scopes["float"], "round", DataType.Float, [DataType.Float])
-		this.rootScope.scopes["float"].funcs["sqrt"] = new Function(null, this.rootScope.scopes["float"], "sqrt", DataType.Float, [DataType.Float])
-		this.rootScope.scopes["float"].funcs["copysign"] = new Function(null, this.rootScope.scopes["float"], "copysign", DataType.Float, [DataType.Float, DataType.Float])
-		this.rootScope.scopes["float"].funcs["min"] = new Function(null, this.rootScope.scopes["float"], "min", DataType.Float, [DataType.Float, DataType.Float])
-		this.rootScope.scopes["float"].funcs["max"] = new Function(null, this.rootScope.scopes["float"], "max", DataType.Float, [DataType.Float, DataType.Float])
+	constructor(logger: Logger) {
+		super(logger)
+		this.registerBuiltinFunc('nop', DataType.None, [])
 
-		this.rootScope.scopes["double"] = new Scope(null, this.rootScope, 'double')
-		this.rootScope.scopes["double"].funcs["abs"] = new Function(null, this.rootScope.scopes["double"], "abs", DataType.Double, [DataType.Double])
-		this.rootScope.scopes["double"].funcs["ceil"] = new Function(null, this.rootScope.scopes["double"], "ceil", DataType.Double, [DataType.Double])
-		this.rootScope.scopes["double"].funcs["floor"] = new Function(null, this.rootScope.scopes["double"], "floor", DataType.Double, [DataType.Double])
-		this.rootScope.scopes["double"].funcs["truncate"] = new Function(null, this.rootScope.scopes["double"], "truncate", DataType.Double, [DataType.Double])
-		this.rootScope.scopes["double"].funcs["round"] = new Function(null, this.rootScope.scopes["double"], "round", DataType.Double, [DataType.Double])
-		this.rootScope.scopes["double"].funcs["sqrt"] = new Function(null, this.rootScope.scopes["double"], "sqrt", DataType.Double, [DataType.Double])
-		this.rootScope.scopes["double"].funcs["copysign"] = new Function(null, this.rootScope.scopes["double"], "copysign", DataType.Double, [DataType.Double, DataType.Double])
-		this.rootScope.scopes["double"].funcs["min"] = new Function(null, this.rootScope.scopes["double"], "min", DataType.Double, [DataType.Double, DataType.Double])
-		this.rootScope.scopes["double"].funcs["max"] = new Function(null, this.rootScope.scopes["double"], "max", DataType.Double, [DataType.Double, DataType.Double])
+		this.registerBuiltinFunc('int.loadSByte', DataType.Int, [DataType.UInt])
+		this.registerBuiltinFunc('int.loadShort', DataType.Int, [DataType.UInt])
+		this.registerBuiltinFunc('int.load', DataType.Int, [DataType.UInt])
+		this.registerBuiltinFunc('int.storeSByte', DataType.None, [DataType.UInt, DataType.Int])
+		this.registerBuiltinFunc('int.storeShort', DataType.None, [DataType.UInt, DataType.Int])
+		this.registerBuiltinFunc('int.store', DataType.None, [DataType.UInt, DataType.Int])
+
+		this.registerBuiltinFunc('uint.loadByte', DataType.UInt, [DataType.UInt])
+		this.registerBuiltinFunc('uint.loadUShort', DataType.UInt, [DataType.UInt])
+		this.registerBuiltinFunc('uint.load', DataType.UInt, [DataType.UInt])
+		this.registerBuiltinFunc('uint.storeByte', DataType.None, [DataType.UInt, DataType.UInt])
+		this.registerBuiltinFunc('uint.storeUShort', DataType.None, [DataType.UInt, DataType.UInt])
+		this.registerBuiltinFunc('uint.store', DataType.None, [DataType.UInt, DataType.UInt])
+
+		this.registerBuiltinFunc('long.loadSByte', DataType.Long, [DataType.UInt])
+		this.registerBuiltinFunc('long.loadShort', DataType.Long, [DataType.UInt])
+		this.registerBuiltinFunc('long.loadInt', DataType.Long, [DataType.UInt])
+		this.registerBuiltinFunc('long.load', DataType.Long, [DataType.UInt])
+		this.registerBuiltinFunc('long.storeSByte', DataType.None, [DataType.UInt, DataType.Long])
+		this.registerBuiltinFunc('long.storeShort', DataType.None, [DataType.UInt, DataType.Long])
+		this.registerBuiltinFunc('long.storeInt', DataType.None, [DataType.UInt, DataType.Long])
+		this.registerBuiltinFunc('long.store', DataType.None, [DataType.UInt, DataType.Long])
+
+		this.registerBuiltinFunc('ulong.loadByte', DataType.ULong, [DataType.UInt])
+		this.registerBuiltinFunc('ulong.loadUShort', DataType.ULong, [DataType.UInt])
+		this.registerBuiltinFunc('ulong.loadUInt', DataType.ULong, [DataType.UInt])
+		this.registerBuiltinFunc('ulong.load', DataType.ULong, [DataType.UInt])
+		this.registerBuiltinFunc('ulong.storeByte', DataType.None, [DataType.UInt, DataType.ULong])
+		this.registerBuiltinFunc('ulong.storeUShort', DataType.None, [DataType.UInt, DataType.ULong])
+		this.registerBuiltinFunc('ulong.storeUInt', DataType.None, [DataType.UInt, DataType.ULong])
+		this.registerBuiltinFunc('ulong.store', DataType.None, [DataType.UInt, DataType.ULong])
+
+		this.registerBuiltinFunc('float.load', DataType.Float, [DataType.UInt])
+		this.registerBuiltinFunc('float.store', DataType.None, [DataType.UInt, DataType.Float])
+		this.registerBuiltinFunc('double.load', DataType.Double, [DataType.UInt])
+		this.registerBuiltinFunc('double.store', DataType.None, [DataType.UInt, DataType.Double])
+
+		this.registerBuiltinFunc('int.clz', DataType.Int, [DataType.Int])
+		this.registerBuiltinFunc('int.ctz', DataType.Int, [DataType.Int])
+		this.registerBuiltinFunc('int.popcnt', DataType.Int, [DataType.Int])
+		this.registerBuiltinFunc('int.eqz', DataType.Int, [DataType.Int])
+
+		this.registerBuiltinFunc('uint.clz', DataType.UInt, [DataType.UInt])
+		this.registerBuiltinFunc('uint.ctz', DataType.UInt, [DataType.UInt])
+		this.registerBuiltinFunc('uint.popcnt', DataType.UInt, [DataType.UInt])
+		this.registerBuiltinFunc('uint.eqz', DataType.UInt, [DataType.UInt])
+
+		this.registerBuiltinFunc('long.clz', DataType.Long, [DataType.Long])
+		this.registerBuiltinFunc('long.ctz', DataType.Long, [DataType.Long])
+		this.registerBuiltinFunc('long.popcnt', DataType.Long, [DataType.Long])
+		this.registerBuiltinFunc('long.eqz', DataType.Long, [DataType.Long])
+
+		this.registerBuiltinFunc('ulong.clz', DataType.ULong, [DataType.ULong])
+		this.registerBuiltinFunc('ulong.ctz', DataType.ULong, [DataType.ULong])
+		this.registerBuiltinFunc('ulong.popcnt', DataType.ULong, [DataType.ULong])
+		this.registerBuiltinFunc('ulong.eqz', DataType.ULong, [DataType.ULong])
+
+		this.registerBuiltinFunc('float.abs', DataType.Float, [DataType.Float])
+		this.registerBuiltinFunc('float.ceil', DataType.Float, [DataType.Float])
+		this.registerBuiltinFunc('float.floor', DataType.Float, [DataType.Float])
+		this.registerBuiltinFunc('float.truncate', DataType.Float, [DataType.Float])
+		this.registerBuiltinFunc('float.round', DataType.Float, [DataType.Float])
+		this.registerBuiltinFunc('float.sqrt', DataType.Float, [DataType.Float])
+		this.registerBuiltinFunc('float.copysign', DataType.Float, [DataType.Float, DataType.Float])
+		this.registerBuiltinFunc('float.min', DataType.Float, [DataType.Float, DataType.Float])
+		this.registerBuiltinFunc('float.max', DataType.Float, [DataType.Float, DataType.Float])
+
+		this.registerBuiltinFunc('double.abs', DataType.Double, [DataType.Double])
+		this.registerBuiltinFunc('double.ceil', DataType.Double, [DataType.Double])
+		this.registerBuiltinFunc('double.floor', DataType.Double, [DataType.Double])
+		this.registerBuiltinFunc('double.truncate', DataType.Double, [DataType.Double])
+		this.registerBuiltinFunc('double.round', DataType.Double, [DataType.Double])
+		this.registerBuiltinFunc('double.sqrt', DataType.Double, [DataType.Double])
+		this.registerBuiltinFunc('double.copysign', DataType.Double, [DataType.Double, DataType.Double])
+		this.registerBuiltinFunc('double.min', DataType.Double, [DataType.Double, DataType.Double])
+		this.registerBuiltinFunc('double.max', DataType.Double, [DataType.Double, DataType.Double])
 
 		this.registerScope(AstType.Program, (n, p) => new Scope(n, p, ""))
 		this.registerScope(AstType.Block, (n, p) => new Scope(n, p, ""))

@@ -2,19 +2,27 @@ import { Token, TokenType } from "./token"
 import { LogType, LogMsg, Logger } from "./log"
 import { AstType, AstNode } from "./ast"
 
-type PrefixFunc = (token: Token) => AstNode
-type InfixFunc = (left: AstNode, token: Token) => AstNode
+export type PrefixFunc = (token: Token) => AstNode
+export type InfixFunc = (left: AstNode, token: Token) => AstNode
 
-class Parser {
+export class Parser {
 	private prefixFuncMap: { [key: number]: PrefixFunc } = {}
 	private infixFuncMap: { [key: number]: InfixFunc } = {}
 	private prefixPrecedenceMap: { [key: number]: number } = {}
 	private infixPrecedenceMap: { [key: number]: number } = {}
+
 	private index: number = 0
+	private tokens: Token[]
 
-	constructor(protected logger: Logger, protected tokens: Token[]) { }
+	constructor(protected logger: Logger) { }
 
-	parse(precedence?: number): AstNode {
+	public parse(tokens: Token[]): AstNode {
+		this.index = 0
+		this.tokens = tokens
+		return this.parseNode(0)
+	}
+
+	protected parseNode(precedence?: number): AstNode {
 		if (!precedence) precedence = 0
 		let token: Token = this.consume()
 		let prefixFunc = this.prefixFuncMap[token.type]
@@ -70,7 +78,7 @@ class Parser {
 	}
 
 	protected registerPrefixOp(type: TokenType, precedence: number) {
-		this.registerPrefix(type, precedence, (token) => new AstNode(AstType.UnaryOp, token, [this.parse(precedence)]))
+		this.registerPrefix(type, precedence, (token) => new AstNode(AstType.UnaryOp, token, [this.parseNode(precedence)]))
 	}
 
 	protected registerInfix(type: TokenType, precedence: number, func: InfixFunc): void {
@@ -79,7 +87,7 @@ class Parser {
 	}
 
 	protected registerInfixOp(type: TokenType, precedence: number, rightAssociative: boolean) {
-		this.registerInfix(type, precedence, (left, token) => new AstNode(AstType.BinaryOp, token, [left, this.parse((rightAssociative) ? precedence - 1 : precedence)]))
+		this.registerInfix(type, precedence, (left, token) => new AstNode(AstType.BinaryOp, token, [left, this.parseNode((rightAssociative) ? precedence - 1 : precedence)]))
 	}
 
 	protected registerPostfixOp(type: TokenType, precedence: number): void {
@@ -88,8 +96,8 @@ class Parser {
 }
 
 export class WAScriptParser extends Parser {
-	constructor(logger: Logger, tokens: Token[]) {
-		super(logger, tokens)
+	constructor(logger: Logger) {
+		super(logger)
 		this.registerPrefix(TokenType.Name, 0, (t) => new AstNode(AstType.VariableId, t))
 		this.registerPrefix(TokenType.Int, 0, (t) => new AstNode(AstType.Literal, t))
 		this.registerPrefix(TokenType.UInt, 0, (t) => new AstNode(AstType.Literal, t))
@@ -100,7 +108,7 @@ export class WAScriptParser extends Parser {
 		this.registerPrefix(TokenType.Bool, 0, (t) => new AstNode(AstType.Literal, t))
 		this.registerPrefix(TokenType.Type, 2, (t) => {
 			if (this.peek() && this.peek().type == TokenType.Name) {
-				let r = this.parse(1)
+				let r = this.parseNode(1)
 				if (r.type == AstType.VariableId) {
 					return new AstNode(AstType.VariableDef, t, [r])
 				}
@@ -113,26 +121,26 @@ export class WAScriptParser extends Parser {
 			return new AstNode(AstType.Type, t)
 		})
 		this.registerPrefix(TokenType.Const, 1, (t) => {
-			let n = this.parse()
+			let n = this.parseNode()
 			return new AstNode(n.type, n.token, [...n.children, new AstNode(AstType.Const, t)])
 		})
 		this.registerPrefix(TokenType.Export, 1, (t) => {
-			let n = this.parse()
+			let n = this.parseNode()
 			return new AstNode(n.type, n.token, [...n.children, new AstNode(AstType.Export, t)])
 		})
 		this.registerPrefix(TokenType.Comment, 0, (t) => new AstNode(AstType.Comment, t))
 		this.registerPrefix(TokenType.InlineComment, 0, (t) => new AstNode(AstType.Comment, t))
-		this.registerPrefix(TokenType.If, 1, (t) => new AstNode(AstType.If, t, [this.parse()]))
+		this.registerPrefix(TokenType.If, 1, (t) => new AstNode(AstType.If, t, [this.parseNode()]))
 		this.registerPrefix(TokenType.Else, 1, (t) => new AstNode(AstType.Else, t))
-		this.registerPrefix(TokenType.ElseIf, 1, (t) => new AstNode(AstType.ElseIf, t, [this.parse()]))
-		this.registerPrefix(TokenType.While, 1, (t) => new AstNode(AstType.While, t, [this.parse()]))
+		this.registerPrefix(TokenType.ElseIf, 1, (t) => new AstNode(AstType.ElseIf, t, [this.parseNode()]))
+		this.registerPrefix(TokenType.While, 1, (t) => new AstNode(AstType.While, t, [this.parseNode()]))
 		this.registerPrefix(TokenType.Break, 1, (t) => new AstNode(AstType.Break, t))
 		this.registerPrefix(TokenType.Continue, 1, (t) => new AstNode(AstType.Continue, t))
 		this.registerPrefix(TokenType.Return, 1, (t) => {
 			if (this.peek() && this.peek().value == "\n") return new AstNode(AstType.ReturnVoid, t)
-			else return new AstNode(AstType.Return, t, [this.parse()])
+			else return new AstNode(AstType.Return, t, [this.parseNode()])
 		})
-		this.registerInfix(TokenType.Assign, 1, (l, t) => new AstNode(AstType.Assignment, t, [l, this.parse()]))
+		this.registerInfix(TokenType.Assign, 1, (l, t) => new AstNode(AstType.Assignment, t, [l, this.parseNode()]))
 		this.registerInfixOp(TokenType.And, 1, false)
 		this.registerInfixOp(TokenType.Or, 2, false)
 		this.registerInfixOp(TokenType.Eq, 3, false)
@@ -156,12 +164,12 @@ export class WAScriptParser extends Parser {
 		this.registerInfixOp(TokenType.As, 10, false)
 		this.registerInfixOp(TokenType.To, 10, false)
 		// Unary negation reinterprets prefix Sub as Neg to distinguish them in the AST
-		this.registerPrefix(TokenType.Sub, 11, (t) => new AstNode(AstType.UnaryOp, new Token(TokenType.Neg, t.value, t.row, t.column), [this.parse(10)]))
+		this.registerPrefix(TokenType.Sub, 11, (t) => new AstNode(AstType.UnaryOp, new Token(TokenType.Neg, t.value, t.row, t.column), [this.parseNode(10)]))
 		this.registerPrefixOp(TokenType.NOT, 11)
 		this.registerPrefixOp(TokenType.Not, 11)
 		// Grouping parentheses
 		this.registerPrefix(TokenType.LParen, 12, (t) => {
-			let n = this.parse()
+			let n = this.parseNode()
 			this.consumeMatch(TokenType.RParen)
 			return n
 		})
@@ -171,7 +179,7 @@ export class WAScriptParser extends Parser {
 			if (!this.match(TokenType.RParen)) {
 				do {
 					if (this.match(TokenType.Comma)) this.consume()
-					args.push(this.parse())
+					args.push(this.parseNode())
 				} while (this.match(TokenType.Comma))
 			}
 			this.consumeMatch(TokenType.RParen)
@@ -181,17 +189,17 @@ export class WAScriptParser extends Parser {
 			return new AstNode(AstType.FunctionCall, new Token(TokenType.None, '', t.row, t.column), [l, new AstNode(AstType.Arguments, t, args)])
 		})
 		// Scope access
-		this.registerInfix(TokenType.Period, 13, (l, t) => new AstNode(AstType.Access, t, [l, this.parse(12)]))
+		this.registerInfix(TokenType.Period, 13, (l, t) => new AstNode(AstType.Access, t, [l, this.parseNode(12)]))
 		// Statements
 		this.registerPrefix(TokenType.BOL, 14, (t) => {
-			let n = this.parse()
+			let n = this.parseNode()
 			this.consumeMatch(TokenType.EOL)
 			return n
 		})
 		// Blocks
 		this.registerInfix(TokenType.Indent, 15, (l, t) => {
 			let children: AstNode[] = []
-			while (!this.match(TokenType.Dedent)) children.push(this.parse())
+			while (!this.match(TokenType.Dedent)) children.push(this.parseNode())
 			this.consumeMatch(TokenType.Dedent)
 			let n = new AstNode(AstType.Block, t, children)
 			if (l.type == AstType.FunctionDef) {
@@ -204,7 +212,7 @@ export class WAScriptParser extends Parser {
 		this.registerPrefix(TokenType.BOF, 16, (t) => {
 			let children: AstNode[] = []
 			while (!this.match(TokenType.EOF)) {
-				let child = this.parse()
+				let child = this.parseNode()
 				if (child.type == AstType.Assignment) child.type = AstType.Global
 				else if (child.type == AstType.Const && child.children[0].type == AstType.Assignment) child.children[0].type = AstType.Global
 				children.push(child)

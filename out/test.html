@@ -5,7 +5,14 @@
 		function instantiate(bytes, imports) {
 			return WebAssembly.compile(bytes).then(m => new WebAssembly.Instance(m, imports))
 		}
-		fetch('test.wasm').then(res => res.arrayBuffer()).then(bytes => instantiate(bytes, {})).then(instance => console.log(instance.exports.add(2, 3)))
+		fetch('test.wasm').then(res => res.arrayBuffer()).then(bytes => instantiate(bytes, {})).then(instance => {
+			let arr = new Uint32Array(instance.exports.memory.buffer)
+			arr[0] = 7
+			console.log(instance.exports.inc())
+			console.log(instance.exports.inc())
+			console.log(instance.exports.inc())
+			console.log(instance.exports.add(2, 3))
+		})
 	</script>
 </head>
 
