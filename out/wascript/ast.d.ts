@@ -36,11 +36,11 @@ export declare class AstNode {
     type: AstType;
     token: Token;
     children: AstNode[];
-    parent: AstNode;
-    valid: boolean;
-    scope: Scope;
-    dataType: DataType;
-    generated: boolean;
-    constructor(type: AstType, token: Token, children?: AstNode[]);
+    parent: AstNode | null;
+    valid: boolean | null;
+    scope: Scope | null;
+    dataType: DataType | null;
+    generated: boolean | null;
+    constructor(type: AstType, token: Token, children: AstNode[]);
     toString(depth?: number): string;
 }

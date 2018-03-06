@@ -115,7 +115,7 @@ export class WAScriptValidator extends Validator {
 				}
 				p = p.parent
 			}
-			this.logError("Expected ancestor of " + AstType[type] + " node to be " + ancestorTypes.map(t => AstType[t]).join(" node or ") + " node but no suitable node found", n.parent)
+			this.logError("Expected ancestor of " + AstType[type] + " node to be " + ancestorTypes.map(t => AstType[t]).join(" node or ") + " node but no suitable node found", n.parent ? n.parent : n)
 			n.valid = false
 		})
 	}
@@ -182,6 +182,11 @@ export class WAScriptValidator extends Validator {
 
 	protected registerNextSiblingType(type: AstType, siblingTypes: AstType[]) {
 		this.register(type, (n) => {
+			if (!n.parent) {
+				this.logError("Expected next sibling of " + AstType[type] + " node to be " + siblingTypes.map(t => AstType[t]).join(" node or ") + " node but node has no parent", n)
+				n.valid = false
+				return
+			}
 			let index = n.parent.children.indexOf(n)
 			if (index == n.parent.children.length - 1) {
 				this.logError("Expected next sibling of " + AstType[type] + " node to be " + siblingTypes.map(t => AstType[t]).join(" node or ") + " node but node has no next sibling", n)
@@ -205,6 +210,11 @@ export class WAScriptValidator extends Validator {
 
 	protected registerPreviousSiblingType(type: AstType, siblingTypes: AstType[]) {
 		this.register(type, (n) => {
+			if (!n.parent) {
+				this.logError("Expected next sibling of " + AstType[type] + " node to be " + siblingTypes.map(t => AstType[t]).join(" node or ") + " node but node has no parent", n)
+				n.valid = false
+				return
+			}
 			let index = n.parent.children.indexOf(n)
 			if (index == 0) {
 				this.logError("Expected previous sibling of " + AstType[type] + " node to be " + siblingTypes.map(t => AstType[t]).join(" node or ") + " node but node has no previous sibling", n)

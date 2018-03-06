@@ -6,7 +6,7 @@ export declare type GenerateRule = (w: Writer, n: AstNode) => void;
 export declare class Generator {
     protected logger: Logger;
     private ruleMap;
-    protected ast: AstNode;
+    protected ast: AstNode | null;
     protected funcTypes: WASM.FunctionType[];
     protected funcTypeIndices: number[];
     protected funcTypeToTypeIndex: {
@@ -40,6 +40,6 @@ export declare class Generator {
 }
 export declare class WAScriptGenerator extends Generator {
     constructor(logger: Logger);
-    protected getIdentifier(node: AstNode): AstNode;
+    protected getIdentifier(node: AstNode): AstNode | null;
     private stripNum(str);
 }

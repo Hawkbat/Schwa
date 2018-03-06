@@ -9,7 +9,17 @@ export class Compiler {
     validator: Validator
     analyzer: Analyzer
     formatter: Formatter
-    generator: Generator
+	generator: Generator
+	
+	constructor() {
+		this.logger = new Logger()
+		this.lexer = new Lexer(this.logger)
+		this.parser = new Parser(this.logger)
+		this.validator = new Validator(this.logger)
+		this.analyzer = new Analyzer(this.logger)
+		this.formatter = new Formatter(this.logger)
+		this.generator = new Generator(this.logger)
+	}
 
     compile(filepath: string, lines: string[]) {
         let filename = path.basename(filepath, path.extname(filepath))
@@ -19,7 +29,7 @@ export class Compiler {
         let tokens = this.lexer.lex(lines)
         if (this.logger.count(LogType.Error)) return
         let ast = this.parser.parse(tokens)
-        if (this.logger.count(LogType.Error)) return
+        if (!ast || this.logger.count(LogType.Error)) return
         this.validator.validate(ast)
         if (this.logger.count(LogType.Error)) return
         this.analyzer.analyze(ast)

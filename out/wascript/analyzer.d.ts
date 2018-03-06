@@ -4,7 +4,7 @@ import { AstNode, AstType } from "./ast";
 import { DataType } from "./datatype";
 import { Scope } from "./scope";
 export declare type ScopeRule = (n: AstNode, p: Scope) => Scope;
-export declare type DataTypeRule = (n: AstNode) => DataType;
+export declare type DataTypeRule = (n: AstNode) => DataType | null;
 export declare type AnalyzeRule = (n: AstNode) => void;
 export declare class Analyzer {
     protected logger: Logger;
@@ -29,5 +29,5 @@ export declare class WAScriptAnalyzer extends Analyzer {
     constructor(logger: Logger);
     protected registerDataTypeUnaryOp(type: TokenType, typeSets: DataType[][]): void;
     protected registerDataTypeBinaryOp(type: TokenType, typeSets: DataType[][]): void;
-    protected getIdentifier(node: AstNode): AstNode;
+    protected getIdentifier(node: AstNode): AstNode | null;
 }

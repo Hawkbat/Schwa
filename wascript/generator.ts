@@ -13,7 +13,7 @@ export type GenerateRule = (w: Writer, n: AstNode) => void
 export class Generator {
 	private ruleMap: { [key: number]: GenerateRule } = {}
 
-	protected ast: AstNode
+	protected ast: AstNode | null = null
 	protected funcTypes: WASM.FunctionType[] = []
 	protected funcTypeIndices: number[] = []
 	protected funcTypeToTypeIndex: { [key: string]: number } = {}
@@ -30,7 +30,7 @@ export class Generator {
 
 	constructor(protected logger: Logger) { }
 
-	public generate(ast: AstNode, name?: string): ArrayBuffer {
+	public generate(ast: AstNode, name: string = ""): ArrayBuffer {
 		this.ast = ast
 		this.funcTypes = []
 		this.funcTypeIndices = []
@@ -64,9 +64,11 @@ export class Generator {
 	}
 
 	private getModule(name: string): WASM.Module {
-		for (let id in this.ast.scope.funcs) this.addFunction(this.ast.scope.funcs[id])
-		for (let id in this.ast.scope.vars) this.addGlobal(this.ast.scope.vars[id])
-		for (let id in this.ast.scope.funcs) this.addFunctionBody(this.ast.scope.funcs[id])
+		if (this.ast && this.ast.scope) {
+			for (let id in this.ast.scope.funcs) this.addFunction(this.ast.scope.funcs[id])
+			for (let id in this.ast.scope.vars) this.addGlobal(this.ast.scope.vars[id])
+			for (let id in this.ast.scope.funcs) this.addFunctionBody(this.ast.scope.funcs[id])
+		}
 
 		this.exports.push(new WASM.ExportEntry("memory", WASM.ExternalKind.Memory, 0))
 
@@ -94,13 +96,16 @@ export class Generator {
 
 	private addFunctionBody(func: Function): void {
 		let localNamings: WASM.Naming[] = []
+		if (!func.node) return
 
 		let params = []
 		for (let i = 0; i < func.params.length; i++) {
-			let paramVar = func.node.scope.getVariable(func.node.children[1].children[i].children[0].token.value)
-			params.push(this.toWasmType(func.params[i]))
-			localNamings.push(new WASM.Naming(i, paramVar.id))
-			this.varPathToIndex[paramVar.getPath()] = i
+			let paramVar = func.scope.getVariable(func.node.children[1].children[i].children[0].token.value)
+			if (paramVar) {
+				params.push(this.toWasmType(func.params[i]))
+				localNamings.push(new WASM.Naming(i, paramVar.id))
+				this.varPathToIndex[paramVar.getPath()] = i
+			}
 		}
 		let returns = []
 		if (func.type != DataType.None) returns.push(this.toWasmType(func.type))
@@ -134,12 +139,14 @@ export class Generator {
 	}
 
 	private addLocals(locals: WASM.LocalEntry[], localNamings: WASM.Naming[], node: AstNode, index: number): number {
-		if (node.type == AstType.VariableDef && node.parent.type != AstType.Parameters) {
+		if (node.parent && node.scope && node.type == AstType.VariableDef && node.parent.type != AstType.Parameters) {
 			let localVar = node.scope.getVariable(node.children[0].token.value)
-			let local = new WASM.LocalEntry(1, this.toWasmType(localVar.type))
-			localNamings.push(new WASM.Naming(index, localVar.id))
-			this.varPathToIndex[localVar.getPath()] = index++
-			locals.push(local)
+			if (localVar) {
+				let local = new WASM.LocalEntry(1, this.toWasmType(localVar.type))
+				localNamings.push(new WASM.Naming(index, localVar.id))
+				this.varPathToIndex[localVar.getPath()] = index++
+				locals.push(local)
+			}
 		}
 		for (let i = 0; i < node.children.length; i++) {
 			index = this.addLocals(locals, localNamings, node.children[i], index)
@@ -148,6 +155,7 @@ export class Generator {
 	}
 
 	private addGlobal(global: Variable): void {
+		if (!global || !global.node || !global.node.parent) return
 		let writer = new Writer()
 		this.varPathToIndex[global.getPath()] = this.globals.length
 		this.gen(writer, global.node.parent.children[1])
@@ -179,11 +187,12 @@ export class WAScriptGenerator extends Generator {
 		super(logger)
 
 		this.register(AstType.VariableId, (w, n) => {
-			let nvar = n.scope.getVariable(n.token.value)
-
-			if (nvar.node.parent.type == AstType.Global) w.uint8(WASM.OpCode.get_global)
-			else w.uint8(WASM.OpCode.get_local)
-			w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
+			let nvar = n.scope!.getVariable(n.token.value)
+			if (nvar) {
+				if (nvar!.node!.parent!.type == AstType.Global) w.uint8(WASM.OpCode.get_global)
+				else w.uint8(WASM.OpCode.get_local)
+				w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
+			}
 		})
 
 		this.register(AstType.Literal, (w, n) => {
@@ -430,7 +439,9 @@ export class WAScriptGenerator extends Generator {
 			for (let i = 0; i < n.children[1].children.length; i++) this.gen(w, n.children[1].children[i])
 
 			let id = this.getIdentifier(n.children[0])
+			if (!id || !id.scope) return
 			let func = id.scope.getFunction(id.token.value)
+			if (!func) return
 			let path = func.getPath()
 
 			if (path == "nop") w.uint8(WASM.OpCode.nop)
@@ -585,11 +596,13 @@ export class WAScriptGenerator extends Generator {
 			this.gen(w, n.children[1])
 
 			let id = this.getIdentifier(n.children[0])
+			if (!id || !id.scope) return
 			let nvar = id.scope.getVariable(id.token.value)
-
-			if (nvar.node.parent.type == AstType.Global) w.uint8(WASM.OpCode.set_global)
-			else w.uint8(WASM.OpCode.set_local)
-			w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
+			if (nvar) {
+				if (nvar!.node!.parent!.type == AstType.Global) w.uint8(WASM.OpCode.set_global)
+				else w.uint8(WASM.OpCode.set_local)
+				w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
+			}
 		})
 
 		this.register(AstType.If, (w, n) => {
@@ -598,8 +611,10 @@ export class WAScriptGenerator extends Generator {
 			w.uint8(WASM.LangType.void)
 			this.gen(w, n.children[1])
 
-			let sibling = n.parent.children[n.parent.children.indexOf(n) + 1]
-			if (!sibling || (sibling.type != AstType.Else && sibling.type != AstType.ElseIf)) w.uint8(WASM.OpCode.end)
+			if (n.parent) {
+				let sibling = n.parent.children[n.parent.children.indexOf(n) + 1]
+				if (!sibling || (sibling.type != AstType.Else && sibling.type != AstType.ElseIf)) w.uint8(WASM.OpCode.end)
+			}
 		})
 
 		this.register(AstType.Else, (w, n) => {
@@ -618,11 +633,13 @@ export class WAScriptGenerator extends Generator {
 			w.uint8(WASM.LangType.void)
 			this.gen(w, n.children[1])
 
-			let sibling = n.parent.children[n.parent.children.indexOf(n) + 1]
-			if (sibling && (sibling.type == AstType.Else || sibling.type == AstType.ElseIf)) {
-				this.gen(w, sibling)
-			} else {
-				w.uint8(WASM.OpCode.end)
+			if (n.parent) {
+				let sibling = n.parent.children[n.parent.children.indexOf(n) + 1]
+				if (sibling && (sibling.type == AstType.Else || sibling.type == AstType.ElseIf)) {
+					this.gen(w, sibling)
+				} else {
+					w.uint8(WASM.OpCode.end)
+				}
 			}
 
 			w.uint8(WASM.OpCode.end)
@@ -673,7 +690,7 @@ export class WAScriptGenerator extends Generator {
 		})
 	}
 
-	protected getIdentifier(node: AstNode): AstNode {
+	protected getIdentifier(node: AstNode): AstNode | null {
 		if (node.type == AstType.FunctionId || node.type == AstType.VariableId) return node
 		if (node.type == AstType.VariableDef) return this.getIdentifier(node.children[0])
 		if (node.type == AstType.Access) return this.getIdentifier(node.children[1])

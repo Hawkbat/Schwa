@@ -1,7 +1,7 @@
 import { Token, TokenType } from "./token"
 import { LogType, LogMsg, Logger } from "./log"
 
-export type LexerRule = (row: number, column: number) => Token | undefined
+export type LexerRule = (row: number, column: number) => Token | null
 
 export class Lexer {
 	private rules: LexerRule[] = []
@@ -29,7 +29,7 @@ export class Lexer {
 			this.push(new Token(TokenType.BOL, '', row, depth))
 
 			for (let col = 0; col < this.lines[row].length; col++) {
-				let token: Token
+				let token: Token | null = null
 				for (let rule of this.rules) {
 					token = rule(row, col)
 					if (token) break
@@ -85,6 +85,7 @@ export class Lexer {
 		this.register((r, c) => {
 			if (this.getLine(r, c, pattern.length) == pattern)
 				return new Token(type, pattern, r, c)
+			return null
 		})
 	}
 
@@ -93,6 +94,7 @@ export class Lexer {
 			let res = pattern.exec(this.getLine(r, c))
 			if (res && res.index == 0)
 				return new Token(type, res[0], r, c)
+			return null
 		})
 	}
 }

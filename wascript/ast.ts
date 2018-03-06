@@ -35,18 +35,14 @@ export enum AstType {
 }
 
 export class AstNode {
-	public parent: AstNode
-	public valid: boolean
-	public scope: Scope
-	public dataType: DataType
-	public generated: boolean
+	public parent: AstNode | null = null
+	public valid: boolean | null = null
+	public scope: Scope | null = null
+	public dataType: DataType | null = null
+	public generated: boolean | null = null
 
-	constructor(public type: AstType, public token: Token, public children?: AstNode[]) {
-		if (children) {
-			for (let child of children) child.parent = this
-		} else {
-			this.children = []
-		}
+	constructor(public type: AstType, public token: Token, public children: AstNode[]) {
+		for (let child of children) child.parent = this
 	}
 
 	toString(depth?: number): string {

@@ -1,6 +1,6 @@
 import { Lexer, Parser, Validator, Analyzer, Formatter, Generator, Logger, LogType } from "./wascript"
 import * as fs from "fs"
-import * as path from 'path'
+import * as path from "path"
 import { AstNode } from "./wascript/ast"
 
 function test() {
@@ -15,12 +15,14 @@ function test() {
 	let formatter = new Formatter(logger)
 	let generator = new Generator(logger)
 
-	let ast: AstNode
-	let prettyPrint: string
-	let wasmBuffer: ArrayBuffer
+	let ast: AstNode | null = null
+	let prettyPrint: string = ''
+	let wasmBuffer: ArrayBuffer | null = null
 	console.timeEnd("setup")
 
-	function compile() {
+	console.time("process")
+
+	;(() => {
 
 		// Converts raw text input into an array of tokens
 		console.time("lexer")
@@ -34,7 +36,7 @@ function test() {
 		ast = parser.parse(tokens)
 		console.timeEnd("parser")
 
-		if (logger.count(LogType.Error)) return
+		if (!ast || logger.count(LogType.Error)) return
 
 		// Analyzes a syntax tree for syntactic correctness
 		console.time("validator")
@@ -63,11 +65,7 @@ function test() {
 		console.timeEnd("generator")
 
 		if (logger.count(LogType.Error)) return
-	}
-
-	console.time("process")
-
-	compile()
+	})()
 
 	console.timeEnd("process")
 

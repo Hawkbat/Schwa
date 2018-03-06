@@ -13,7 +13,7 @@ function formatOrdinal(n: number): string {
 }
 
 export type ScopeRule = (n: AstNode, p: Scope) => Scope
-export type DataTypeRule = (n: AstNode) => DataType
+export type DataTypeRule = (n: AstNode) => DataType | null
 export type AnalyzeRule = (n: AstNode) => void
 
 export class Analyzer {
@@ -104,7 +104,8 @@ export class Analyzer {
 			if (!scope.scopes[parts[i]]) scope.scopes[parts[i]] = new Scope(null, scope, parts[i])
 			scope = scope.scopes[parts[i]]
 		}
-		scope.funcs[id] = new Function(null, scope, id, type, params)
+		if (id)
+			scope.funcs[id] = new Function(null, scope, id, type, params)
 	}
 
 	protected logError(msg: string, node: AstNode) {
@@ -220,7 +221,7 @@ export class WAScriptAnalyzer extends Analyzer {
 			return p
 		})
 		this.registerScope(AstType.Access, (n, p) => {
-			let scope = p
+			let scope: Scope | null = p
 			if (scope) scope = scope.getScope(n.children[0].token.value)
 			if (!scope) {
 				this.logError("No scope named " + JSON.stringify(n.children[0].token.value) + " exists in the current scope", n)
@@ -295,7 +296,7 @@ export class WAScriptAnalyzer extends Analyzer {
 			let ident = this.getIdentifier(n.children[0])
 			if (ident) {
 				let nvar = this.getScope(ident).getVariable(ident.token.value)
-				if (nvar.node.parent.parent.type == AstType.Const) {
+				if (nvar!.node!.parent!.parent!.type == AstType.Const) {
 					this.logError("Constant globals cannot be assigned to", n)
 					return DataType.Invalid
 				}
@@ -394,6 +395,10 @@ export class WAScriptAnalyzer extends Analyzer {
 
 		this.registerDataType(AstType.FunctionCall, (n) => {
 			let ident = this.getIdentifier(n.children[0])
+			if (!ident) {
+				this.logError("Invalid function identifier", n)
+				return DataType.Invalid
+			}
 			let func = this.getScope(ident).getFunction(ident.token.value)
 			if (!func) {
 				this.logError("No function named " + JSON.stringify(ident.token.value) + " exists in the current scope", n)
@@ -419,7 +424,7 @@ export class WAScriptAnalyzer extends Analyzer {
 			let t = this.getDataType(n.children[0])
 			let p = n.parent
 			while (p && p.type != AstType.FunctionDef) p = p.parent
-			if (t != DataType.fromString(p.token.value) || DataType.fromString(p.token.value) == DataType.None) {
+			if (p && (t != DataType.fromString(p.token.value) || DataType.fromString(p.token.value) == DataType.None)) {
 				this.logError("Type of return value (" + DataType[t] + ") does not match function " + p.children[0].token.value + "'s return type (" + DataType[DataType.fromString(p.token.value)] + ")", n.children[0])
 				return DataType.Invalid
 			}
@@ -429,7 +434,7 @@ export class WAScriptAnalyzer extends Analyzer {
 		this.registerDataType(AstType.ReturnVoid, (n) => {
 			let p = n.parent
 			while (p && p.type != AstType.FunctionDef) p = p.parent
-			if (DataType.fromString(p.token.value) != DataType.None) {
+			if (p && DataType.fromString(p.token.value) != DataType.None) {
 				this.logError("Type of return value (" + DataType[DataType.None] + ") does not match function " + p.children[0].token.value + "'s return type (" + DataType[DataType.fromString(p.token.value)] + ")", n.children[0])
 				return DataType.Invalid
 			}
@@ -463,7 +468,7 @@ export class WAScriptAnalyzer extends Analyzer {
 		})
 	}
 
-	protected getIdentifier(node: AstNode): AstNode {
+	protected getIdentifier(node: AstNode): AstNode | null {
 		if (node.type == AstType.FunctionId || node.type == AstType.VariableId) return node
 		if (node.type == AstType.Access) return this.getIdentifier(node.children[1])
 		return null

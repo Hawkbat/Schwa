@@ -1,6 +1,6 @@
 import { Token, TokenType } from "./token";
 import { Logger } from "./log";
-export declare type LexerRule = (row: number, column: number) => Token | undefined;
+export declare type LexerRule = (row: number, column: number) => Token | null;
 export declare class Lexer {
     protected logger: Logger;
     private rules;

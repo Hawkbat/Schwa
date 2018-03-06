@@ -7,5 +7,6 @@ export declare class Compiler {
     analyzer: Analyzer;
     formatter: Formatter;
     generator: Generator;
+    constructor();
     compile(filepath: string, lines: string[]): void;
 }
