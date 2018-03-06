@@ -2,8 +2,8 @@ import { Token, TokenType } from "./token"
 import { LogType, LogMsg, Logger } from "./log"
 import { AstType, AstNode } from "./ast"
 
-export type PrefixFunc = (token: Token) => AstNode | null
-export type InfixFunc = (left: AstNode | null, token: Token) => AstNode | null
+export type PrefixFunc = (token: Token) => AstNode
+export type InfixFunc = (left: AstNode | null, token: Token) => AstNode
 
 export class Parser {
 	private prefixFuncMap: { [key: number]: PrefixFunc } = {}
@@ -115,7 +115,21 @@ export class Parser {
 export class WAScriptParser extends Parser {
 	constructor(logger: Logger) {
 		super(logger)
-		this.registerPrefix(TokenType.Name, 0, (t) => new AstNode(AstType.VariableId, t, []))
+		this.registerPrefix(TokenType.Name, 0, (t) => {
+			let n = this.peek()
+			if (n && n.type == TokenType.Name) {
+				let r = this.parseNode(1)
+				if (r && r.type == AstType.VariableId) {
+					return new AstNode(AstType.VariableDef, t, [r])
+				}
+				else if (r && r.type == AstType.FunctionCall) {
+					let params = r.children[1]
+					params.type = AstType.Parameters
+					return new AstNode(AstType.FunctionDef, t, [r.children[0], params])
+				}
+			}
+			return new AstNode(AstType.VariableId, t, [])
+		})
 		this.registerPrefix(TokenType.Int, 0, (t) => new AstNode(AstType.Literal, t, []))
 		this.registerPrefix(TokenType.UInt, 0, (t) => new AstNode(AstType.Literal, t, []))
 		this.registerPrefix(TokenType.Long, 0, (t) => new AstNode(AstType.Literal, t, []))
@@ -127,28 +141,43 @@ export class WAScriptParser extends Parser {
 			let n = this.peek()
 			if (n && n.type == TokenType.Name) {
 				let r = this.parseNode(1)
-				if (r) {
-					if (r.type == AstType.VariableId) {
-						return new AstNode(AstType.VariableDef, t, [r])
-					}
-					else if (r.type == AstType.FunctionCall) {
-						let params = r.children[1]
-						params.type = AstType.Parameters
-						return new AstNode(AstType.FunctionDef, t, [r.children[0], params])
-					}
+				if (r && r.type == AstType.VariableId) {
+					return new AstNode(AstType.VariableDef, t, [r])
+				}
+				else if (r && r.type == AstType.FunctionCall) {
+					let params = r.children[1]
+					params.type = AstType.Parameters
+					return new AstNode(AstType.FunctionDef, t, [r.children[0], params])
 				}
 			}
 			return new AstNode(AstType.Type, t, [])
 		})
 		this.registerPrefix(TokenType.Const, 1, (t) => {
 			let n = this.parseNode()
-			if (!n) return null
+			if (!n) return new AstNode(AstType.Const, t, [])
 			return new AstNode(n.type, n.token, [...n.children, new AstNode(AstType.Const, t, [])])
 		})
 		this.registerPrefix(TokenType.Export, 1, (t) => {
 			let n = this.parseNode()
-			if (!n) return null
+			if (!n) return new AstNode(AstType.Export, t, [])
 			return new AstNode(n.type, n.token, [...n.children, new AstNode(AstType.Export, t, [])])
+		})
+		this.registerPrefix(TokenType.Struct, 1, (t) => {
+			let n = this.parseNode()
+			if (n && n.type == AstType.VariableId) n.type = AstType.StructId
+			return new AstNode(AstType.StructDef, t, n ? [n] : [])
+		})
+		this.registerPrefix(TokenType.Map, 2, (t) => {
+			let children = []
+			if (this.match(TokenType.Name) || this.match(TokenType.Type)) {
+				let n = this.parseNode()
+				if (n) children.push(n)
+			}
+			if (this.consumeMatch(TokenType.At)) {
+				let n = this.parseNode()
+				if (n) children.push(n)
+			}
+			return new AstNode(AstType.Map, t, children)
 		})
 		this.registerPrefix(TokenType.Comment, 0, (t) => new AstNode(AstType.Comment, t, []))
 		this.registerPrefix(TokenType.InlineComment, 0, (t) => new AstNode(AstType.Comment, t, []))
@@ -215,6 +244,7 @@ export class WAScriptParser extends Parser {
 		this.registerPrefix(TokenType.LParen, 12, (t) => {
 			let n = this.parseNode()
 			this.consumeMatch(TokenType.RParen)
+			if (!n) return new AstNode(AstType.Unknown, t, [])
 			return n
 		})
 		// Function calls
@@ -250,6 +280,7 @@ export class WAScriptParser extends Parser {
 		this.registerPrefix(TokenType.BOL, 14, (t) => {
 			let n = this.parseNode()
 			this.consumeMatch(TokenType.EOL)
+			if (!n) return new AstNode(AstType.Unknown, t, [])
 			return n
 		})
 		// Blocks
@@ -265,6 +296,8 @@ export class WAScriptParser extends Parser {
 				if (l.type == AstType.FunctionDef) {
 					l.children.splice(2, 0, n)
 					return new AstNode(l.type, l.token, l.children)
+				}else if (l.type == AstType.StructDef) {
+					n.type = AstType.Fields
 				}
 				return new AstNode(l.type, l.token, l.children.concat([n]))
 			}

@@ -1,8 +1,8 @@
 import { Token, TokenType } from "./token";
 import { Logger } from "./log";
 import { AstNode } from "./ast";
-export declare type PrefixFunc = (token: Token) => AstNode | null;
-export declare type InfixFunc = (left: AstNode | null, token: Token) => AstNode | null;
+export declare type PrefixFunc = (token: Token) => AstNode;
+export declare type InfixFunc = (left: AstNode | null, token: Token) => AstNode;
 export declare class Parser {
     protected logger: Logger;
     private prefixFuncMap;

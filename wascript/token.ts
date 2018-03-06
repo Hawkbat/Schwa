@@ -8,6 +8,10 @@ export enum TokenType {
 	Const,
 	Export,
 
+	Struct,
+	Map,
+	At,
+
 	Int,
 	UInt,
 	Long,

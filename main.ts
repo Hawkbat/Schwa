@@ -61,7 +61,7 @@ function test() {
 
 		// Generates WebAssembly bytecode from the syntax tree
 		console.time("generator")
-		wasmBuffer = generator.generate(ast, "test")
+		//wasmBuffer = generator.generate(ast, "test")
 		console.timeEnd("generator")
 
 		if (logger.count(LogType.Error)) return

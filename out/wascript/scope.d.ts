@@ -4,20 +4,36 @@ export declare class Variable {
     scope: Scope;
     id: string;
     type: string;
+    global: boolean;
+    const: boolean;
+    export: boolean;
     constructor(node: AstNode | null, scope: Scope, id: string, type: string);
     getPath(): string;
+    toString(): string;
 }
 export declare class Function {
     node: AstNode | null;
     scope: Scope;
     id: string;
     type: string;
-    params: string[];
-    constructor(node: AstNode | null, scope: Scope, id: string, type: string, params: string[]);
+    params: Variable[];
+    export: boolean;
+    constructor(node: AstNode | null, scope: Scope, id: string, type: string, params: Variable[]);
     getPath(): string;
+    toString(): string;
+}
+export declare class Struct {
+    node: AstNode | null;
+    scope: Scope;
+    id: string;
+    fields: Variable[];
+    export: boolean;
+    constructor(node: AstNode | null, scope: Scope, id: string, fields: Variable[]);
+    getPath(): string;
+    toString(): string;
 }
 export declare class Scope {
-    node: AstNode | null;
+    private node;
     parent: Scope | null;
     id: string;
     scopes: {
@@ -29,8 +45,13 @@ export declare class Scope {
     funcs: {
         [key: string]: Function;
     };
+    structs: {
+        [key: string]: Struct;
+    };
     constructor(node: AstNode | null, parent: Scope | null, id: string);
     getScope(id: string): Scope | null;
     getVariable(id: string): Variable | null;
     getFunction(id: string): Function | null;
+    getStruct(id: string): Struct | null;
+    toString(): string;
 }

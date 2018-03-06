@@ -2,7 +2,7 @@ import { LogType, LogMsg, Logger } from "./log"
 import { TokenType } from "./token"
 import { AstNode, AstType } from "./ast"
 import { DataType } from "./datatype"
-import { Scope, Function, Variable } from "./scope"
+import { Scope, Struct, Function, Variable } from "./scope"
 
 function formatOrdinal(n: number): string {
 	let str = n.toFixed()
@@ -29,6 +29,7 @@ export class Analyzer {
 		this.scopePass(ast)
 		this.typePass(ast)
 		this.analysisPass(ast)
+		console.log('' + this.rootScope)
 	}
 
 	protected scopePass(node: AstNode) {
@@ -81,6 +82,20 @@ export class Analyzer {
 		}
 	}
 
+	protected makeStructScope(scope: Scope, struct: Struct) {
+		for (let field of struct.fields) {
+			scope.vars[field.id] = new Variable(null, scope, field.id, field.type)
+			if (!DataType.isPrimitive(field.type)) {
+				let subStruct = scope.getStruct(field.type)
+				if (subStruct) {
+					let subScope = new Scope(null, scope, field.id)
+					scope.scopes[subScope.id] = subScope
+					this.makeStructScope(subScope, subStruct)
+				}
+			}
+		}
+	}
+
 	protected registerScope(type: AstType, rule: ScopeRule) {
 		if (!this.scopeRuleMap[type]) this.scopeRuleMap[type] = []
 		this.scopeRuleMap[type].push(rule)
@@ -96,13 +111,17 @@ export class Analyzer {
 		this.analysisRuleMap[type].push(rule)
 	}
 
-	protected registerBuiltinFunc(path: string, type: DataType, params: DataType[]) {
+	protected registerBuiltinFunc(path: string, type: DataType, paramTypes: DataType[], paramNames: string[]) {
 		let parts = path.split('.')
 		let id = parts.pop()
 		let scope = this.rootScope
 		for (let i = 0; i < parts.length; i++) {
 			if (!scope.scopes[parts[i]]) scope.scopes[parts[i]] = new Scope(null, scope, parts[i])
 			scope = scope.scopes[parts[i]]
+		}
+		let params = []
+		for (let i = 0; i < paramTypes.length; i ++) {
+			params.push(new Variable(null, scope, paramNames[i], paramTypes[i]))
 		}
 		if (id)
 			scope.funcs[id] = new Function(null, scope, id, type, params)
@@ -116,107 +135,147 @@ export class Analyzer {
 export class WAScriptAnalyzer extends Analyzer {
 	constructor(logger: Logger) {
 		super(logger)
-		this.registerBuiltinFunc('nop', DataType.None, [])
+		this.registerBuiltinFunc('nop', DataType.None, [], [])
 
-		this.registerBuiltinFunc('int.loadSByte', DataType.Int, [DataType.UInt])
-		this.registerBuiltinFunc('int.loadShort', DataType.Int, [DataType.UInt])
-		this.registerBuiltinFunc('int.load', DataType.Int, [DataType.UInt])
-		this.registerBuiltinFunc('int.storeSByte', DataType.None, [DataType.UInt, DataType.Int])
-		this.registerBuiltinFunc('int.storeShort', DataType.None, [DataType.UInt, DataType.Int])
-		this.registerBuiltinFunc('int.store', DataType.None, [DataType.UInt, DataType.Int])
+		this.registerBuiltinFunc('int.loadSByte', DataType.Int, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('int.loadShort', DataType.Int, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('int.load', DataType.Int, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('int.storeSByte', DataType.None, [DataType.UInt, DataType.Int], ["addr", "val"])
+		this.registerBuiltinFunc('int.storeShort', DataType.None, [DataType.UInt, DataType.Int], ["addr", "val"])
+		this.registerBuiltinFunc('int.store', DataType.None, [DataType.UInt, DataType.Int], ["addr", "val"])
 
-		this.registerBuiltinFunc('uint.loadByte', DataType.UInt, [DataType.UInt])
-		this.registerBuiltinFunc('uint.loadUShort', DataType.UInt, [DataType.UInt])
-		this.registerBuiltinFunc('uint.load', DataType.UInt, [DataType.UInt])
-		this.registerBuiltinFunc('uint.storeByte', DataType.None, [DataType.UInt, DataType.UInt])
-		this.registerBuiltinFunc('uint.storeUShort', DataType.None, [DataType.UInt, DataType.UInt])
-		this.registerBuiltinFunc('uint.store', DataType.None, [DataType.UInt, DataType.UInt])
+		this.registerBuiltinFunc('uint.loadByte', DataType.UInt, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('uint.loadUShort', DataType.UInt, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('uint.load', DataType.UInt, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('uint.storeByte', DataType.None, [DataType.UInt, DataType.UInt], ["addr", "val"])
+		this.registerBuiltinFunc('uint.storeUShort', DataType.None, [DataType.UInt, DataType.UInt], ["addr", "val"])
+		this.registerBuiltinFunc('uint.store', DataType.None, [DataType.UInt, DataType.UInt], ["addr", "val"])
 
-		this.registerBuiltinFunc('long.loadSByte', DataType.Long, [DataType.UInt])
-		this.registerBuiltinFunc('long.loadShort', DataType.Long, [DataType.UInt])
-		this.registerBuiltinFunc('long.loadInt', DataType.Long, [DataType.UInt])
-		this.registerBuiltinFunc('long.load', DataType.Long, [DataType.UInt])
-		this.registerBuiltinFunc('long.storeSByte', DataType.None, [DataType.UInt, DataType.Long])
-		this.registerBuiltinFunc('long.storeShort', DataType.None, [DataType.UInt, DataType.Long])
-		this.registerBuiltinFunc('long.storeInt', DataType.None, [DataType.UInt, DataType.Long])
-		this.registerBuiltinFunc('long.store', DataType.None, [DataType.UInt, DataType.Long])
+		this.registerBuiltinFunc('long.loadSByte', DataType.Long, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('long.loadShort', DataType.Long, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('long.loadInt', DataType.Long, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('long.load', DataType.Long, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('long.storeSByte', DataType.None, [DataType.UInt, DataType.Long], ["addr", "val"])
+		this.registerBuiltinFunc('long.storeShort', DataType.None, [DataType.UInt, DataType.Long], ["addr", "val"])
+		this.registerBuiltinFunc('long.storeInt', DataType.None, [DataType.UInt, DataType.Long], ["addr", "val"])
+		this.registerBuiltinFunc('long.store', DataType.None, [DataType.UInt, DataType.Long], ["addr", "val"])
 
-		this.registerBuiltinFunc('ulong.loadByte', DataType.ULong, [DataType.UInt])
-		this.registerBuiltinFunc('ulong.loadUShort', DataType.ULong, [DataType.UInt])
-		this.registerBuiltinFunc('ulong.loadUInt', DataType.ULong, [DataType.UInt])
-		this.registerBuiltinFunc('ulong.load', DataType.ULong, [DataType.UInt])
-		this.registerBuiltinFunc('ulong.storeByte', DataType.None, [DataType.UInt, DataType.ULong])
-		this.registerBuiltinFunc('ulong.storeUShort', DataType.None, [DataType.UInt, DataType.ULong])
-		this.registerBuiltinFunc('ulong.storeUInt', DataType.None, [DataType.UInt, DataType.ULong])
-		this.registerBuiltinFunc('ulong.store', DataType.None, [DataType.UInt, DataType.ULong])
+		this.registerBuiltinFunc('ulong.loadByte', DataType.ULong, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('ulong.loadUShort', DataType.ULong, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('ulong.loadUInt', DataType.ULong, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('ulong.load', DataType.ULong, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('ulong.storeByte', DataType.None, [DataType.UInt, DataType.ULong], ["addr", "val"])
+		this.registerBuiltinFunc('ulong.storeUShort', DataType.None, [DataType.UInt, DataType.ULong], ["addr", "val"])
+		this.registerBuiltinFunc('ulong.storeUInt', DataType.None, [DataType.UInt, DataType.ULong], ["addr", "val"])
+		this.registerBuiltinFunc('ulong.store', DataType.None, [DataType.UInt, DataType.ULong], ["addr", "val"])
 
-		this.registerBuiltinFunc('float.load', DataType.Float, [DataType.UInt])
-		this.registerBuiltinFunc('float.store', DataType.None, [DataType.UInt, DataType.Float])
-		this.registerBuiltinFunc('double.load', DataType.Double, [DataType.UInt])
-		this.registerBuiltinFunc('double.store', DataType.None, [DataType.UInt, DataType.Double])
+		this.registerBuiltinFunc('float.load', DataType.Float, [DataType.UInt], ["addr"])
+		this.registerBuiltinFunc('float.store', DataType.None, [DataType.UInt, DataType.Float], ["addr", "val"])
+		this.registerBuiltinFunc('double.load', DataType.Double, [DataType.UInt], ["addr", "val"])
+		this.registerBuiltinFunc('double.store', DataType.None, [DataType.UInt, DataType.Double], ["addr", "val"])
 
-		this.registerBuiltinFunc('int.clz', DataType.Int, [DataType.Int])
-		this.registerBuiltinFunc('int.ctz', DataType.Int, [DataType.Int])
-		this.registerBuiltinFunc('int.popcnt', DataType.Int, [DataType.Int])
-		this.registerBuiltinFunc('int.eqz', DataType.Int, [DataType.Int])
+		this.registerBuiltinFunc('int.clz', DataType.Int, [DataType.Int], ["n"])
+		this.registerBuiltinFunc('int.ctz', DataType.Int, [DataType.Int], ["n"])
+		this.registerBuiltinFunc('int.popcnt', DataType.Int, [DataType.Int], ["n"])
+		this.registerBuiltinFunc('int.eqz', DataType.Int, [DataType.Int], ["n"])
 
-		this.registerBuiltinFunc('uint.clz', DataType.UInt, [DataType.UInt])
-		this.registerBuiltinFunc('uint.ctz', DataType.UInt, [DataType.UInt])
-		this.registerBuiltinFunc('uint.popcnt', DataType.UInt, [DataType.UInt])
-		this.registerBuiltinFunc('uint.eqz', DataType.UInt, [DataType.UInt])
+		this.registerBuiltinFunc('uint.clz', DataType.UInt, [DataType.UInt], ["n"])
+		this.registerBuiltinFunc('uint.ctz', DataType.UInt, [DataType.UInt], ["n"])
+		this.registerBuiltinFunc('uint.popcnt', DataType.UInt, [DataType.UInt], ["n"])
+		this.registerBuiltinFunc('uint.eqz', DataType.UInt, [DataType.UInt], ["n"])
 
-		this.registerBuiltinFunc('long.clz', DataType.Long, [DataType.Long])
-		this.registerBuiltinFunc('long.ctz', DataType.Long, [DataType.Long])
-		this.registerBuiltinFunc('long.popcnt', DataType.Long, [DataType.Long])
-		this.registerBuiltinFunc('long.eqz', DataType.Long, [DataType.Long])
+		this.registerBuiltinFunc('long.clz', DataType.Long, [DataType.Long], ["n"])
+		this.registerBuiltinFunc('long.ctz', DataType.Long, [DataType.Long], ["n"])
+		this.registerBuiltinFunc('long.popcnt', DataType.Long, [DataType.Long], ["n"])
+		this.registerBuiltinFunc('long.eqz', DataType.Long, [DataType.Long], ["n"])
 
-		this.registerBuiltinFunc('ulong.clz', DataType.ULong, [DataType.ULong])
-		this.registerBuiltinFunc('ulong.ctz', DataType.ULong, [DataType.ULong])
-		this.registerBuiltinFunc('ulong.popcnt', DataType.ULong, [DataType.ULong])
-		this.registerBuiltinFunc('ulong.eqz', DataType.ULong, [DataType.ULong])
+		this.registerBuiltinFunc('ulong.clz', DataType.ULong, [DataType.ULong], ["n"])
+		this.registerBuiltinFunc('ulong.ctz', DataType.ULong, [DataType.ULong], ["n"])
+		this.registerBuiltinFunc('ulong.popcnt', DataType.ULong, [DataType.ULong], ["n"])
+		this.registerBuiltinFunc('ulong.eqz', DataType.ULong, [DataType.ULong], ["n"])
 
-		this.registerBuiltinFunc('float.abs', DataType.Float, [DataType.Float])
-		this.registerBuiltinFunc('float.ceil', DataType.Float, [DataType.Float])
-		this.registerBuiltinFunc('float.floor', DataType.Float, [DataType.Float])
-		this.registerBuiltinFunc('float.truncate', DataType.Float, [DataType.Float])
-		this.registerBuiltinFunc('float.round', DataType.Float, [DataType.Float])
-		this.registerBuiltinFunc('float.sqrt', DataType.Float, [DataType.Float])
-		this.registerBuiltinFunc('float.copysign', DataType.Float, [DataType.Float, DataType.Float])
-		this.registerBuiltinFunc('float.min', DataType.Float, [DataType.Float, DataType.Float])
-		this.registerBuiltinFunc('float.max', DataType.Float, [DataType.Float, DataType.Float])
+		this.registerBuiltinFunc('float.abs', DataType.Float, [DataType.Float], ["n"])
+		this.registerBuiltinFunc('float.ceil', DataType.Float, [DataType.Float], ["n"])
+		this.registerBuiltinFunc('float.floor', DataType.Float, [DataType.Float], ["n"])
+		this.registerBuiltinFunc('float.truncate', DataType.Float, [DataType.Float], ["n"])
+		this.registerBuiltinFunc('float.round', DataType.Float, [DataType.Float], ["n"])
+		this.registerBuiltinFunc('float.sqrt', DataType.Float, [DataType.Float], ["n"])
+		this.registerBuiltinFunc('float.copysign', DataType.Float, [DataType.Float, DataType.Float], ["a", "b"])
+		this.registerBuiltinFunc('float.min', DataType.Float, [DataType.Float, DataType.Float], ["a", "b"])
+		this.registerBuiltinFunc('float.max', DataType.Float, [DataType.Float, DataType.Float], ["a", "b"])
 
-		this.registerBuiltinFunc('double.abs', DataType.Double, [DataType.Double])
-		this.registerBuiltinFunc('double.ceil', DataType.Double, [DataType.Double])
-		this.registerBuiltinFunc('double.floor', DataType.Double, [DataType.Double])
-		this.registerBuiltinFunc('double.truncate', DataType.Double, [DataType.Double])
-		this.registerBuiltinFunc('double.round', DataType.Double, [DataType.Double])
-		this.registerBuiltinFunc('double.sqrt', DataType.Double, [DataType.Double])
-		this.registerBuiltinFunc('double.copysign', DataType.Double, [DataType.Double, DataType.Double])
-		this.registerBuiltinFunc('double.min', DataType.Double, [DataType.Double, DataType.Double])
-		this.registerBuiltinFunc('double.max', DataType.Double, [DataType.Double, DataType.Double])
+		this.registerBuiltinFunc('double.abs', DataType.Double, [DataType.Double], ["n"])
+		this.registerBuiltinFunc('double.ceil', DataType.Double, [DataType.Double], ["n"])
+		this.registerBuiltinFunc('double.floor', DataType.Double, [DataType.Double], ["n"])
+		this.registerBuiltinFunc('double.truncate', DataType.Double, [DataType.Double], ["n"])
+		this.registerBuiltinFunc('double.round', DataType.Double, [DataType.Double], ["n"])
+		this.registerBuiltinFunc('double.sqrt', DataType.Double, [DataType.Double], ["n"])
+		this.registerBuiltinFunc('double.copysign', DataType.Double, [DataType.Double, DataType.Double], ["a", "b"])
+		this.registerBuiltinFunc('double.min', DataType.Double, [DataType.Double, DataType.Double], ["a", "b"])
+		this.registerBuiltinFunc('double.max', DataType.Double, [DataType.Double, DataType.Double], ["a", "b"])
 
-		this.registerScope(AstType.Program, (n, p) => new Scope(n, p, ""))
-		this.registerScope(AstType.Block, (n, p) => new Scope(n, p, ""))
+		this.registerScope(AstType.Program, (n, p) => {
+			let scope = new Scope(n, p, '')
+			p.scopes[scope.id] = scope
+			return scope
+		})
+		this.registerScope(AstType.Block, (n, p) => {
+			let scope = new Scope(n, p, '')
+			p.scopes[scope.id] = scope
+			return scope
+		})
+		this.registerScope(AstType.StructDef, (n, p) => {
+			let scope = new Scope(n, p, n.children[0].token.value)
+			let fields: Variable[] = []
+			let fieldNodes = n.children[1].children
+			for (let i = 0; i < fieldNodes.length; i++) {
+				if (fieldNodes[i].type != AstType.VariableDef) continue
+				fields.push(new Variable(n, scope, fieldNodes[i].children[0].token.value, fieldNodes[i].token.value))
+			}
+			let struct = new Struct(n, scope, n.children[0].token.value, fields)
+			if (p.structs[struct.id]) {
+				this.logError("A struct with the name " + JSON.stringify(struct.id) + " already exists in the current scope", n)
+			}else{
+				p.structs[struct.id] = struct
+				p.scopes[scope.id] = scope
+			}
+			return scope
+		})
 		this.registerScope(AstType.FunctionDef, (n, p) => {
 			let scope = new Scope(n, p, n.children[0].token.value)
-			let params: string[] = []
-			for (let i = 0; i < n.children[1].children.length; i++) {
-				params.push(n.children[1].children[i].token.value)
+			let params: Variable[] = []
+			let paramNodes = n.children[1].children
+			for (let i = 0; i < paramNodes.length; i++) {
+				params.push(new Variable(n, scope, paramNodes[i].children[0].token.value, paramNodes[i].token.value))
 			}
 			let func = new Function(n, scope, n.children[0].token.value, n.token.value, params)
 			if (p.funcs[func.id]) {
 				this.logError("A function with the name " + JSON.stringify(func.id) + " already exists in the current scope", n)
 			} else {
 				p.funcs[func.id] = func
+				p.scopes[scope.id] = scope
 			}
 			return scope
 		})
 		this.registerScope(AstType.VariableDef, (n, p) => {
 			let nvar = new Variable(n, p, n.children[0].token.value, n.token.value)
-			if (p.funcs[nvar.id]) {
+			if (p.vars[nvar.id]) {
 				this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already exists in the current scope", n)
 			} else {
 				p.vars[nvar.id] = nvar
+
+				if (!DataType.isPrimitive(nvar.type)) {
+					let subStruct = p.getStruct(nvar.type)
+					if (subStruct) {
+						let subScope = new Scope(null, p, nvar.id)
+						p.scopes[subScope.id] = subScope
+						this.makeStructScope(subScope, subStruct)
+					}
+				}
+				
+				let pn = n.parent
+				while (pn && pn.type != AstType.Global) pn = pn.parent
+				if (pn && pn.type == AstType.Global) nvar.global = true
 			}
 			return p
 		})
@@ -228,6 +287,28 @@ export class WAScriptAnalyzer extends Analyzer {
 				return p
 			}
 			return scope
+		})
+		this.registerScope(AstType.Const, (n, p) => {
+			let node = n.parent
+			while (node && node.children) node = node.children[0]
+			if (node) {
+				let nvar = p.getVariable(node.token.value)
+				if (nvar) nvar.const = true
+			}
+			return p
+		})
+		this.registerScope(AstType.Export, (n, p) => {
+			let node = n.parent
+			while (node && node.children) node = node.children[0]
+			if (node) {
+				let nvar = p.getVariable(node.token.value)
+				if (nvar) nvar.export = true
+				let func = p.getFunction(node.token.value)
+				if (func) func.export = true
+				let struct = p.getStruct(node.token.value)
+				if (struct) struct.export = true
+			}
+			return p
 		})
 
 		this.registerDataType(AstType.VariableId, (n) => {
@@ -246,9 +327,18 @@ export class WAScriptAnalyzer extends Analyzer {
 			}
 			return DataType.Invalid
 		})
+		this.registerDataType(AstType.StructId, (n) => {
+			if (this.getScope(n)) {
+				let struct = this.getScope(n).getStruct(n.token.value)
+				if (struct) return struct.id
+				else this.logError("No struct named " + JSON.stringify(n.token.value) + " exists in the current scope", n)
+			}
+			return DataType.Invalid
+		})
 		this.registerDataType(AstType.Type, (n) => DataType.Type)
 		this.registerDataType(AstType.VariableDef, (n) => n.token.value)
 		this.registerDataType(AstType.FunctionDef, (n) => n.token.value)
+		this.registerDataType(AstType.StructDef, (n) => n.children[0].token.value)
 		this.registerDataType(AstType.Literal, (n) => DataType.fromTokenType(n.token.type))
 
 		let intTypeSet = [DataType.Int, DataType.Int, DataType.Int]
@@ -296,7 +386,7 @@ export class WAScriptAnalyzer extends Analyzer {
 			let ident = this.getIdentifier(n.children[0])
 			if (ident) {
 				let nvar = this.getScope(ident).getVariable(ident.token.value)
-				if (nvar!.node!.parent!.parent!.type == AstType.Const) {
+				if (nvar && nvar.const) {
 					this.logError("Constant globals cannot be assigned to", n)
 					return DataType.Invalid
 				}
@@ -411,8 +501,8 @@ export class WAScriptAnalyzer extends Analyzer {
 			let valid = true
 			for (let i = 0; i < func.params.length; i++) {
 				let type = this.getDataType(n.children[1].children[i])
-				if (type != func.params[i]) {
-					this.logError("The " + formatOrdinal(i + 1) + " parameter of function " + JSON.stringify(func.id) + " is type " + func.params[i] + ", not " + type, n.children[1].children[i])
+				if (type != func.params[i].type) {
+					this.logError("The " + formatOrdinal(i + 1) + " parameter (" + JSON.stringify(func.params[i].id) + ") of function " + JSON.stringify(func.id) + " is type " + func.params[i].type + ", not " + type, n.children[1].children[i])
 					valid = false
 				}
 			}

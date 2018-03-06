@@ -24,4 +24,8 @@ export namespace DataType {
 		if (type == TokenType.Bool) return DataType.Bool
 		return DataType.Invalid
 	}
+
+	export function isPrimitive(type: string): boolean {
+		return DataType.hasOwnProperty(type)
+	}
 }

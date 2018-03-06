@@ -149,6 +149,9 @@ export class WAScriptLexer extends Lexer {
 		this.registerRegex(TokenType.Type, /\b(?:void|int|uint|long|ulong|float|double|bool)\b/)
 		this.registerRegex(TokenType.Const, /\bconst\b/)
 		this.registerRegex(TokenType.Export, /\bexport\b/)
+		this.registerRegex(TokenType.Struct, /\bstruct\b/)
+		this.registerRegex(TokenType.Map, /\bmap\b/)
+		this.registerRegex(TokenType.At, /\bat\b/)
 
 		this.registerRegex(TokenType.Name, /\b[^\d\W]\w*\b/)
 		this.registerRegex(TokenType.Float, /(?:-|\b)\d+\.?\d*[fF]\b/)

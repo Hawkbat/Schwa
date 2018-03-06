@@ -13,4 +13,5 @@ export declare enum DataType {
 }
 export declare namespace DataType {
     function fromTokenType(type: TokenType): DataType;
+    function isPrimitive(type: string): boolean;
 }
