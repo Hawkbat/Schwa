@@ -13,7 +13,7 @@ function formatOrdinal(n: number): string {
 }
 
 export type ScopeRule = (n: AstNode, p: Scope) => Scope
-export type DataTypeRule = (n: AstNode) => DataType | null
+export type DataTypeRule = (n: AstNode) => string | null
 export type AnalyzeRule = (n: AstNode) => void
 
 export class Analyzer {
@@ -58,7 +58,7 @@ export class Analyzer {
 		}
 	}
 
-	protected getDataType(node: AstNode): DataType {
+	protected getDataType(node: AstNode): string {
 		if (!node.valid) node.dataType = DataType.Invalid
 		if (node.dataType) return node.dataType
 
@@ -199,11 +199,11 @@ export class WAScriptAnalyzer extends Analyzer {
 		this.registerScope(AstType.Block, (n, p) => new Scope(n, p, ""))
 		this.registerScope(AstType.FunctionDef, (n, p) => {
 			let scope = new Scope(n, p, n.children[0].token.value)
-			let params: DataType[] = []
+			let params: string[] = []
 			for (let i = 0; i < n.children[1].children.length; i++) {
-				params.push(DataType.fromString(n.children[1].children[i].token.value))
+				params.push(n.children[1].children[i].token.value)
 			}
-			let func = new Function(n, scope, n.children[0].token.value, DataType.fromString(n.token.value), params)
+			let func = new Function(n, scope, n.children[0].token.value, n.token.value, params)
 			if (p.funcs[func.id]) {
 				this.logError("A function with the name " + JSON.stringify(func.id) + " already exists in the current scope", n)
 			} else {
@@ -212,7 +212,7 @@ export class WAScriptAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.VariableDef, (n, p) => {
-			let nvar = new Variable(n, p, n.children[0].token.value, DataType.fromString(n.token.value))
+			let nvar = new Variable(n, p, n.children[0].token.value, n.token.value)
 			if (p.funcs[nvar.id]) {
 				this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already exists in the current scope", n)
 			} else {
@@ -247,8 +247,8 @@ export class WAScriptAnalyzer extends Analyzer {
 			return DataType.Invalid
 		})
 		this.registerDataType(AstType.Type, (n) => DataType.Type)
-		this.registerDataType(AstType.VariableDef, (n) => DataType.fromString(n.token.value))
-		this.registerDataType(AstType.FunctionDef, (n) => DataType.fromString(n.token.value))
+		this.registerDataType(AstType.VariableDef, (n) => n.token.value)
+		this.registerDataType(AstType.FunctionDef, (n) => n.token.value)
 		this.registerDataType(AstType.Literal, (n) => DataType.fromTokenType(n.token.type))
 
 		let intTypeSet = [DataType.Int, DataType.Int, DataType.Int]
@@ -334,7 +334,7 @@ export class WAScriptAnalyzer extends Analyzer {
 		this.registerDataType(AstType.BinaryOp, (n) => {
 			if (n.dataType || n.token.type != TokenType.As) return n.dataType
 			let t0 = this.getDataType(n.children[0])
-			let t1 = (n.children[1].type == AstType.Type) ? DataType.fromString(n.children[1].token.value) : DataType.Invalid
+			let t1 = (n.children[1].type == AstType.Type) ? n.children[1].token.value : DataType.Invalid
 			if (t1 == DataType.Bool) t1 = DataType.Invalid
 
 			if (t0 == DataType.Int && t1 == DataType.UInt) return DataType.UInt
@@ -358,7 +358,7 @@ export class WAScriptAnalyzer extends Analyzer {
 		this.registerDataType(AstType.BinaryOp, (n) => {
 			if (n.dataType || n.token.type != TokenType.To) return n.dataType
 			let t0 = this.getDataType(n.children[0])
-			let t1 = (n.children[1].type == AstType.Type) ? DataType.fromString(n.children[1].token.value) : DataType.Invalid
+			let t1 = (n.children[1].type == AstType.Type) ? n.children[1].token.value : DataType.Invalid
 			if (t1 == DataType.Bool) t1 = DataType.Invalid
 
 			if (t0 == DataType.Int && t1 == DataType.Long) return DataType.Long
@@ -412,7 +412,7 @@ export class WAScriptAnalyzer extends Analyzer {
 			for (let i = 0; i < func.params.length; i++) {
 				let type = this.getDataType(n.children[1].children[i])
 				if (type != func.params[i]) {
-					this.logError("The " + formatOrdinal(i + 1) + " parameter of function " + JSON.stringify(func.id) + " is type " + DataType[func.params[i]] + ", not " + DataType[type], n.children[1].children[i])
+					this.logError("The " + formatOrdinal(i + 1) + " parameter of function " + JSON.stringify(func.id) + " is type " + func.params[i] + ", not " + type, n.children[1].children[i])
 					valid = false
 				}
 			}
@@ -424,8 +424,8 @@ export class WAScriptAnalyzer extends Analyzer {
 			let t = this.getDataType(n.children[0])
 			let p = n.parent
 			while (p && p.type != AstType.FunctionDef) p = p.parent
-			if (p && (t != DataType.fromString(p.token.value) || DataType.fromString(p.token.value) == DataType.None)) {
-				this.logError("Type of return value (" + DataType[t] + ") does not match function " + p.children[0].token.value + "'s return type (" + DataType[DataType.fromString(p.token.value)] + ")", n.children[0])
+			if (p && (t != p.token.value || p.token.value == DataType.None)) {
+				this.logError("Type of return value (" + t + ") does not match function " + p.children[0].token.value + "'s return type (" + p.token.value + ")", n.children[0])
 				return DataType.Invalid
 			}
 			return t
@@ -434,8 +434,8 @@ export class WAScriptAnalyzer extends Analyzer {
 		this.registerDataType(AstType.ReturnVoid, (n) => {
 			let p = n.parent
 			while (p && p.type != AstType.FunctionDef) p = p.parent
-			if (p && DataType.fromString(p.token.value) != DataType.None) {
-				this.logError("Type of return value (" + DataType[DataType.None] + ") does not match function " + p.children[0].token.value + "'s return type (" + DataType[DataType.fromString(p.token.value)] + ")", n.children[0])
+			if (p && p.token.value != DataType.None) {
+				this.logError("Type of return value (" + DataType.None + ") does not match function " + p.children[0].token.value + "'s return type (" + p.token.value + ")", n.children[0])
 				return DataType.Invalid
 			}
 			return DataType.None

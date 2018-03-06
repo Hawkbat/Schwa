@@ -169,12 +169,12 @@ export class Generator {
 		this.globals.push(new WASM.GlobalEntry(new WASM.GlobalType(this.toWasmType(global.type), mutability), new WASM.InitializerExpression(writer.toTypedArray())))
 	}
 
-	private toWasmType(type: DataType): WASM.LangType {
+	private toWasmType(type: string): WASM.LangType {
 		if (type == DataType.Int || type == DataType.UInt || type == DataType.Bool) return WASM.LangType.i32
 		if (type == DataType.Long || type == DataType.ULong) return WASM.LangType.i64
 		if (type == DataType.Float) return WASM.LangType.f32
 		if (type == DataType.Double) return WASM.LangType.f64
-		throw new Error("Invalid DataType to convert to WASM LangType: " + DataType[type])
+		throw new Error("Invalid DataType to convert to WASM LangType: " + type)
 	}
 
 	protected logError(msg: string, node: AstNode) {
@@ -273,7 +273,7 @@ export class WAScriptGenerator extends Generator {
 
 			if (n.token.type == TokenType.As) {
 				let t0 = n.children[0].dataType
-				let t1 = DataType.fromString(n.children[1].token.value)
+				let t1 = n.children[1].token.value
 
 				this.gen(w, n.children[0])
 
@@ -291,7 +291,7 @@ export class WAScriptGenerator extends Generator {
 				else if (t0 == DataType.Double && t1 == DataType.ULong) w.uint8(WASM.OpCode.i64_reinterpret_f64)
 			} else if (n.token.type == TokenType.To) {
 				let t0 = n.children[0].dataType
-				let t1 = DataType.fromString(n.children[1].token.value)
+				let t1 = n.children[1].token.value
 
 				this.gen(w, n.children[0])
 

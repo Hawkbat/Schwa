@@ -38,7 +38,7 @@ export class AstNode {
 	public parent: AstNode | null = null
 	public valid: boolean | null = null
 	public scope: Scope | null = null
-	public dataType: DataType | null = null
+	public dataType: string | null = null
 	public generated: boolean | null = null
 
 	constructor(public type: AstType, public token: Token, public children: AstNode[]) {
@@ -51,7 +51,7 @@ export class AstNode {
 		out += AstType[this.type] + " (" + TokenType[this.token.type]
 		if (this.token.value) out += " " + JSON.stringify(this.token.value)
 		out += ")"
-		if (this.dataType) out += ": " + DataType[this.dataType]
+		if (this.dataType) out += ": " + this.dataType
 		out += "\n"
 		for (let child of this.children) out += child.toString(depth + 1)
 		return out

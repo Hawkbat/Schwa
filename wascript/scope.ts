@@ -1,8 +1,7 @@
-import { DataType } from "./datatype"
 import { AstNode } from "./ast"
 
 export class Variable {
-	constructor(public node: AstNode | null, public scope: Scope, public id: string, public type: DataType) { }
+	constructor(public node: AstNode | null, public scope: Scope, public id: string, public type: string) { }
 
 	getPath(): string {
 		let path = this.id
@@ -16,7 +15,7 @@ export class Variable {
 }
 
 export class Function {
-	constructor(public node: AstNode | null, public scope: Scope, public id: string, public type: DataType, public params: DataType[]) { }
+	constructor(public node: AstNode | null, public scope: Scope, public id: string, public type: string, public params: string[]) { }
 
 	getPath(): string {
 		let path = this.id

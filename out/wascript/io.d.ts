@@ -24,7 +24,7 @@ export declare class Reader {
     uint32(): number;
     varuintN(): number;
     varintN(): number;
-    bytes(len: number): any[];
+    bytes(len: number): number[];
 }
 export interface Readable {
     read(r: Reader): void;

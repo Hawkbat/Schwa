@@ -1,5 +1,4 @@
 import { Token } from "./token";
-import { DataType } from "./datatype";
 import { Scope } from "./scope";
 export declare enum AstType {
     None = 0,
@@ -39,7 +38,7 @@ export declare class AstNode {
     parent: AstNode | null;
     valid: boolean | null;
     scope: Scope | null;
-    dataType: DataType | null;
+    dataType: string | null;
     generated: boolean | null;
     constructor(type: AstType, token: Token, children: AstNode[]);
     toString(depth?: number): string;
