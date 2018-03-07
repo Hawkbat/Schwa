@@ -1,9 +1,15 @@
 TODO
 
-Validate number literals to ensure they fit within the valid range; this should probably be in the analyzer
 Add binary, hex, and octal literal support
+Validate number literals to ensure they fit within the valid range; this should probably be in the analyzer
 
 Figure out short-circuiting for boolean operations-- super important!
+
+Turn main.js into a command-line utility - the refactor is part-way there; see Compiler class
+
+For optimization purposes, a switch/branch-table construct would be helpful
+
+We should also create a VSCode language server that provides realtime analysis and validation. Take a look at textdiff-create on NPM for generating diffs to apply formatting
 
 Exports and imports
     Imports require definition of type signatures
@@ -13,37 +19,20 @@ Exports and imports
     Aliasing should also be possible: (import bar as bar), (from bar import void Foo() as Foobar), (export Foo as Bar)
 
 Pointers/Memory access
-    I'd prefer something more structured and less dangerous than pure pointers
-    Maybe have syntax for statically "mapping" the memory space with structs and fixed-length arrays
-    Mapping syntax would be a good place to set up the Data section stuff, too
-
-Structs
-    For locals/globals, allocate suffixed properties (e.g. v: { x, y } becomes "v.x", "v.y") and use scope trickery
-    For in-memory use, use static offsets from the struct pointer
+    There are load/store functions included in the type namespaces (i.e. int.load()) but the preferred form of memory access is mapping
+	Mapping a struct to an address creates a psuedo-global variable which instead of being backed by actual global variable(s) is instead converted into load/store operations relative to the specified mapping offset
+	In the future if we have struct initialization, those values should be filled at instantiation time via the WASM Data section
 
 Arrays
-    Same as structs; always fixed-size, let user code keep a dynamic length separately if desired
+	Arrays still need to be added
+    They should be similar to structs; always fixed-size, let user code keep a dynamic length separately if desired
 
-LEB is failing on small negative signed numbers due to lack of Long support; HIGH PRIORITY!
-
-If structs are memory-mapped only, we could have byte and short types there!
-Given alignment concerns it might still be better to just use whole ints and bit masking, though
-Alignment can't be smaller than 4 if there are no datatypes to offset it less than 4
-Alternatively, allow smaller sizes but increment the underyling offset by the minimum alignment anyway
-
-We can actually include byte and short types, if we use i32 as backing and truncate when needed 
-This would of course be more expensive than just using ints
-
-Structs as memory-mapped constructs, beginning at a certain offset in memory
-Include byte/sbyte/short/ushort as valid primitives in structs and arrays
-Structs may include any primitives, structs, or fixed-length arrays of primitive or struct values
-Warnings if the struct properties are not access-aligned (shorts every 2 bytes, ints every 4 bytes, etc.)
-Structs that are aligned on their own may become misaligned when used as part of and array or other struct
-
-Turn main.js into a command-line utility
-
-To make structs work, we need to switch from the hard-coded DataType enum to looking up Type objects in the current scope
-
-For optimization purposes, a switch/branch-table construct would be helpful
-
-We should also create a VSCode language server that provides realtime analysis and validation. Take a look at textdiff-create on NPM for generating diffs to apply formatting
+Structs
+	For locals/globals, they are allocated as suffixed properties (e.g. v: { x, y } becomes "v.x", "v.y") and use scope trickery to control access
+    For memory-mapped use, they generate loads/stores which use static offsets from the struct's mapped address
+	We can potentially include byte and short types in the future, if we use i32 as backing and truncate when needed when performing operations
+	This would of course be more expensive than just using plain ints
+	For now, the load/store functions provide support for 8-bit and 16-bit numbers
+	Structs may include any primitives, structs, or fixed-length arrays of primitive or struct values
+	Warnings should be added if the struct properties are not access-aligned (shorts every 2 bytes, ints every 4 bytes, etc.)
+	Note that structs that are aligned on their own may become misaligned when used as part of an array or other struct
