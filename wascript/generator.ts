@@ -7,6 +7,7 @@ import { Scope, Function, Variable } from "./scope"
 import * as WASM from "./wasm"
 import { Writer } from "./io"
 import * as Long from "long"
+import { write } from "fs";
 
 export type GenerateRule = (w: Writer, n: AstNode) => void
 
@@ -30,7 +31,7 @@ export class Generator {
 
 	constructor(protected logger: Logger) { }
 
-	public generate(ast: AstNode, name: string = ""): ArrayBuffer {
+	public generate(ast: AstNode, name: string = ""): ArrayBuffer | null {
 		this.ast = ast
 		this.funcTypes = []
 		this.funcTypeIndices = []
@@ -48,6 +49,7 @@ export class Generator {
 
 		let writer = new Writer()
 		writer.write(this.getModule(name))
+		if (this.logger.count(LogType.Error) > 0) return null
 		return writer.toArrayBuffer()
 	}
 
@@ -98,14 +100,28 @@ export class Generator {
 		let localNamings: WASM.Naming[] = []
 		if (!func.node) return
 
-		let params = []
+		let params: WASM.LangType[] = []
+		let paramIndex = 0
 		for (let i = 0; i < func.params.length; i++) {
-			params.push(this.toWasmType(func.params[i].type))
-			localNamings.push(new WASM.Naming(i, func.params[i].id))
-			this.varPathToIndex[func.params[i].getPath()] = i
+			let vars = this.getPrimitiveVars(func.params[i])
+			for (let param of vars) {
+				let type = this.toWasmType(param.type)
+				if (!type) continue
+				params.push(type)
+				localNamings.push(new WASM.Naming(paramIndex, param.getPath(true)))
+				this.varPathToIndex[param.getPath()] = paramIndex++
+			}
 		}
-		let returns = []
-		if (func.type != DataType.None) returns.push(this.toWasmType(func.type))
+		let returns: WASM.LangType[] = []
+		
+		if (func.type != DataType.None) {
+			let returnType = this.toWasmType(func.type)
+			if (!returnType) {
+				this.logError('Functions can only return primitive types', func.node)
+				return
+			}
+			returns.push(returnType)
+		}
 
 		let typeStr = params.join() + ":" + returns.join()
 		let index
@@ -135,10 +151,15 @@ export class Generator {
 		if (node.parent && node.scope && node.type == AstType.VariableDef && node.parent.type != AstType.Parameters) {
 			let localVar = node.scope.getVariable(node.children[0].token.value)
 			if (localVar) {
-				let local = new WASM.LocalEntry(1, this.toWasmType(localVar.type))
-				localNamings.push(new WASM.Naming(index, localVar.id))
-				this.varPathToIndex[localVar.getPath()] = index++
-				locals.push(local)
+				let vars = this.getPrimitiveVars(localVar)
+				for (let lvar of vars) {
+					let type = this.toWasmType(lvar.type)
+					if (!type) continue
+					let local = new WASM.LocalEntry(1, type)
+					localNamings.push(new WASM.Naming(index, lvar.getPath(true)))
+					this.varPathToIndex[lvar.getPath()] = index++
+					locals.push(local)
+				}
 			}
 		}
 		for (let i = 0; i < node.children.length; i++) {
@@ -148,20 +169,63 @@ export class Generator {
 	}
 
 	private addGlobal(global: Variable): void {
-		if (!global || !global.node || !global.node.parent) return
-		let writer = new Writer()
-		this.varPathToIndex[global.getPath()] = this.globals.length
-		this.gen(writer, global.node.parent.children[1])
-		if (global.export) this.exports.push(new WASM.ExportEntry(global.id, WASM.ExternalKind.Global, this.globals.length))
-		this.globals.push(new WASM.GlobalEntry(new WASM.GlobalType(this.toWasmType(global.type), !global.const), new WASM.InitializerExpression(writer.toTypedArray())))
+		if (global.mapped) return
+		let vars = this.getPrimitiveVars(global)
+		for (let gvar of vars) {
+			let type = this.toWasmType(gvar.type)
+			if (!type) continue
+			let initExpr: Uint8Array | null = null
+			if (gvar.node && gvar.node.parent) {
+				let writer = new Writer()
+				this.varPathToIndex[gvar.getPath()] = this.globals.length
+				this.gen(writer, gvar.node.parent.children[1])
+				initExpr = writer.toTypedArray()
+			}else{
+				initExpr = this.getDefaultInitializer(gvar.type)
+			}
+			if (gvar.export) this.exports.push(new WASM.ExportEntry(gvar.getPath(true), WASM.ExternalKind.Global, this.globals.length))
+			this.globals.push(new WASM.GlobalEntry(new WASM.GlobalType(type, !gvar.const), new WASM.InitializerExpression(initExpr)))
+		}
 	}
 
-	private toWasmType(type: string): WASM.LangType {
+	private toWasmType(type: string): WASM.LangType | null {
 		if (type == DataType.Int || type == DataType.UInt || type == DataType.Bool) return WASM.LangType.i32
 		if (type == DataType.Long || type == DataType.ULong) return WASM.LangType.i64
 		if (type == DataType.Float) return WASM.LangType.f32
 		if (type == DataType.Double) return WASM.LangType.f64
-		throw new Error("Invalid DataType to convert to WASM LangType: " + type)
+		return null
+	}
+
+	private getDefaultInitializer(type: string): Uint8Array {
+		let w = new Writer()
+		if (type == DataType.Int || type == DataType.UInt || type == DataType.Bool) {
+			w.uint8(WASM.OpCode.i32_const)
+			w.varintN(0, 32)
+		}else if (type == DataType.Long || type == DataType.ULong) {
+			w.uint8(WASM.OpCode.i64_const)
+			w.varintN(0, 32)
+		}else if (type == DataType.Float) {
+			w.uint8(WASM.OpCode.f32_const)
+			let arr = new Float32Array(1)
+			arr[0] = 0
+			w.bytes(new Uint8Array(arr.buffer))
+		}else if (type == DataType.Double) {
+			w.uint8(WASM.OpCode.f64_const)
+			let arr = new Float64Array(1)
+			arr[0] = 0
+			w.bytes(new Uint8Array(arr.buffer))
+		}
+		return w.toTypedArray()
+	}
+
+	protected getPrimitiveVars(nvar: Variable): Variable[] {
+		if (DataType.isPrimitive(nvar.type)) return [nvar]
+		let out: Variable[] = []
+		let scope = nvar.scope.scopes[nvar.id]
+		if (scope) {
+			for (let key in scope.vars) out = out.concat(this.getPrimitiveVars(scope.vars[key]))
+		}
+		return out
 	}
 
 	protected logError(msg: string, node: AstNode) {
@@ -173,13 +237,36 @@ export class WAScriptGenerator extends Generator {
 	constructor(logger: Logger) {
 		super(logger)
 
+		this.register(AstType.Access, (w, n) => {
+			this.gen(w, n.children[1])
+		})
+
 		this.register(AstType.VariableId, (w, n) => {
 			if (!n.scope) return
-			let nvar = n.scope.getVariable(n.token.value)
-			if (nvar) {
-				if (nvar.global) w.uint8(WASM.OpCode.get_global)
-				else w.uint8(WASM.OpCode.get_local)
-				w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
+			let nodeVar = n.scope.getVariable(n.token.value)
+			if (nodeVar) {
+				let vars = this.getPrimitiveVars(nodeVar)
+				for (let nvar of vars) {
+					if (nvar.mapped) {
+						w.uint8(WASM.OpCode.i32_const)
+						w.varintN(nvar.offset, 32)
+						if (nvar.type == DataType.Int || nvar.type == DataType.UInt || nvar.type == DataType.Bool) {
+							w.uint8(WASM.OpCode.i32_load)
+						}else if (nvar.type == DataType.Long || nvar.type == DataType.ULong) {
+							w.uint8(WASM.OpCode.i64_load)
+						}else if (nvar.type == DataType.Float) {
+							w.uint8(WASM.OpCode.f32_load)
+						}else if (nvar.type == DataType.Double) {
+							w.uint8(WASM.OpCode.f64_load)
+						}
+						w.varuintN(2, 32)
+						w.varuintN(0, 32)
+					}else{
+						if (nvar.global) w.uint8(WASM.OpCode.get_global)
+						else w.uint8(WASM.OpCode.get_local)
+						w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
+					}
+				}
 			}
 		})
 
@@ -581,15 +668,35 @@ export class WAScriptGenerator extends Generator {
 		})
 
 		this.register(AstType.Assignment, (w, n) => {
-			this.gen(w, n.children[1])
-
 			let id = this.getIdentifier(n.children[0])
 			if (!id || !id.scope) return
 			let nvar = id.scope.getVariable(id.token.value)
 			if (nvar) {
-				if (nvar.global) w.uint8(WASM.OpCode.set_global)
-				else w.uint8(WASM.OpCode.set_local)
-				w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
+				if (!DataType.isPrimitive(nvar.type)) {
+					if (nvar.node) this.logError('Non-primitive types cannot be directly assigned to', nvar.node)
+					return
+				}
+				if (nvar.mapped) {
+					w.uint8(WASM.OpCode.i32_const)
+					w.varintN(nvar.offset, 32)
+					this.gen(w, n.children[1])
+					if (nvar.type == DataType.Int || nvar.type == DataType.UInt || nvar.type == DataType.Bool) {
+						w.uint8(WASM.OpCode.i32_store)
+					}else if (nvar.type == DataType.Long || nvar.type == DataType.ULong) {
+						w.uint8(WASM.OpCode.i64_store)
+					}else if (nvar.type == DataType.Float) {
+						w.uint8(WASM.OpCode.f32_store)
+					}else if (nvar.type == DataType.Double) {
+						w.uint8(WASM.OpCode.f64_store)
+					}
+					w.varuintN(2, 32)
+					w.varuintN(0, 32)
+				}else{
+					this.gen(w, n.children[1])
+					if (nvar.global) w.uint8(WASM.OpCode.set_global)
+					else w.uint8(WASM.OpCode.set_local)
+					w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
+				}
 			}
 		})
 

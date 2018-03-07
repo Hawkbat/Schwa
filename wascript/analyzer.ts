@@ -4,6 +4,8 @@ import { AstNode, AstType } from "./ast"
 import { DataType } from "./datatype"
 import { Scope, Struct, Function, Variable } from "./scope"
 
+const MAX_TYPE_DEPTH = 20
+
 function formatOrdinal(n: number): string {
 	let str = n.toFixed()
 	if (str != "11" && str.endsWith('1')) return str + "st"
@@ -29,7 +31,6 @@ export class Analyzer {
 		this.scopePass(ast)
 		this.typePass(ast)
 		this.analysisPass(ast)
-		console.log('' + this.rootScope)
 	}
 
 	protected scopePass(node: AstNode) {
@@ -82,18 +83,53 @@ export class Analyzer {
 		}
 	}
 
-	protected makeStructScope(scope: Scope, struct: Struct) {
-		for (let field of struct.fields) {
-			scope.vars[field.id] = new Variable(null, scope, field.id, field.type)
-			if (!DataType.isPrimitive(field.type)) {
-				let subStruct = scope.getStruct(field.type)
-				if (subStruct) {
-					let subScope = new Scope(null, scope, field.id)
-					scope.scopes[subScope.id] = subScope
-					this.makeStructScope(subScope, subStruct)
-				}
-			}
+	protected makeStructScope(v: Variable, p: Scope, depth: number = 0) {
+		if (depth > MAX_TYPE_DEPTH) return
+		if (DataType.isPrimitive(v.type)) return
+		let struct = p.getStruct(v.type)
+		if (!struct) {
+			if (v.node)
+				this.logError('No struct named ' + v.type + ' exists in the current scope', v.node)
+			return
 		}
+		let scope = new Scope(v.node, p, v.id)
+		p.scopes[scope.id] = scope
+		let offset = v.offset
+		for (let field of struct.fields) {
+			let nvar = new Variable(null, scope, field.id, field.type)
+			scope.vars[nvar.id] = nvar
+			nvar.const = v.const
+			nvar.export = v.export
+			nvar.mapped = v.mapped
+			nvar.offset = offset
+			offset += this.getSize(nvar, scope)
+			this.makeStructScope(scope.vars[field.id], scope, depth + 1)
+		}
+	}
+
+	protected getSize(v: Variable, p: Scope, depth: number = 0) {
+		if (depth > MAX_TYPE_DEPTH) return 0
+		switch (v.type) {
+			case DataType.Int:
+			case DataType.UInt:
+			case DataType.Float:
+			case DataType.Bool:
+				return 4
+			case DataType.Long:
+			case DataType.ULong:
+			case DataType.Double:
+				return 8
+		}
+		if (DataType.isPrimitive(v.type)) return 0
+		let struct = p.getStruct(v.type)
+		if (!struct) {
+			if (v.node)
+				this.logError('No struct named ' + v.type + ' exists in the current scope', v.node)
+			return 0
+		}
+		let size = 0
+		for (let field of struct.fields) size += this.getSize(field, field.scope, depth + 1)
+		return size
 	}
 
 	protected registerScope(type: AstType, rule: ScopeRule) {
@@ -263,19 +299,22 @@ export class WAScriptAnalyzer extends Analyzer {
 				this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already exists in the current scope", n)
 			} else {
 				p.vars[nvar.id] = nvar
-
-				if (!DataType.isPrimitive(nvar.type)) {
-					let subStruct = p.getStruct(nvar.type)
-					if (subStruct) {
-						let subScope = new Scope(null, p, nvar.id)
-						p.scopes[subScope.id] = subScope
-						this.makeStructScope(subScope, subStruct)
-					}
-				}
 				
 				let pn = n.parent
 				while (pn && pn.type != AstType.Global) pn = pn.parent
 				if (pn && pn.type == AstType.Global) nvar.global = true
+
+				pn = n.parent
+				while (pn && pn.type != AstType.Map) pn = pn.parent
+				if (pn && pn.type == AstType.Map) {
+					nvar.global = true
+					nvar.mapped = true
+					if (pn.children.length >= 2) {
+						nvar.offset = parseInt(pn.children[1].token.value)
+					}
+				}
+
+				this.makeStructScope(nvar, p)
 			}
 			return p
 		})
@@ -311,6 +350,13 @@ export class WAScriptAnalyzer extends Analyzer {
 			return p
 		})
 
+		this.registerDataType(AstType.Access, (n) => {
+			if (n.children.length >= 2) {
+				let node = this.getIdentifier(n)
+				if (node) return this.getDataType(node)
+			}
+			return DataType.Invalid
+		})
 		this.registerDataType(AstType.VariableId, (n) => {
 			if (this.getScope(n)) {
 				let nvar = this.getScope(n).getVariable(n.token.value)

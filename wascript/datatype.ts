@@ -26,6 +26,16 @@ export namespace DataType {
 	}
 
 	export function isPrimitive(type: string): boolean {
-		return DataType.hasOwnProperty(type)
+		if (type == DataType.None) return true
+		if (type == DataType.Invalid) return true
+		if (type == DataType.Type) return true
+		if (type == DataType.Int) return true
+		if (type == DataType.UInt) return true
+		if (type == DataType.Long) return true
+		if (type == DataType.ULong) return true
+		if (type == DataType.Float) return true
+		if (type == DataType.Double) return true
+		if (type == DataType.Bool) return true
+		return false
 	}
 }

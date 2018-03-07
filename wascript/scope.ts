@@ -4,14 +4,18 @@ export class Variable {
 	public global: boolean = false
 	public const: boolean = false
 	public export: boolean = false
+	public mapped: boolean = false
+	public offset: number = 0
 
 	constructor(public node: AstNode | null, public scope: Scope, public id: string, public type: string) { }
 
-	getPath(): string {
+	getPath(untilNode: boolean = false): string {
 		let path = this.id
+		if (untilNode && this.node) return path
 		let p: Scope | null = this.scope
 		while (p) {
 			if (p.id) path = p.id + "." + path
+			if (untilNode && p.node) break
 			p = p.parent
 		}
 		return path
@@ -22,6 +26,7 @@ export class Variable {
 		if (this.export) out += 'export '
 		if (this.const) out += 'const '
 		out += this.type + ' ' + this.id
+		if (this.mapped) out += ' mapped at ' + this.offset
 		return out
 	}
 }
@@ -77,7 +82,7 @@ export class Scope {
 	vars: { [key: string]: Variable } = {}
 	funcs: { [key: string]: Function } = {}
 	structs: { [key: string]: Struct } = {}
-	constructor(private node: AstNode | null, public parent: Scope | null, public id: string) { }
+	constructor(public node: AstNode | null, public parent: Scope | null, public id: string) { }
 
 	getScope(id: string): Scope | null {
 		if (this.scopes[id]) return this.scopes[id]
@@ -102,15 +107,47 @@ export class Scope {
 		if (this.parent) return this.parent.getStruct(id)
 		return null
 	}
+	
+	getPath(): string {
+		let path = this.id
+		let p: Scope | null = this.parent
+		while (p) {
+			if (p.id) path = p.id + "." + path
+			p = p.parent
+		}
+		return path
+	}
 
 	toString() {
+		return this.print(0, false)
+	}
+
+	print(depth: number, skipLabel: boolean) {
+		let indent = '\t'.repeat(depth)
 		let out = ''
-		out += '.' + this.id + '\n'
-		for (let key in this.vars) out += '\t' + this.vars[key] + '\n'
-		for (let key in this.funcs) out += '\t' + this.funcs[key] + '\n'
-		for (let key in this.structs) out += '\t' + this.structs[key] + '\n'
+		if (!skipLabel) {
+			let type = 'scope'
+			if (!this.parent) type = 'root'
+			else if (!this.parent.parent && !this.id) type = 'program'
+			else if (!this.id) type = 'block'
+			else if (this.id) type = 'scope ' + this.id
+			out += indent + type + '\n'
+		}
+		for (let key in this.vars) {
+			out += indent + '\t' + this.vars[key] + '\n'
+			if (this.scopes[key]) out += this.scopes[key].print(depth + 1, true)
+		}
+		for (let key in this.funcs) {
+			out += indent + '\t' + this.funcs[key] + '\n'
+			if (this.scopes[key]) out += this.scopes[key].print(depth + 1, true)
+		}
+		for (let key in this.structs) {
+			out += indent + '\t' + this.structs[key] + '\n'
+			if (this.scopes[key]) out += this.scopes[key].print(depth + 1, true)
+		}
 		for (let key in this.scopes) {
-			out += ('' + this.scopes[key]).split('\n').map(v => '\t' + v).join('\n') + '\n'
+			if (!this.vars[key] && !this.funcs[key] && !this.structs[key])
+				out += this.scopes[key].print(depth + 1, false)
 		}
 		return out
 	}

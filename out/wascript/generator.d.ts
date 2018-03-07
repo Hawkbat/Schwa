@@ -1,5 +1,6 @@
 import { AstNode, AstType } from "./ast";
 import { Logger } from "./log";
+import { Variable } from "./scope";
 import * as WASM from "./wasm";
 import { Writer } from "./io";
 export declare type GenerateRule = (w: Writer, n: AstNode) => void;
@@ -27,7 +28,7 @@ export declare class Generator {
     protected localNames: WASM.LocalName[];
     protected names: WASM.NameEntry[];
     constructor(logger: Logger);
-    generate(ast: AstNode, name?: string): ArrayBuffer;
+    generate(ast: AstNode, name?: string): ArrayBuffer | null;
     protected register(type: AstType, rule: GenerateRule): void;
     protected gen(w: Writer, node: AstNode): void;
     private getModule(name);
@@ -36,6 +37,8 @@ export declare class Generator {
     private addLocals(locals, localNamings, node, index);
     private addGlobal(global);
     private toWasmType(type);
+    private getDefaultInitializer(type);
+    protected getPrimitiveVars(nvar: Variable): Variable[];
     protected logError(msg: string, node: AstNode): void;
 }
 export declare class WAScriptGenerator extends Generator {

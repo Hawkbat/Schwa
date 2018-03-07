@@ -7,8 +7,10 @@ export declare class Variable {
     global: boolean;
     const: boolean;
     export: boolean;
+    mapped: boolean;
+    offset: number;
     constructor(node: AstNode | null, scope: Scope, id: string, type: string);
-    getPath(): string;
+    getPath(untilNode?: boolean): string;
     toString(): string;
 }
 export declare class Function {
@@ -33,7 +35,7 @@ export declare class Struct {
     toString(): string;
 }
 export declare class Scope {
-    private node;
+    node: AstNode | null;
     parent: Scope | null;
     id: string;
     scopes: {
@@ -53,5 +55,7 @@ export declare class Scope {
     getVariable(id: string): Variable | null;
     getFunction(id: string): Function | null;
     getStruct(id: string): Struct | null;
+    getPath(): string;
     toString(): string;
+    print(depth: number, skipLabel: boolean): string;
 }

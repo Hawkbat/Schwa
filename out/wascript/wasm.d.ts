@@ -223,8 +223,8 @@ export declare class MemoryType implements Writable {
 }
 export declare class ResizableLimits implements Writable {
     initial: number;
-    maximum: number;
-    constructor(initial: number, maximum?: number);
+    maximum: number | undefined;
+    constructor(initial: number, maximum?: number | undefined);
     write(w: Writer): void;
 }
 export declare class ImportEntry implements Writable {

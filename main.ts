@@ -61,7 +61,7 @@ function test() {
 
 		// Generates WebAssembly bytecode from the syntax tree
 		console.time("generator")
-		//wasmBuffer = generator.generate(ast, "test")
+		wasmBuffer = generator.generate(ast, "test")
 		console.timeEnd("generator")
 
 		if (logger.count(LogType.Error)) return
@@ -71,6 +71,8 @@ function test() {
 
 	console.time("output")
 	if (ast) console.log(ast.toString().replace(/\t/g, '\ \ \ \ '))
+
+	if (ast && ast.scope && ast.scope.parent) console.log(ast.scope.parent.toString().replace(/\t/g, '\ \ \ \ '))
 
 	if (prettyPrint) console.log(prettyPrint.replace(/\t/g, '\ \ \ \ '))
 
