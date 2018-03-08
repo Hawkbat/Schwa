@@ -26,6 +26,7 @@ Pointers/Memory access
 Arrays
 	Arrays still need to be added
     They should be similar to structs; always fixed-size, let user code keep a dynamic length separately if desired
+	Arrays are a lot trickier than they look. To use them as parameters/locals, we need to know the index at compile time because the argument to get_local is an immediate, not a stack value. For mapped array accesses, we need to somehow thread the indexing stack value to the generated load/store ops, multiply it by the array type's size, and add it to the computed offset.
 
 Structs
 	For locals/globals, they are allocated as suffixed properties (e.g. v: { x, y } becomes "v.x", "v.y") and use scope trickery to control access
