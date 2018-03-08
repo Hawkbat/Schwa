@@ -36,6 +36,17 @@ export int inc()
 	int.store(0u, val)
 	return val
 
+map Object object at 0
+
+export float getLength(Vector v)
+	return float.sqrt(v.x * v.x + v.y * v.y)
+
+export void normalize(Vector v)
+	float x = v.x / getLength(v)
+	float y = v.y / getLength(v)
+	object.position.x = x
+	object.position.y = y
+
 struct Vector
 	float x // The horizontal coordinate
 	float y // The vertical coordinate
@@ -49,14 +60,3 @@ struct Color
 struct Object
 	Vector position
 	Color color
-
-map Object object at 0
-
-export float getLength(Vector v)
-	return float.sqrt(v.x * v.x + v.y * v.y)
-
-export void normalize(Vector v)
-	float x = v.x / getLength(v)
-	float y = v.y / getLength(v)
-	object.position.x = x
-	object.position.y = y

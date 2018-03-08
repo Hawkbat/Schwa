@@ -9,17 +9,17 @@ export class Compiler {
     validator: Validator
     analyzer: Analyzer
     formatter: Formatter
-	generator: Generator
-	
-	constructor() {
-		this.logger = new Logger()
-		this.lexer = new Lexer(this.logger)
-		this.parser = new Parser(this.logger)
-		this.validator = new Validator(this.logger)
-		this.analyzer = new Analyzer(this.logger)
-		this.formatter = new Formatter(this.logger)
-		this.generator = new Generator(this.logger)
-	}
+    generator: Generator
+
+    constructor() {
+        this.logger = new Logger()
+        this.lexer = new Lexer(this.logger)
+        this.parser = new Parser(this.logger)
+        this.validator = new Validator(this.logger)
+        this.analyzer = new Analyzer(this.logger)
+        this.formatter = new Formatter(this.logger)
+        this.generator = new Generator(this.logger)
+    }
 
     compile(filepath: string, lines: string[]) {
         let filename = path.basename(filepath, path.extname(filepath))
@@ -37,7 +37,7 @@ export class Compiler {
         let prettyPrint = this.formatter.format(ast)
         if (this.logger.count(LogType.Error)) return
         let wasmBuffer = this.generator.generate(ast, filename)
-        if (this.logger.count(LogType.Error)) return
+        if (!wasmBuffer || this.logger.count(LogType.Error)) return
         fs.writeFile(path.join(dirpath, filename + '.wasm'), Buffer.from(wasmBuffer), (err) => {
             if (err) throw err
         })

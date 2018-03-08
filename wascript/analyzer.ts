@@ -28,9 +28,18 @@ export class Analyzer {
 	constructor(protected logger: Logger) { }
 
 	public analyze(ast: AstNode) {
+		this.hoistPass(ast)
 		this.scopePass(ast)
 		this.typePass(ast)
 		this.analysisPass(ast)
+	}
+
+	protected hoistPass(node: AstNode) {
+		node.scope = this.getScope(node)
+		for (let child of node.children) {
+			if (child.type != AstType.StructDef) continue
+			this.hoistPass(child)
+		}
 	}
 
 	protected scopePass(node: AstNode) {
@@ -156,7 +165,7 @@ export class Analyzer {
 			scope = scope.scopes[parts[i]]
 		}
 		let params = []
-		for (let i = 0; i < paramTypes.length; i ++) {
+		for (let i = 0; i < paramTypes.length; i++) {
 			params.push(new Variable(null, scope, paramNames[i], paramTypes[i]))
 		}
 		if (id)
@@ -271,7 +280,7 @@ export class WAScriptAnalyzer extends Analyzer {
 			let struct = new Struct(n, scope, n.children[0].token.value, fields)
 			if (p.structs[struct.id]) {
 				this.logError("A struct with the name " + JSON.stringify(struct.id) + " already exists in the current scope", n)
-			}else{
+			} else {
 				p.structs[struct.id] = struct
 				p.scopes[scope.id] = scope
 			}
@@ -299,7 +308,7 @@ export class WAScriptAnalyzer extends Analyzer {
 				this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already exists in the current scope", n)
 			} else {
 				p.vars[nvar.id] = nvar
-				
+
 				let pn = n.parent
 				while (pn && pn.type != AstType.Global) pn = pn.parent
 				if (pn && pn.type == AstType.Global) nvar.global = true

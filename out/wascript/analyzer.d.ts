@@ -14,6 +14,7 @@ export declare class Analyzer {
     protected rootScope: Scope;
     constructor(logger: Logger);
     analyze(ast: AstNode): void;
+    protected hoistPass(node: AstNode): void;
     protected scopePass(node: AstNode): void;
     protected getScope(node: AstNode): Scope;
     protected typePass(node: AstNode): void;
