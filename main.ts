@@ -1,10 +1,66 @@
-import { Lexer, Parser, Validator, Analyzer, Formatter, Generator, Logger, LogType } from "./wascript"
+#!/usr/bin/env node
+import { Compiler, Lexer, Parser, Validator, Analyzer, Formatter, Generator, Logger, LogType } from "./wascript"
 import * as fs from "fs"
 import * as path from "path"
 import { AstNode } from "./wascript/ast"
+import * as program from "commander"
 
-function test() {
-	let lines = fs.readFileSync("test.was", "utf8").split(/\r?\n/g)
+let pak = require('../package.json')
+
+program
+	.name(Object.keys(pak.bin)[0])
+	.version(pak.version, '-v, --version')
+	.arguments('[src] [dst]')
+	.option('-d, --debug', 'Output debug info')
+	.option('-t, --test', 'Use example source file')
+	.parse(process.argv)
+
+let srcPath = ''
+let dstPath = ''
+
+if (program.test) {
+	srcPath = path.join(__dirname, "test.was")
+	dstPath = path.join(__dirname, "test.wasm")
+}else if (program.args.length == 1) {
+	srcPath = program.args[0]
+	let filename = path.basename(srcPath, path.extname(srcPath))
+    let dirpath = path.dirname(srcPath)
+	dstPath = path.join(dirpath, filename + '.wasm')
+}else if (program.args.length == 2) {
+	srcPath = program.args[0]
+	dstPath = program.args[1]
+}
+
+if (srcPath && dstPath) {
+	if (program.debug)
+		debug(srcPath, dstPath)
+	else
+		run(srcPath, dstPath)
+}else{
+	program.help()
+}
+
+function run(srcPath: string, dstPath: string) {
+	let lines = fs.readFileSync(srcPath, "utf8").split(/\r?\n/g)
+	let filename = path.basename(dstPath, path.extname(dstPath))
+
+	let compiler = new Compiler()
+	let result = compiler.compile(lines, filename)
+
+	if (result) {
+		fs.writeFileSync(dstPath, Buffer.from(result))
+		console.log("Compilation successful.")
+	}else {
+		let msgs = compiler.logger.getLogs()
+		for (let msg of msgs) console.log(msg.toString())
+		console.log("Compilation failed.")
+		process.exitCode = 1
+	}
+}
+
+function debug(srcPath: string, dstPath: string) {
+	let lines = fs.readFileSync(srcPath, "utf8").split(/\r?\n/g)
+	let filename = path.basename(dstPath, path.extname(dstPath))
 
 	console.time("setup")
 	let logger = new Logger()
@@ -61,7 +117,7 @@ function test() {
 
 		// Generates WebAssembly bytecode from the syntax tree
 		console.time("generator")
-		wasmBuffer = generator.generate(ast, "test")
+		wasmBuffer = generator.generate(ast, filename)
 		console.timeEnd("generator")
 
 		if (logger.count(LogType.Error)) return
@@ -76,15 +132,13 @@ function test() {
 
 	if (prettyPrint) console.log(prettyPrint.replace(/\t/g, '\ \ \ \ '))
 
-	if (wasmBuffer) {
-		fs.writeFile('test.wasm', Buffer.from(wasmBuffer), (err) => {
-			if (err) throw err
-			console.log("Wrote WASM file")
-		})
-	}
+	if (wasmBuffer) fs.writeFileSync(dstPath, Buffer.from(wasmBuffer))
 
 	for (let log of logger.getLogs()) console.log(log.toString())
 	console.timeEnd("output")
-}
 
-test()
+	if (logger.count(LogType.Error))
+		console.log("Compilation failed.")
+	else
+		console.log("Compilation successful.")
+}

@@ -8,5 +8,5 @@ export declare class Compiler {
     formatter: Formatter;
     generator: Generator;
     constructor();
-    compile(filepath: string, lines: string[]): void;
+    compile(lines: string[], moduleName?: string): ArrayBuffer | null;
 }
