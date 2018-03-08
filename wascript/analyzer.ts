@@ -4,7 +4,7 @@ import { AstNode, AstType } from "./ast"
 import { DataType } from "./datatype"
 import { Scope, Struct, Function, Variable } from "./scope"
 
-const MAX_TYPE_DEPTH = 20
+const MAX_TYPE_DEPTH = 16
 
 function formatOrdinal(n: number): string {
 	let str = n.toFixed()
@@ -92,8 +92,7 @@ export class Analyzer {
 		}
 	}
 
-	protected makeStructScope(v: Variable, p: Scope, depth: number = 0) {
-		if (depth > MAX_TYPE_DEPTH) return
+	protected makeStructScope(v: Variable, p: Scope) {
 		if (DataType.isPrimitive(v.type)) return
 		let struct = p.getStruct(v.type)
 		if (!struct) {
@@ -112,7 +111,6 @@ export class Analyzer {
 			nvar.mapped = v.mapped
 			nvar.offset = offset
 			offset += this.getSize(nvar, scope)
-			this.makeStructScope(scope.vars[field.id], scope, depth + 1)
 		}
 	}
 
@@ -323,7 +321,7 @@ export class WAScriptAnalyzer extends Analyzer {
 					}
 				}
 
-				this.makeStructScope(nvar, p)
+				//this.makeStructScope(nvar, p)
 			}
 			return p
 		})
@@ -331,6 +329,12 @@ export class WAScriptAnalyzer extends Analyzer {
 			let scope: Scope | null = p
 			if (scope) scope = scope.getScope(n.children[0].token.value)
 			if (!scope) {
+				let nvar = p.getVariable(n.children[0].token.value)
+				if (nvar) {
+					this.makeStructScope(nvar, p)
+					scope = p.getScope(n.children[0].token.value)
+					if (scope) return scope
+				}
 				this.logError("No scope named " + JSON.stringify(n.children[0].token.value) + " exists in the current scope", n)
 				return p
 			}

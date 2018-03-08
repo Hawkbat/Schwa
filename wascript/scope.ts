@@ -57,7 +57,7 @@ export class Function {
 export class Struct {
 	public export: boolean = false
 
-	constructor(public node: AstNode | null, public scope: Scope, public id: string, public fields: Variable[]) { }
+	constructor(public node: AstNode | null, public scope: Scope, public id: string, public fields: Variable[]) {}
 	
 	getPath(): string {
 		let path = this.id
