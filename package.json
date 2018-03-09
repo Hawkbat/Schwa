@@ -4,11 +4,9 @@
   "description": "Schwa Lang",
   "main": "./out/index.js",
   "types": "./out/index.d.ts",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
+  "author": "Joshua Thome",
   "license": "MIT",
+  "repository": "github:Hawkbat/Schwa",
   "dependencies": {
     "commander": "^2.15.0",
     "leb": "^0.3.0",
@@ -17,6 +15,9 @@
   "devDependencies": {
     "@types/long": "^3.0.32",
     "@types/node": "^7.0.55"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": "out/main.js"
 }
