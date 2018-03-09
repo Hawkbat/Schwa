@@ -126,7 +126,7 @@ struct Object
 ```
 
 ## Usage and Contribution
-1. Clone the repository (`git clone https://github.com/Hawkbat/WAScript`)
+1. Clone the repository (`git clone https://github.com/Hawkbat/Schwa`)
 2. Install dependencies (`npm install`)
 3. Install TypeScript compiler (`npm install -g typescript`)
 4. Edit source code as desired
