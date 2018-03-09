@@ -175,7 +175,7 @@ export class Analyzer {
 	}
 }
 
-export class WAScriptAnalyzer extends Analyzer {
+export class SchwaAnalyzer extends Analyzer {
 	constructor(logger: Logger) {
 		super(logger)
 		this.registerBuiltinFunc('nop', DataType.None, [], [])

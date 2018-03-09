@@ -5,8 +5,6 @@ Validate number literals to ensure they fit within the valid range; this should 
 
 Figure out short-circuiting for boolean operations-- super important!
 
-Turn main.js into a command-line utility - the refactor is part-way there; see Compiler class
-
 For optimization purposes, a switch/branch-table construct would be helpful
 
 We should also create a VSCode language server that provides realtime analysis and validation. Take a look at textdiff-create on NPM for generating diffs to apply formatting

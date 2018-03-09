@@ -10,7 +10,7 @@ export declare class Validator {
     protected register(type: AstType, rule: ValidateRule): void;
     protected logError(msg: string, node: AstNode): void;
 }
-export declare class WAScriptValidator extends Validator {
+export declare class SchwaValidator extends Validator {
     constructor(logger: Logger);
     protected registerParentType(type: AstType, parentTypes: AstType[]): void;
     protected registerAncestorType(type: AstType, ancestorTypes: AstType[]): void;

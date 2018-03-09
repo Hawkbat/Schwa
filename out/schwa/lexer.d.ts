@@ -14,6 +14,6 @@ export declare class Lexer {
     protected registerMatch(type: TokenType, pattern: string): void;
     protected registerRegex(type: TokenType, pattern: RegExp): void;
 }
-export declare class WAScriptLexer extends Lexer {
+export declare class SchwaLexer extends Lexer {
     constructor(logger: Logger);
 }

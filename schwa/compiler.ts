@@ -22,7 +22,6 @@ export class Compiler {
     }
 
     compile(lines: string[], moduleName: string = ""): ArrayBuffer | null {
-
         this.logger.clear()
         let tokens = this.lexer.lex(lines)
         if (this.logger.count(LogType.Error)) return null

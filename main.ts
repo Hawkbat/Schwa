@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-import { Compiler, Lexer, Parser, Validator, Analyzer, Formatter, Generator, Logger, LogType } from "./wascript"
+import { Compiler, Lexer, Parser, Validator, Analyzer, Formatter, Generator, Logger, LogType } from "./schwa"
 import * as fs from "fs"
 import * as path from "path"
-import { AstNode } from "./wascript/ast"
+import { AstNode } from "./schwa/ast"
 import * as program from "commander"
 
 let pak = require('../package.json')
 
 program
-	.name(Object.keys(pak.bin)[0])
+	.name(pak.name)
 	.version(pak.version, '-v, --version')
 	.arguments('[src] [dst]')
 	.option('-d, --debug', 'Output debug info')
@@ -19,7 +19,7 @@ let srcPath = ''
 let dstPath = ''
 
 if (program.test) {
-	srcPath = path.join(__dirname, "test.was")
+	srcPath = path.join(__dirname, "test.schwa")
 	dstPath = path.join(__dirname, "test.wasm")
 }else if (program.args.length == 1) {
 	srcPath = program.args[0]

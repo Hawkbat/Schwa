@@ -41,7 +41,7 @@ export declare class Generator {
     protected getPrimitiveVars(nvar: Variable): Variable[];
     protected logError(msg: string, node: AstNode): void;
 }
-export declare class WAScriptGenerator extends Generator {
+export declare class SchwaGenerator extends Generator {
     constructor(logger: Logger);
     protected getIdentifier(node: AstNode): AstNode | null;
     private stripNum(str);

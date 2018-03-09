@@ -10,7 +10,7 @@ export declare class Formatter {
     protected register(type: AstType, rule: FormatRule): void;
     protected logError(msg: string, node: AstNode): void;
 }
-export declare class WAScriptFormatter extends Formatter {
+export declare class SchwaFormatter extends Formatter {
     constructor(logger: Logger);
     protected getDepth(node: AstNode): number;
 }

@@ -61,5 +61,4 @@ typings/
 *.lnk
 
 # Output files
-out/**/*.js
 out/**/*.wasm

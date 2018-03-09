@@ -1,1 +1,1 @@
-export { Lexer, Parser, Validator, Analyzer, Formatter, Generator, Logger, Compiler, LogType, AstNode } from "./wascript";
+export { Lexer, Parser, Validator, Analyzer, Formatter, Generator, Logger, Compiler, LogType, AstNode } from "./schwa";

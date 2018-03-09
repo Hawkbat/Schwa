@@ -29,7 +29,7 @@ export class Formatter {
 	}
 }
 
-export class WAScriptFormatter extends Formatter {
+export class SchwaFormatter extends Formatter {
 	constructor(logger: Logger) {
 		super(logger)
 		this.register(AstType.UnaryOp, (n) => n.token.value + this.printNode(n.children[0]))

@@ -99,7 +99,7 @@ export class Lexer {
 	}
 }
 
-export class WAScriptLexer extends Lexer {
+export class SchwaLexer extends Lexer {
 	constructor(logger: Logger) {
 		super(logger)
 

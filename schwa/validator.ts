@@ -34,7 +34,7 @@ export class Validator {
 	}
 }
 
-export class WAScriptValidator extends Validator {
+export class SchwaValidator extends Validator {
 	constructor(logger: Logger) {
 		super(logger)
 		this.registerChildrenType(AstType.Program, [AstType.FunctionDef, AstType.Global, AstType.Comment, AstType.StructDef, AstType.Map])

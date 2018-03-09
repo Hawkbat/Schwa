@@ -28,7 +28,7 @@ export declare class Analyzer {
     protected registerBuiltinFunc(path: string, type: DataType, paramTypes: DataType[], paramNames: string[]): void;
     protected logError(msg: string, node: AstNode): void;
 }
-export declare class WAScriptAnalyzer extends Analyzer {
+export declare class SchwaAnalyzer extends Analyzer {
     constructor(logger: Logger);
     protected registerDataTypeUnaryOp(type: TokenType, typeSets: DataType[][]): void;
     protected registerDataTypeBinaryOp(type: TokenType, typeSets: DataType[][]): void;

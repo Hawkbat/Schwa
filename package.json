@@ -1,7 +1,7 @@
 {
-  "name": "wascript",
+  "name": "schwa",
   "version": "0.1.0",
-  "description": "Web Assembly Script",
+  "description": "Schwa Lang",
   "main": "./out/index.js",
   "types": "./out/index.d.ts",
   "scripts": {
@@ -18,7 +18,5 @@
     "@types/long": "^3.0.32",
     "@types/node": "^7.0.55"
   },
-  "bin": {
-    "wasc": "out/main.js"
-  }
+  "bin": "out/main.js"
 }

@@ -233,7 +233,7 @@ export class Generator {
 	}
 }
 
-export class WAScriptGenerator extends Generator {
+export class SchwaGenerator extends Generator {
 	constructor(logger: Logger) {
 		super(logger)
 

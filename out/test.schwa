@@ -36,15 +36,17 @@ export int inc()
 	int.store(0u, val)
 	return val
 
-map Object object at 0
+// Accessing this struct's properties will emit loads/stores starting at address 64 
+map Object object at 64
 
 export float getLength(Vector v)
 	return float.sqrt(v.x * v.x + v.y * v.y)
 
-export void normalize(Vector v)
-	float x = v.x / getLength(v)
-	float y = v.y / getLength(v)
-	object.position.x = x
+export void normalize()
+	float len = getLength(object.position)
+	float x = object.position.x / len
+	float y = object.position.y / len
+	object.position.x = v
 	object.position.y = y
 
 struct Vector

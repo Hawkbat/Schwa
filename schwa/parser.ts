@@ -112,7 +112,7 @@ export class Parser {
 	}
 }
 
-export class WAScriptParser extends Parser {
+export class SchwaParser extends Parser {
 	constructor(logger: Logger) {
 		super(logger)
 		this.registerPrefix(TokenType.Name, 0, (t) => {
