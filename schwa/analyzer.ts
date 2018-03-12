@@ -92,7 +92,8 @@ export class Analyzer {
 		}
 	}
 
-	protected makeStructScope(v: Variable, p: Scope) {
+	protected makeStructScope(v: Variable, p: Scope, depth = 0) {
+		if (depth > MAX_TYPE_DEPTH) return
 		if (DataType.isPrimitive(v.type)) return
 		let struct = p.getStruct(v.type)
 		if (!struct) {
@@ -111,6 +112,7 @@ export class Analyzer {
 			nvar.mapped = v.mapped
 			nvar.offset = offset
 			offset += this.getSize(nvar, scope)
+			this.makeStructScope(scope.vars[field.id], scope, depth + 1)
 		}
 	}
 
@@ -321,7 +323,7 @@ export class SchwaAnalyzer extends Analyzer {
 					}
 				}
 
-				//this.makeStructScope(nvar, p)
+				this.makeStructScope(nvar, p)
 			}
 			return p
 		})
@@ -329,12 +331,6 @@ export class SchwaAnalyzer extends Analyzer {
 			let scope: Scope | null = p
 			if (scope) scope = scope.getScope(n.children[0].token.value)
 			if (!scope) {
-				let nvar = p.getVariable(n.children[0].token.value)
-				if (nvar) {
-					this.makeStructScope(nvar, p)
-					scope = p.getScope(n.children[0].token.value)
-					if (scope) return scope
-				}
 				this.logError("No scope named " + JSON.stringify(n.children[0].token.value) + " exists in the current scope", n)
 				return p
 			}

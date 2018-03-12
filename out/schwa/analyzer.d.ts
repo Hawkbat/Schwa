@@ -20,7 +20,7 @@ export declare class Analyzer {
     protected typePass(node: AstNode): void;
     protected getDataType(node: AstNode): string;
     protected analysisPass(node: AstNode): void;
-    protected makeStructScope(v: Variable, p: Scope): void;
+    protected makeStructScope(v: Variable, p: Scope, depth?: number): void;
     protected getSize(v: Variable, p: Scope, depth?: number): number;
     protected registerScope(type: AstType, rule: ScopeRule): void;
     protected registerDataType(type: AstType, rule: DataTypeRule): void;
