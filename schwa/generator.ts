@@ -798,9 +798,44 @@ export class SchwaGenerator extends Generator {
 	}
 
 	private stripNum(str: string): string {
-		if (str.toLowerCase().endsWith("l")) str = str.substring(0, str.length - 1)
-		if (str.toLowerCase().endsWith("u")) str = str.substring(0, str.length - 1)
-		if (str.toLowerCase().endsWith("f")) str = str.substring(0, str.length - 1)
+		if (this.parseRadix(str) != 10) str = str.substring(2)
+		if (str.endsWith("L")) str = str.substring(0, str.length - 1)
+		if (str.endsWith("u")) str = str.substring(0, str.length - 1)
+		if (str.endsWith("f")) str = str.substring(0, str.length - 1)
 		return str
+	}
+
+	private parseRadix(str: string): number {
+		if (str.startsWith('0x')) return 16
+		if (str.startsWith('0o')) return 8
+		if (str.startsWith('0b')) return 2
+		return 10
+	}
+
+	private parseToInt(str: string): number {
+		let radix = this.parseRadix(str)
+		str = this.stripNum(str)
+		return parseInt(str, radix)
+	}
+
+	private parseToFloat(str: string): number {
+		let radix = this.parseRadix(str)
+		str = this.stripNum(str)
+
+		let bits = str.split(/\./)
+		if (bits[0] == '') bits[0] = '0'
+		if (bits.length > 1 && bits[1] != '') {
+			let n = parseInt(bits[1], radix)
+			n *= Math.pow(radix, -bits[1].length)
+			return parseInt(bits[0], radix) + n
+		}
+		return parseInt(bits[0], radix)
+	}
+
+	private parseToLong(str: string): Long {
+		let radix = this.parseRadix(str)
+		let unsigned = str.endsWith('uL') || str.endsWith('u')
+		str = this.stripNum(str)
+		return Long.fromString(str, unsigned, radix)
 	}
 }

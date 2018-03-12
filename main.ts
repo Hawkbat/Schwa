@@ -5,6 +5,8 @@ import * as path from "path"
 import { AstNode } from "./schwa/ast"
 import * as program from "commander"
 
+import * as Long from "long"
+
 let pak = require('../package.json')
 
 program

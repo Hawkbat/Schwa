@@ -5,6 +5,7 @@ const token_1 = require("./token");
 const ast_1 = require("./ast");
 const datatype_1 = require("./datatype");
 const scope_1 = require("./scope");
+const Long = require("long");
 const MAX_TYPE_DEPTH = 16;
 function formatOrdinal(n) {
     let str = n.toFixed();
@@ -398,7 +399,56 @@ class SchwaAnalyzer extends Analyzer {
         this.registerDataType(ast_1.AstType.VariableDef, (n) => n.token.value);
         this.registerDataType(ast_1.AstType.FunctionDef, (n) => n.token.value);
         this.registerDataType(ast_1.AstType.StructDef, (n) => n.children[0].token.value);
-        this.registerDataType(ast_1.AstType.Literal, (n) => datatype_1.DataType.fromTokenType(n.token.type));
+        this.registerDataType(ast_1.AstType.Literal, (n) => {
+            let type = datatype_1.DataType.fromTokenType(n.token.type);
+            if (type == datatype_1.DataType.Float || type == datatype_1.DataType.Double) {
+                return type;
+            }
+            else if (type == datatype_1.DataType.Int || type == datatype_1.DataType.UInt || type == datatype_1.DataType.Long || type == datatype_1.DataType.ULong) {
+                let val = n.token.value;
+                let unsigned = type == datatype_1.DataType.UInt || type == datatype_1.DataType.ULong;
+                let isLong = type == datatype_1.DataType.Long || type == datatype_1.DataType.ULong;
+                let neg = val.startsWith('-');
+                if (neg)
+                    val = val.substr(1);
+                if (unsigned)
+                    val = val.substr(0, val.length - 1);
+                if (isLong)
+                    val = val.substr(0, val.length - 1);
+                let radix = 10;
+                if (val.startsWith('0x')) {
+                    radix = 16;
+                    val = val.substr(2);
+                }
+                if (val.startsWith('0o')) {
+                    radix = 8;
+                    val = val.substr(2);
+                }
+                if (val.startsWith('0b')) {
+                    radix = 2;
+                    val = val.substr(2);
+                }
+                if (neg)
+                    val = '-' + val;
+                let isValid = true;
+                let long = Long.fromString(val, unsigned, radix);
+                if (!isLong && long.gt(Long.fromString(unsigned ? "FFFFFFFF" : "7FFFFFFF", unsigned, 16)))
+                    isValid = false;
+                if (!isLong && long.lt(Long.fromString(unsigned ? "0" : "-80000000", unsigned, 16)))
+                    isValid = false;
+                if (long.toString(radix).toUpperCase() != val)
+                    isValid = false;
+                if (!isValid)
+                    console.log(val, long.toString(radix).toUpperCase());
+                if (isValid)
+                    return type;
+            }
+            else {
+                return type;
+            }
+            this.logError("The value " + JSON.stringify(n.token.value) + " is out of range", n);
+            return datatype_1.DataType.Invalid;
+        });
         let intTypeSet = [datatype_1.DataType.Int, datatype_1.DataType.Int, datatype_1.DataType.Int];
         let uintTypeSet = [datatype_1.DataType.UInt, datatype_1.DataType.UInt, datatype_1.DataType.UInt];
         let longTypeSet = [datatype_1.DataType.Long, datatype_1.DataType.Long, datatype_1.DataType.Long];

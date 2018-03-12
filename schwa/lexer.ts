@@ -49,8 +49,9 @@ export class Lexer {
 					while (!token && end < this.lines[row].length) {
 						for (let rule of this.rules) {
 							token = rule(row, end)
-							if (token) break;
+							if (token) break
 						}
+						if (token) break
 						end++
 					}
 					let val = this.lines[row].substring(col, end)
@@ -154,12 +155,12 @@ export class SchwaLexer extends Lexer {
 		this.registerRegex(TokenType.At, /\bat\b/)
 
 		this.registerRegex(TokenType.Name, /\b[^\d\W]\w*\b/)
-		this.registerRegex(TokenType.Float, /(?:-|\b)\d+\.?\d*[fF]\b/)
-		this.registerRegex(TokenType.Double, /(?:-|\b)\d+\.\d*\b/)
-		this.registerRegex(TokenType.ULong, /\b\d+[uU][lL]\b/)
-		this.registerRegex(TokenType.Long, /(?:-|\b)\d+[lL]\b/)
-		this.registerRegex(TokenType.UInt, /\b\d+[uU]\b/)
-		this.registerRegex(TokenType.Int, /(?:-|\b)\d+\b/)
+		this.registerRegex(TokenType.Float, /(?:-|\b)(?:0b[0-1]+\.?[0-1]*|0o[0-7]+\.?[0-7]*|0x[0-9A-F]+\.?[0-9A-F]*|\d+\.?\d*)f\b/)
+		this.registerRegex(TokenType.Double, /(?:-|\b)(?:0b[0-1]+\.[0-1]*|0o[0-7]+\.[0-7]*|0x[0-9A-F]+\.[0-9A-F]*|\d+\.\d*)\b/)
+		this.registerRegex(TokenType.ULong, /\b(?:0b[0-1]+|0o[0-7]+|0x[0-9A-F]+|\d+)uL\b/)
+		this.registerRegex(TokenType.Long, /(?:-|\b)(?:0b[0-1]+|0o[0-7]+|0x[0-9A-F]+|\d+)L\b/)
+		this.registerRegex(TokenType.UInt, /\b(?:0b[0-1]+|0o[0-7]+|0x[0-9A-F]+|\d+)u\b/)
+		this.registerRegex(TokenType.Int, /(?:-|\b)(?:0b[0-1]+|0o[0-7]+|0x[0-9A-F]+|\d+)\b/)
 
 		// After the number regexes so it doesn't overrule negative constants
 		this.registerMatch(TokenType.Sub, "-")

@@ -1,11 +1,7 @@
 TODO
 
-Add binary, hex, and octal literal support
-Validate number literals to ensure they fit within the valid range; this should probably be in the analyzer
-
-Figure out short-circuiting for boolean operations-- super important!
-
 For optimization purposes, a switch/branch-table construct would be helpful
+Note that WASM's br_table requires keeping track of parent block labels, which requires context not currently available to the generator. Switches where every case ends in return/break are usually compiled to if/else chains anyway
 
 We should also create a VSCode language server that provides realtime analysis and validation. Take a look at textdiff-create on NPM for generating diffs to apply formatting
 
@@ -25,6 +21,7 @@ Arrays
 	Arrays still need to be added
     They should be similar to structs; always fixed-size, let user code keep a dynamic length separately if desired
 	Arrays are a lot trickier than they look. To use them as parameters/locals, we need to know the index at compile time because the argument to get_local is an immediate, not a stack value. For mapped array accesses, we need to somehow thread the indexing stack value to the generated load/store ops, multiply it by the array type's size, and add it to the computed offset.
+	To use arrays as locals/globals we could generate branch-tables that get/set the appropriate local/global using the computed index
 
 Structs
 	For locals/globals, they are allocated as suffixed properties (e.g. v: { x, y } becomes "v.x", "v.y") and use scope trickery to control access

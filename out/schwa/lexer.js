@@ -54,6 +54,8 @@ class Lexer {
                             if (token)
                                 break;
                         }
+                        if (token)
+                            break;
                         end++;
                     }
                     let val = this.lines[row].substring(col, end);
@@ -148,12 +150,12 @@ class SchwaLexer extends Lexer {
         this.registerRegex(token_1.TokenType.Map, /\bmap\b/);
         this.registerRegex(token_1.TokenType.At, /\bat\b/);
         this.registerRegex(token_1.TokenType.Name, /\b[^\d\W]\w*\b/);
-        this.registerRegex(token_1.TokenType.Float, /(?:-|\b)\d+\.?\d*[fF]\b/);
-        this.registerRegex(token_1.TokenType.Double, /(?:-|\b)\d+\.\d*\b/);
-        this.registerRegex(token_1.TokenType.ULong, /\b\d+[uU][lL]\b/);
-        this.registerRegex(token_1.TokenType.Long, /(?:-|\b)\d+[lL]\b/);
-        this.registerRegex(token_1.TokenType.UInt, /\b\d+[uU]\b/);
-        this.registerRegex(token_1.TokenType.Int, /(?:-|\b)\d+\b/);
+        this.registerRegex(token_1.TokenType.Float, /(?:-|\b)(?:0b[0-1]+\.?[0-1]*|0o[0-7]+\.?[0-7]*|0x[0-9A-F]+\.?[0-9A-F]*|\d+\.?\d*)f\b/);
+        this.registerRegex(token_1.TokenType.Double, /(?:-|\b)(?:0b[0-1]+\.[0-1]*|0o[0-7]+\.[0-7]*|0x[0-9A-F]+\.[0-9A-F]*|\d+\.\d*)\b/);
+        this.registerRegex(token_1.TokenType.ULong, /\b(?:0b[0-1]+|0o[0-7]+|0x[0-9A-F]+|\d+)uL\b/);
+        this.registerRegex(token_1.TokenType.Long, /(?:-|\b)(?:0b[0-1]+|0o[0-7]+|0x[0-9A-F]+|\d+)L\b/);
+        this.registerRegex(token_1.TokenType.UInt, /\b(?:0b[0-1]+|0o[0-7]+|0x[0-9A-F]+|\d+)u\b/);
+        this.registerRegex(token_1.TokenType.Int, /(?:-|\b)(?:0b[0-1]+|0o[0-7]+|0x[0-9A-F]+|\d+)\b/);
         // After the number regexes so it doesn't overrule negative constants
         this.registerMatch(token_1.TokenType.Sub, "-");
     }

@@ -3,6 +3,7 @@ import { TokenType } from "./token"
 import { AstNode, AstType } from "./ast"
 import { DataType } from "./datatype"
 import { Scope, Struct, Function, Variable } from "./scope"
+import * as Long from "long"
 
 const MAX_TYPE_DEPTH = 16
 
@@ -394,7 +395,50 @@ export class SchwaAnalyzer extends Analyzer {
 		this.registerDataType(AstType.VariableDef, (n) => n.token.value)
 		this.registerDataType(AstType.FunctionDef, (n) => n.token.value)
 		this.registerDataType(AstType.StructDef, (n) => n.children[0].token.value)
-		this.registerDataType(AstType.Literal, (n) => DataType.fromTokenType(n.token.type))
+		this.registerDataType(AstType.Literal, (n) => {
+			let type = DataType.fromTokenType(n.token.type)
+			if (type == DataType.Float || type == DataType.Double) {
+				return type
+			}else if (type == DataType.Int || type == DataType.UInt || type == DataType.Long || type == DataType.ULong) {
+				let val = n.token.value
+				let unsigned = type == DataType.UInt || type == DataType.ULong
+				let isLong = type == DataType.Long || type == DataType.ULong
+				let neg = val.startsWith('-')
+				if (neg) val = val.substr(1)
+				
+				if (unsigned) val = val.substr(0, val.length - 1)
+				if (isLong) val = val.substr(0, val.length - 1)
+
+				let radix = 10
+				if (val.startsWith('0x')) {
+					radix = 16
+					val = val.substr(2)
+				}
+				if (val.startsWith('0o')) {
+					radix = 8
+					val = val.substr(2)
+				}
+				if (val.startsWith('0b')) {
+					radix = 2
+					val = val.substr(2)
+				}
+
+				if (neg) val = '-' + val
+
+				let isValid = true
+
+				let long = Long.fromString(val, unsigned, radix)
+				if (!isLong && long.gt(Long.fromString(unsigned ? "FFFFFFFF" : "7FFFFFFF", unsigned, 16))) isValid = false
+				if (!isLong && long.lt(Long.fromString(unsigned ? "0" : "-80000000", unsigned, 16))) isValid = false
+				if (long.toString(radix).toUpperCase() != val) isValid = false
+				if (!isValid) console.log(val, long.toString(radix).toUpperCase())
+				if (isValid) return type
+			}else{
+				return type
+			}
+			this.logError("The value " + JSON.stringify(n.token.value) + " is out of range", n)
+			return DataType.Invalid
+		})
 
 		let intTypeSet = [DataType.Int, DataType.Int, DataType.Int]
 		let uintTypeSet = [DataType.UInt, DataType.UInt, DataType.UInt]

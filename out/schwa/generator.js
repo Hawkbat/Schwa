@@ -946,13 +946,48 @@ class SchwaGenerator extends Generator {
         return null;
     }
     stripNum(str) {
-        if (str.toLowerCase().endsWith("l"))
+        if (this.parseRadix(str) != 10)
+            str = str.substring(2);
+        if (str.endsWith("L"))
             str = str.substring(0, str.length - 1);
-        if (str.toLowerCase().endsWith("u"))
+        if (str.endsWith("u"))
             str = str.substring(0, str.length - 1);
-        if (str.toLowerCase().endsWith("f"))
+        if (str.endsWith("f"))
             str = str.substring(0, str.length - 1);
         return str;
+    }
+    parseRadix(str) {
+        if (str.startsWith('0x'))
+            return 16;
+        if (str.startsWith('0o'))
+            return 8;
+        if (str.startsWith('0b'))
+            return 2;
+        return 10;
+    }
+    parseToInt(str) {
+        let radix = this.parseRadix(str);
+        str = this.stripNum(str);
+        return parseInt(str, radix);
+    }
+    parseToFloat(str) {
+        let radix = this.parseRadix(str);
+        str = this.stripNum(str);
+        let bits = str.split(/\./);
+        if (bits[0] == '')
+            bits[0] = '0';
+        if (bits.length > 1 && bits[1] != '') {
+            let n = parseInt(bits[1], radix);
+            n *= Math.pow(radix, -bits[1].length);
+            return parseInt(bits[0], radix) + n;
+        }
+        return parseInt(bits[0], radix);
+    }
+    parseToLong(str) {
+        let radix = this.parseRadix(str);
+        let unsigned = str.endsWith('uL') || str.endsWith('u');
+        str = this.stripNum(str);
+        return Long.fromString(str, unsigned, radix);
     }
 }
 exports.SchwaGenerator = SchwaGenerator;

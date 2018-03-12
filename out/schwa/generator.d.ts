@@ -45,4 +45,8 @@ export declare class SchwaGenerator extends Generator {
     constructor(logger: Logger);
     protected getIdentifier(node: AstNode): AstNode | null;
     private stripNum(str);
+    private parseRadix(str);
+    private parseToInt(str);
+    private parseToFloat(str);
+    private parseToLong(str);
 }
