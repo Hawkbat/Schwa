@@ -15,7 +15,7 @@ export void DoSomething(bool alphabet, ulong soup)
 		x = ((20f + 10ul to float) * float.ceil(20.25f)) to int
 		if !alphabet && x == 20
 			nop()
-		else if y == 70
+		else if y == 70 && x > 0
 			while y > 0
 				y = y - 15
 				if y < 0
@@ -36,7 +36,7 @@ export int inc()
 	int.store(0u, val)
 	return val
 
-// Accessing this struct's properties will emit loads/stores starting at address 64 
+// Accessing this struct's properties will emit loads/stores starting at address 64
 map Object object at 64
 
 export float getLength(Vector v)
@@ -46,7 +46,7 @@ export void normalize()
 	float len = getLength(object.position)
 	float x = object.position.x / len
 	float y = object.position.y / len
-	object.position.x = v
+	object.position.x = x
 	object.position.y = y
 
 struct Vector

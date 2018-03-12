@@ -439,16 +439,24 @@ class SchwaGenerator extends Generator {
                     w.uint8(WASM.OpCode.f32_demote_f64);
             }
             else if (n.token.type == token_1.TokenType.And) {
-                // TODO: implement short-circuiting logic
                 this.gen(w, n.children[0]);
+                w.uint8(WASM.OpCode.if);
+                w.uint8(WASM.LangType.i32);
                 this.gen(w, n.children[1]);
-                w.uint8(WASM.OpCode.i32_and);
+                w.uint8(WASM.OpCode.else);
+                w.uint8(WASM.OpCode.i32_const);
+                w.varintN(0, 32);
+                w.uint8(WASM.OpCode.end);
             }
             else if (n.token.type == token_1.TokenType.Or) {
-                // TODO: implement short-circuiting logic
                 this.gen(w, n.children[0]);
+                w.uint8(WASM.OpCode.if);
+                w.uint8(WASM.LangType.i32);
+                w.uint8(WASM.OpCode.i32_const);
+                w.varintN(1, 32);
+                w.uint8(WASM.OpCode.else);
                 this.gen(w, n.children[1]);
-                w.uint8(WASM.OpCode.i32_or);
+                w.uint8(WASM.OpCode.end);
             }
             else {
                 this.gen(w, n.children[0]);
@@ -508,19 +516,19 @@ class SchwaGenerator extends Generator {
                         w.uint8(WASM.OpCode.i64_rem_u);
                 }
                 else if (n.token.type == token_1.TokenType.AND) {
-                    if (t == datatype_1.DataType.Int || t == datatype_1.DataType.UInt)
+                    if (t == datatype_1.DataType.Int || t == datatype_1.DataType.UInt || t == datatype_1.DataType.Bool)
                         w.uint8(WASM.OpCode.i32_and);
                     else if (t == datatype_1.DataType.Long || t == datatype_1.DataType.ULong)
                         w.uint8(WASM.OpCode.i64_and);
                 }
                 else if (n.token.type == token_1.TokenType.OR) {
-                    if (t == datatype_1.DataType.Int || t == datatype_1.DataType.UInt)
+                    if (t == datatype_1.DataType.Int || t == datatype_1.DataType.UInt || t == datatype_1.DataType.Bool)
                         w.uint8(WASM.OpCode.i32_or);
                     else if (t == datatype_1.DataType.Long || t == datatype_1.DataType.ULong)
                         w.uint8(WASM.OpCode.i64_or);
                 }
                 else if (n.token.type == token_1.TokenType.XOR) {
-                    if (t == datatype_1.DataType.Int || t == datatype_1.DataType.UInt)
+                    if (t == datatype_1.DataType.Int || t == datatype_1.DataType.UInt || t == datatype_1.DataType.Bool)
                         w.uint8(WASM.OpCode.i32_xor);
                     else if (t == datatype_1.DataType.Long || t == datatype_1.DataType.ULong)
                         w.uint8(WASM.OpCode.i64_xor);

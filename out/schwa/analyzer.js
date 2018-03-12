@@ -419,9 +419,9 @@ class SchwaAnalyzer extends Analyzer {
         this.registerDataTypeBinaryOp(token_1.TokenType.Mul, numberTypeSets);
         this.registerDataTypeBinaryOp(token_1.TokenType.Div, numberTypeSets);
         this.registerDataTypeBinaryOp(token_1.TokenType.Mod, fixedTypeSets);
-        this.registerDataTypeBinaryOp(token_1.TokenType.AND, fixedTypeSets);
-        this.registerDataTypeBinaryOp(token_1.TokenType.OR, fixedTypeSets);
-        this.registerDataTypeBinaryOp(token_1.TokenType.XOR, fixedTypeSets);
+        this.registerDataTypeBinaryOp(token_1.TokenType.AND, [...fixedTypeSets, boolTypeSet]);
+        this.registerDataTypeBinaryOp(token_1.TokenType.OR, [...fixedTypeSets, boolTypeSet]);
+        this.registerDataTypeBinaryOp(token_1.TokenType.XOR, [...fixedTypeSets, boolTypeSet]);
         this.registerDataTypeBinaryOp(token_1.TokenType.NOT, fixedTypeSets);
         this.registerDataTypeBinaryOp(token_1.TokenType.ShL, fixedTypeSets);
         this.registerDataTypeBinaryOp(token_1.TokenType.ShR, fixedTypeSets);
