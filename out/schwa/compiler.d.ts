@@ -1,4 +1,4 @@
-import { Logger, Lexer, Parser, Validator, Analyzer, Formatter, Generator } from "./";
+import { Logger, Lexer, Parser, Validator, Analyzer, Formatter, Generator, AstNode, LogMsg, Token } from "./";
 export declare class Compiler {
     logger: Logger;
     lexer: Lexer;
@@ -8,5 +8,13 @@ export declare class Compiler {
     formatter: Formatter;
     generator: Generator;
     constructor();
-    compile(lines: string[], moduleName?: string): ArrayBuffer | null;
+    compile(lines: string[], moduleName?: string): CompilerResult;
+}
+export interface CompilerResult {
+    tokens?: Token[] | null;
+    ast?: AstNode | null;
+    formatted?: string | null;
+    buffer?: ArrayBuffer | null;
+    msgs?: LogMsg[] | null;
+    success: boolean;
 }

@@ -23,12 +23,12 @@ let dstPath = ''
 if (program.test) {
 	srcPath = path.join(__dirname, "test.schwa")
 	dstPath = path.join(__dirname, "test.wasm")
-}else if (program.args.length == 1) {
+} else if (program.args.length == 1) {
 	srcPath = program.args[0]
 	let filename = path.basename(srcPath, path.extname(srcPath))
-    let dirpath = path.dirname(srcPath)
+	let dirpath = path.dirname(srcPath)
 	dstPath = path.join(dirpath, filename + '.wasm')
-}else if (program.args.length == 2) {
+} else if (program.args.length == 2) {
 	srcPath = program.args[0]
 	dstPath = program.args[1]
 }
@@ -38,7 +38,7 @@ if (srcPath && dstPath) {
 		debug(srcPath, dstPath)
 	else
 		run(srcPath, dstPath)
-}else{
+} else {
 	program.help()
 }
 
@@ -49,10 +49,10 @@ function run(srcPath: string, dstPath: string) {
 	let compiler = new Compiler()
 	let result = compiler.compile(lines, filename)
 
-	if (result) {
-		fs.writeFileSync(dstPath, Buffer.from(result))
+	if (result.success) {
+		fs.writeFileSync(dstPath, Buffer.from(result.buffer as ArrayBuffer))
 		console.log("Compilation successful.")
-	}else {
+	} else {
 		let msgs = compiler.logger.getLogs()
 		for (let msg of msgs) console.log(msg.toString())
 		console.log("Compilation failed.")
@@ -80,50 +80,50 @@ function debug(srcPath: string, dstPath: string) {
 
 	console.time("process")
 
-	;(() => {
+		; (() => {
 
-		// Converts raw text input into an array of tokens
-		console.time("lexer")
-		let tokens = lexer.lex(lines)
-		console.timeEnd("lexer")
+			// Converts raw text input into an array of tokens
+			console.time("lexer")
+			let tokens = lexer.lex(lines)
+			console.timeEnd("lexer")
 
-		if (logger.count(LogType.Error)) return
+			if (logger.count(LogType.Error)) return
 
-		// Converts an array of tokens into a syntax tree
-		console.time("parser")
-		ast = parser.parse(tokens)
-		console.timeEnd("parser")
+			// Converts an array of tokens into a syntax tree
+			console.time("parser")
+			ast = parser.parse(tokens)
+			console.timeEnd("parser")
 
-		if (!ast || logger.count(LogType.Error)) return
+			if (!ast || logger.count(LogType.Error)) return
 
-		// Analyzes a syntax tree for syntactic correctness
-		console.time("validator")
-		validator.validate(ast)
-		console.timeEnd("validator")
+			// Analyzes a syntax tree for syntactic correctness
+			console.time("validator")
+			validator.validate(ast)
+			console.timeEnd("validator")
 
-		if (logger.count(LogType.Error)) return
+			if (logger.count(LogType.Error)) return
 
-		// Analyzes a syntax tree for semantic correctness
-		console.time("analyzer")
-		analyzer.analyze(ast)
-		console.timeEnd("analyzer")
+			// Analyzes a syntax tree for semantic correctness
+			console.time("analyzer")
+			analyzer.analyze(ast)
+			console.timeEnd("analyzer")
 
-		if (logger.count(LogType.Error)) return
+			if (logger.count(LogType.Error)) return
 
-		// Pretty-prints a formatted version of the syntax tree
-		console.time("formatter")
-		prettyPrint = formatter.format(ast)
-		console.timeEnd("formatter")
+			// Pretty-prints a formatted version of the syntax tree
+			console.time("formatter")
+			prettyPrint = formatter.format(ast)
+			console.timeEnd("formatter")
 
-		if (logger.count(LogType.Error)) return
+			if (logger.count(LogType.Error)) return
 
-		// Generates WebAssembly bytecode from the syntax tree
-		console.time("generator")
-		wasmBuffer = generator.generate(ast, filename)
-		console.timeEnd("generator")
+			// Generates WebAssembly bytecode from the syntax tree
+			console.time("generator")
+			wasmBuffer = generator.generate(ast, filename)
+			console.timeEnd("generator")
 
-		if (logger.count(LogType.Error)) return
-	})()
+			if (logger.count(LogType.Error)) return
+		})()
 
 	console.timeEnd("process")
 

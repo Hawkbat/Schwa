@@ -5,5 +5,6 @@ export { SchwaAnalyzer as Analyzer } from "./analyzer";
 export { SchwaFormatter as Formatter } from "./formatter";
 export { SchwaGenerator as Generator } from "./generator";
 export { Compiler } from "./compiler";
-export { Logger, LogType } from "./log";
+export { Logger, LogType, LogMsg } from "./log";
 export { AstNode } from "./ast";
+export { Token } from "./token";

@@ -12,26 +12,34 @@ class Compiler {
         this.generator = new _1.Generator(this.logger);
     }
     compile(lines, moduleName = "") {
+        let result = { success: false };
         this.logger.clear();
-        let tokens = this.lexer.lex(lines);
+        result.tokens = this.lexer.lex(lines);
+        result.msgs = this.logger.getLogs();
         if (this.logger.count(_1.LogType.Error))
-            return null;
-        let ast = this.parser.parse(tokens);
-        if (!ast || this.logger.count(_1.LogType.Error))
-            return null;
-        this.validator.validate(ast);
+            return result;
+        result.ast = this.parser.parse(result.tokens);
+        result.msgs = this.logger.getLogs();
+        if (!result.ast || this.logger.count(_1.LogType.Error))
+            return result;
+        this.validator.validate(result.ast);
+        result.msgs = this.logger.getLogs();
         if (this.logger.count(_1.LogType.Error))
-            return null;
-        this.analyzer.analyze(ast);
+            return result;
+        this.analyzer.analyze(result.ast);
+        result.msgs = this.logger.getLogs();
         if (this.logger.count(_1.LogType.Error))
-            return null;
-        let prettyPrint = this.formatter.format(ast);
+            return result;
+        result.formatted = this.formatter.format(result.ast);
+        result.msgs = this.logger.getLogs();
         if (this.logger.count(_1.LogType.Error))
-            return null;
-        let wasmBuffer = this.generator.generate(ast, moduleName);
-        if (!wasmBuffer || this.logger.count(_1.LogType.Error))
-            return null;
-        return wasmBuffer;
+            return result;
+        result.buffer = this.generator.generate(result.ast, moduleName);
+        result.msgs = this.logger.getLogs();
+        if (!result.buffer || this.logger.count(_1.LogType.Error))
+            return result;
+        result.success = true;
+        return result;
     }
 }
 exports.Compiler = Compiler;
