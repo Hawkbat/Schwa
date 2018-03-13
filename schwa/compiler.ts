@@ -1,4 +1,4 @@
-import { Logger, Lexer, Parser, Validator, Analyzer, Formatter, Generator, LogType } from "./"
+import { Logger, Lexer, Parser, Validator, Analyzer, Formatter, Generator, LogType, AstNode, LogMsg, Token } from "./"
 import * as fs from "fs"
 import * as path from "path"
 
@@ -21,20 +21,45 @@ export class Compiler {
         this.generator = new Generator(this.logger)
     }
 
-    compile(lines: string[], moduleName: string = ""): ArrayBuffer | null {
+    compile(lines: string[], moduleName: string = ""): CompilerResult {
+        let result: CompilerResult = { success: false }
+
         this.logger.clear()
-        let tokens = this.lexer.lex(lines)
-        if (this.logger.count(LogType.Error)) return null
-        let ast = this.parser.parse(tokens)
-        if (!ast || this.logger.count(LogType.Error)) return null
-        this.validator.validate(ast)
-        if (this.logger.count(LogType.Error)) return null
-        this.analyzer.analyze(ast)
-        if (this.logger.count(LogType.Error)) return null
-        let prettyPrint = this.formatter.format(ast)
-        if (this.logger.count(LogType.Error)) return null
-        let wasmBuffer = this.generator.generate(ast, moduleName)
-        if (!wasmBuffer || this.logger.count(LogType.Error)) return null
-		return wasmBuffer
+
+        result.tokens = this.lexer.lex(lines)
+        result.msgs = this.logger.getLogs()
+        if (this.logger.count(LogType.Error)) return result
+
+        result.ast = this.parser.parse(result.tokens)
+        result.msgs = this.logger.getLogs()
+        if (!result.ast || this.logger.count(LogType.Error)) return result
+
+        this.validator.validate(result.ast)
+        result.msgs = this.logger.getLogs()
+        if (this.logger.count(LogType.Error)) return result
+
+        this.analyzer.analyze(result.ast)
+        result.msgs = this.logger.getLogs()
+        if (this.logger.count(LogType.Error)) return result
+
+        result.formatted = this.formatter.format(result.ast)
+        result.msgs = this.logger.getLogs()
+        if (this.logger.count(LogType.Error)) return result
+
+        result.buffer = this.generator.generate(result.ast, moduleName)
+        result.msgs = this.logger.getLogs()
+        if (!result.buffer || this.logger.count(LogType.Error)) return result
+
+        result.success = true
+        return result
     }
+}
+
+export interface CompilerResult {
+    tokens?: Token[] | null,
+    ast?: AstNode | null,
+    formatted?: string | null,
+    buffer?: ArrayBuffer | null,
+    msgs?: LogMsg[] | null,
+    success: boolean
 }

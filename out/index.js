@@ -10,4 +10,6 @@ exports.Generator = schwa_1.Generator;
 exports.Logger = schwa_1.Logger;
 exports.Compiler = schwa_1.Compiler;
 exports.LogType = schwa_1.LogType;
+exports.LogMsg = schwa_1.LogMsg;
 exports.AstNode = schwa_1.AstNode;
+exports.Token = schwa_1.Token;

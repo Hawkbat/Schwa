@@ -43,8 +43,8 @@ function run(srcPath, dstPath) {
     let filename = path.basename(dstPath, path.extname(dstPath));
     let compiler = new schwa_1.Compiler();
     let result = compiler.compile(lines, filename);
-    if (result) {
-        fs.writeFileSync(dstPath, Buffer.from(result));
+    if (result.success) {
+        fs.writeFileSync(dstPath, Buffer.from(result.buffer));
         console.log("Compilation successful.");
     }
     else {

@@ -1,4 +1,5 @@
 # Schwa
+[![npm version](https://badge.fury.io/js/schwa.svg)](https://badge.fury.io/js/schwa)
 <img src="./docs/Schwa.png" width="128" align="right">
 
 A toolchain written in Node for a toy language with a C-like syntax that compiles to WebAssembly.
