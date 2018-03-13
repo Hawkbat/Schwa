@@ -30,8 +30,45 @@ exports.Formatter = Formatter;
 class SchwaFormatter extends Formatter {
     constructor(logger) {
         super(logger);
-        this.register(ast_1.AstType.UnaryOp, (n) => n.token.value + this.printNode(n.children[0]));
-        this.register(ast_1.AstType.BinaryOp, (n) => this.printNode(n.children[0]) + ' ' + n.token.value + ' ' + this.printNode(n.children[1]));
+        this.PRECEDENCE_MAP = {
+            [token_1.TokenType.And]: 1,
+            [token_1.TokenType.Or]: 2,
+            [token_1.TokenType.Eq]: 3,
+            [token_1.TokenType.Ne]: 3,
+            [token_1.TokenType.Lt]: 3,
+            [token_1.TokenType.Le]: 3,
+            [token_1.TokenType.Gt]: 3,
+            [token_1.TokenType.Ge]: 3,
+            [token_1.TokenType.ShL]: 4,
+            [token_1.TokenType.ShR]: 4,
+            [token_1.TokenType.RotL]: 4,
+            [token_1.TokenType.RotR]: 4,
+            [token_1.TokenType.OR]: 5,
+            [token_1.TokenType.XOR]: 6,
+            [token_1.TokenType.AND]: 7,
+            [token_1.TokenType.Add]: 8,
+            [token_1.TokenType.Sub]: 8,
+            [token_1.TokenType.Mul]: 9,
+            [token_1.TokenType.Div]: 9,
+            [token_1.TokenType.Mod]: 9,
+            [token_1.TokenType.As]: 10,
+            [token_1.TokenType.To]: 10,
+            [token_1.TokenType.Neg]: 11,
+            [token_1.TokenType.NOT]: 11,
+            [token_1.TokenType.Not]: 11
+        };
+        this.register(ast_1.AstType.UnaryOp, (n) => {
+            let out = n.token.value + this.printNode(n.children[0]);
+            if (this.needsParens(n))
+                out = '(' + out + ')';
+            return out;
+        });
+        this.register(ast_1.AstType.BinaryOp, (n) => {
+            let out = this.printNode(n.children[0]) + ' ' + n.token.value + ' ' + this.printNode(n.children[1]);
+            if (this.needsParens(n))
+                out = '(' + out + ')';
+            return out;
+        });
         this.register(ast_1.AstType.VariableDef, (n) => n.token.value + ' ' + this.printNode(n.children[0]));
         this.register(ast_1.AstType.FunctionDef, (n) => '\n' + n.children.slice(3).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 3 ? ' ' : '') + n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]) + this.printNode(n.children[2]));
         this.register(ast_1.AstType.StructDef, (n) => '\n' + n.children.slice(2).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 2 ? ' ' : '') + n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]));
@@ -115,6 +152,18 @@ class SchwaFormatter extends Formatter {
             }
             return out;
         });
+    }
+    needsParens(n) {
+        if (n.parent && (n.parent.type == ast_1.AstType.BinaryOp || n.parent.type == ast_1.AstType.UnaryOp)) {
+            let isLeft = n == n.parent.children[0];
+            let nP = this.PRECEDENCE_MAP[n.token.type];
+            let pP = this.PRECEDENCE_MAP[n.parent.token.type];
+            if (isLeft && nP < pP)
+                return true;
+            if (!isLeft && nP <= pP)
+                return true;
+        }
+        return false;
     }
     getDepth(node) {
         if (!node.parent)
