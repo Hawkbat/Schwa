@@ -27,7 +27,7 @@ class Parser {
         let prefixFunc = this.prefixFuncMap[token.type];
         if (!prefixFunc) {
             if (token.type != token_1.TokenType.Unknown)
-                this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Parser", "Unable to parse token " + JSON.stringify(token.value) + " (" + token.type + ")", token.row, token.column, token.value.length));
+                this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Parser", "Unable to parse token " + JSON.stringify(token.value) + (token.type == token.value ? "" : " (" + token.type + ")"), token.row, token.column, token.value.length));
             return new ast_1.AstNode(ast_1.AstType.Unknown, token, []);
         }
         let left = prefixFunc(token);
@@ -274,16 +274,14 @@ class SchwaParser extends Parser {
         // Function calls
         this.registerInfix(token_1.TokenType.LParen, 12, (l, t) => {
             let args = [];
-            if (!this.match(token_1.TokenType.RParen)) {
-                do {
-                    if (this.match(token_1.TokenType.Comma))
-                        this.consume();
-                    let n;
-                    if (!this.match(token_1.TokenType.EOL))
-                        n = this.parseNode();
-                    if (n)
-                        args.push(n);
-                } while (this.match(token_1.TokenType.Comma));
+            while (!this.match(token_1.TokenType.RParen) && !this.match(token_1.TokenType.EOL)) {
+                let n;
+                if (!this.match(token_1.TokenType.EOL))
+                    n = this.parseNode();
+                if (n)
+                    args.push(n);
+                if (this.match(token_1.TokenType.Comma))
+                    this.consume();
             }
             this.consumeMatch(token_1.TokenType.LParen, token_1.TokenType.RParen);
             let id = l;

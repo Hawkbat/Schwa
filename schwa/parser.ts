@@ -30,7 +30,7 @@ export class Parser {
 
 		if (!prefixFunc) {
 			if (token.type != TokenType.Unknown)
-				this.logger.log(new LogMsg(LogType.Error, "Parser", "Unable to parse token " + JSON.stringify(token.value) + " (" + token.type + ")", token.row, token.column, token.value.length))
+				this.logger.log(new LogMsg(LogType.Error, "Parser", "Unable to parse token " + JSON.stringify(token.value) + (token.type == token.value ? "" : " (" + token.type + ")"), token.row, token.column, token.value.length))
 			return new AstNode(AstType.Unknown, token, [])
 		}
 
@@ -268,13 +268,11 @@ export class SchwaParser extends Parser {
 		// Function calls
 		this.registerInfix(TokenType.LParen, 12, (l, t) => {
 			let args: AstNode[] = []
-			if (!this.match(TokenType.RParen)) {
-				do {
-					if (this.match(TokenType.Comma)) this.consume()
-					let n
-					if (!this.match(TokenType.EOL)) n = this.parseNode()
-					if (n) args.push(n)
-				} while (this.match(TokenType.Comma))
+			while (!this.match(TokenType.RParen) && !this.match(TokenType.EOL)) {
+				let n
+				if (!this.match(TokenType.EOL)) n = this.parseNode()
+				if (n) args.push(n)
+				if (this.match(TokenType.Comma)) this.consume()
 			}
 			this.consumeMatch(TokenType.LParen, TokenType.RParen)
 			let id = l
