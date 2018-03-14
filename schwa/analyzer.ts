@@ -276,7 +276,7 @@ export class SchwaAnalyzer extends Analyzer {
 			let fieldNodes = n.children[1].children
 			for (let i = 0; i < fieldNodes.length; i++) {
 				if (fieldNodes[i].type != AstType.VariableDef) continue
-				fields.push(new Variable(n, scope, fieldNodes[i].children[0].token.value, fieldNodes[i].token.value))
+				fields.push(new Variable(fieldNodes[i], scope, fieldNodes[i].children[0].token.value, fieldNodes[i].token.value))
 			}
 			let struct = new Struct(n, scope, n.children[0].token.value, fields)
 			if (p.structs[struct.id]) {
@@ -292,7 +292,7 @@ export class SchwaAnalyzer extends Analyzer {
 			let params: Variable[] = []
 			let paramNodes = n.children[1].children
 			for (let i = 0; i < paramNodes.length; i++) {
-				params.push(new Variable(n, scope, paramNodes[i].children[0].token.value, paramNodes[i].token.value))
+				params.push(new Variable(paramNodes[i], scope, paramNodes[i].children[0].token.value, paramNodes[i].token.value))
 			}
 			let func = new Function(n, scope, n.children[0].token.value, n.token.value, params)
 			if (p.funcs[func.id]) {

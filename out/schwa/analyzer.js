@@ -264,7 +264,7 @@ class SchwaAnalyzer extends Analyzer {
             for (let i = 0; i < fieldNodes.length; i++) {
                 if (fieldNodes[i].type != ast_1.AstType.VariableDef)
                     continue;
-                fields.push(new scope_1.Variable(n, scope, fieldNodes[i].children[0].token.value, fieldNodes[i].token.value));
+                fields.push(new scope_1.Variable(fieldNodes[i], scope, fieldNodes[i].children[0].token.value, fieldNodes[i].token.value));
             }
             let struct = new scope_1.Struct(n, scope, n.children[0].token.value, fields);
             if (p.structs[struct.id]) {
@@ -281,7 +281,7 @@ class SchwaAnalyzer extends Analyzer {
             let params = [];
             let paramNodes = n.children[1].children;
             for (let i = 0; i < paramNodes.length; i++) {
-                params.push(new scope_1.Variable(n, scope, paramNodes[i].children[0].token.value, paramNodes[i].token.value));
+                params.push(new scope_1.Variable(paramNodes[i], scope, paramNodes[i].children[0].token.value, paramNodes[i].token.value));
             }
             let func = new scope_1.Function(n, scope, n.children[0].token.value, n.token.value, params);
             if (p.funcs[func.id]) {
