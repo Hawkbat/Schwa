@@ -88,8 +88,6 @@ function debug(srcPath, dstPath) {
         console.time("validator");
         validator.validate(ast);
         console.timeEnd("validator");
-        if (logger.count(schwa_1.LogType.Error))
-            return;
         // Analyzes a syntax tree for semantic correctness
         console.time("analyzer");
         analyzer.analyze(ast);
@@ -106,8 +104,6 @@ function debug(srcPath, dstPath) {
         console.time("generator");
         wasmBuffer = generator.generate(ast, filename);
         console.timeEnd("generator");
-        if (logger.count(schwa_1.LogType.Error))
-            return;
     })();
     console.timeEnd("process");
     console.time("output");

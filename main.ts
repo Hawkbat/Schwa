@@ -101,8 +101,6 @@ function debug(srcPath: string, dstPath: string) {
 			validator.validate(ast)
 			console.timeEnd("validator")
 
-			if (logger.count(LogType.Error)) return
-
 			// Analyzes a syntax tree for semantic correctness
 			console.time("analyzer")
 			analyzer.analyze(ast)
@@ -121,8 +119,6 @@ function debug(srcPath: string, dstPath: string) {
 			console.time("generator")
 			wasmBuffer = generator.generate(ast, filename)
 			console.timeEnd("generator")
-
-			if (logger.count(LogType.Error)) return
 		})()
 
 	console.timeEnd("process")

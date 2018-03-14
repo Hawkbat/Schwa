@@ -24,8 +24,6 @@ class Compiler {
             return result;
         this.validator.validate(result.ast);
         result.msgs = this.logger.getLogs();
-        if (this.logger.count(_1.LogType.Error))
-            return result;
         this.analyzer.analyze(result.ast);
         result.msgs = this.logger.getLogs();
         if (this.logger.count(_1.LogType.Error))

@@ -31,23 +31,26 @@ export class Compiler {
         if (this.logger.count(LogType.Error)) return result
 
         result.ast = this.parser.parse(result.tokens)
-        result.msgs = this.logger.getLogs()
+		result.msgs = this.logger.getLogs()
+		
         if (!result.ast || this.logger.count(LogType.Error)) return result
 
         this.validator.validate(result.ast)
         result.msgs = this.logger.getLogs()
-        if (this.logger.count(LogType.Error)) return result
 
         this.analyzer.analyze(result.ast)
         result.msgs = this.logger.getLogs()
+		
         if (this.logger.count(LogType.Error)) return result
 
         result.formatted = this.formatter.format(result.ast)
-        result.msgs = this.logger.getLogs()
+		result.msgs = this.logger.getLogs()
+		
         if (this.logger.count(LogType.Error)) return result
 
         result.buffer = this.generator.generate(result.ast, moduleName)
-        result.msgs = this.logger.getLogs()
+		result.msgs = this.logger.getLogs()
+		
         if (!result.buffer || this.logger.count(LogType.Error)) return result
 
         result.success = true
