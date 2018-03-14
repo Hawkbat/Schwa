@@ -90,7 +90,7 @@ class SchwaValidator extends Validator {
     registerParentType(type, parentTypes) {
         this.register(type, (n) => {
             if (!n.parent) {
-                this.logError("Expected parent of " + ast_1.AstType[type] + " node to be " + parentTypes.map(t => ast_1.AstType[t]).join(" node or ") + " node but node has no parent", n);
+                this.logError("Expected parent of " + type + " to be " + parentTypes.join(" or ") + " but node has no parent", n);
                 n.valid = false;
             }
             else {
@@ -102,7 +102,7 @@ class SchwaValidator extends Validator {
                     }
                 }
                 if (!validType) {
-                    this.logError("Expected parent of " + ast_1.AstType[type] + " node to be " + parentTypes.map(t => ast_1.AstType[t]).join(" node or ") + " node but found " + ast_1.AstType[n.parent.type] + " node instead", n.parent);
+                    this.logError("Expected parent of " + type + " to be " + parentTypes.join(" or ") + " but found " + n.parent.type + " instead", n.parent);
                     n.valid = false;
                 }
             }
@@ -118,14 +118,14 @@ class SchwaValidator extends Validator {
                 }
                 p = p.parent;
             }
-            this.logError("Expected ancestor of " + ast_1.AstType[type] + " node to be " + ancestorTypes.map(t => ast_1.AstType[t]).join(" node or ") + " node but no suitable node found", n.parent ? n.parent : n);
+            this.logError("Expected ancestor of " + type + " to be " + ancestorTypes.join(" or ") + " but no suitable node found", n.parent ? n.parent : n);
             n.valid = false;
         });
     }
-    registerChildCount(type, count) {
+    registerChildCount(type, min, max = min) {
         this.register(type, (n) => {
-            if ((!n.children && count > 0) || (n.children && n.children.length != count)) {
-                this.logError("Expected " + ast_1.AstType[type] + " node to have " + count + (count == 1 ? " child" : " children") + " but " + ((!n.children || n.children.length == 0) ? "none" : "" + n.children.length) + " found", n);
+            if (n.children.length < min || n.children.length > max) {
+                this.logError("Expected " + type + " to have " + (min == max ? min : min + '-' + max) + ((min == max && min == 1) ? " child" : " children") + " but " + ((!n.children || n.children.length == 0) ? "none" : "" + n.children.length) + " found", n);
                 n.valid = false;
             }
         });
@@ -145,7 +145,7 @@ class SchwaValidator extends Validator {
         this.register(type, (n) => {
             for (let i = startIndex; i < startIndex + childTypes.length; i++) {
                 if (!n.children || n.children.length <= i) {
-                    this.logError("Expected " + this.formatOrdinal(i + 1) + " child of " + ast_1.AstType[type] + " node to be " + childTypes[i - startIndex].map(t => ast_1.AstType[t]).join(" node or ") + " node but node has no " + this.formatOrdinal(i + 1) + " child", n);
+                    this.logError("Expected " + this.formatOrdinal(i + 1) + " child of " + type + " to be " + childTypes[i - startIndex].join(" or ") + " but node has no " + this.formatOrdinal(i + 1) + " child", n);
                     n.valid = false;
                 }
                 else {
@@ -157,7 +157,7 @@ class SchwaValidator extends Validator {
                         }
                     }
                     if (!validType) {
-                        this.logError("Expected " + this.formatOrdinal(i + 1) + " child of " + ast_1.AstType[type] + " node to be " + childTypes[i - startIndex].map(t => ast_1.AstType[t]).join(" node or ") + " node but found " + ast_1.AstType[n.children[i].type] + " node instead", n.children[i]);
+                        this.logError("Expected " + this.formatOrdinal(i + 1) + " child of " + type + " to be " + childTypes[i - startIndex].join(" or ") + " but found " + n.children[i].type + " instead", n.children[i]);
                         n.valid = false;
                     }
                 }
@@ -176,7 +176,7 @@ class SchwaValidator extends Validator {
                         }
                     }
                     if (!validType) {
-                        this.logError("Expected child of " + ast_1.AstType[type] + " node to be " + childrenTypes.map(t => ast_1.AstType[t]).join(" node or ") + " node but found " + ast_1.AstType[n.children[i].type] + " node instead", n.children[i]);
+                        this.logError("Expected child of " + type + " to be " + childrenTypes.join(" or ") + " but found " + n.children[i].type + " instead", n.children[i]);
                         n.valid = false;
                     }
                 }
@@ -186,13 +186,13 @@ class SchwaValidator extends Validator {
     registerNextSiblingType(type, siblingTypes) {
         this.register(type, (n) => {
             if (!n.parent) {
-                this.logError("Expected next sibling of " + ast_1.AstType[type] + " node to be " + siblingTypes.map(t => ast_1.AstType[t]).join(" node or ") + " node but node has no parent", n);
+                this.logError("Expected next sibling of " + type + " to be " + siblingTypes.join(" or ") + " but node has no parent", n);
                 n.valid = false;
                 return;
             }
             let index = n.parent.children.indexOf(n);
             if (index == n.parent.children.length - 1) {
-                this.logError("Expected next sibling of " + ast_1.AstType[type] + " node to be " + siblingTypes.map(t => ast_1.AstType[t]).join(" node or ") + " node but node has no next sibling", n);
+                this.logError("Expected next sibling of " + type + " to be " + siblingTypes.join(" or ") + " but node has no next sibling", n);
                 n.valid = false;
             }
             else {
@@ -205,7 +205,7 @@ class SchwaValidator extends Validator {
                     }
                 }
                 if (!validType) {
-                    this.logError("Expected next sibling of " + ast_1.AstType[type] + " node to be " + siblingTypes.map(t => ast_1.AstType[t]).join(" node or ") + " node but found " + ast_1.AstType[sibling.type] + " node instead", sibling);
+                    this.logError("Expected next sibling of " + type + " to be " + siblingTypes.join(" or ") + " but found " + sibling.type + " instead", sibling);
                     n.valid = false;
                 }
             }
@@ -214,13 +214,13 @@ class SchwaValidator extends Validator {
     registerPreviousSiblingType(type, siblingTypes) {
         this.register(type, (n) => {
             if (!n.parent) {
-                this.logError("Expected next sibling of " + ast_1.AstType[type] + " node to be " + siblingTypes.map(t => ast_1.AstType[t]).join(" node or ") + " node but node has no parent", n);
+                this.logError("Expected next sibling of " + type + " to be " + siblingTypes.join(" or ") + " but node has no parent", n);
                 n.valid = false;
                 return;
             }
             let index = n.parent.children.indexOf(n);
             if (index == 0) {
-                this.logError("Expected previous sibling of " + ast_1.AstType[type] + " node to be " + siblingTypes.map(t => ast_1.AstType[t]).join(" node or ") + " node but node has no previous sibling", n);
+                this.logError("Expected previous sibling of " + type + " to be " + siblingTypes.join(" or ") + " but node has no previous sibling", n);
                 n.valid = false;
             }
             else {
@@ -233,7 +233,7 @@ class SchwaValidator extends Validator {
                     }
                 }
                 if (!validType) {
-                    this.logError("Expected previous sibling of " + ast_1.AstType[type] + " node to be " + siblingTypes.map(t => ast_1.AstType[t]).join(" node or ") + " node but found " + ast_1.AstType[sibling.type] + " node instead", sibling);
+                    this.logError("Expected previous sibling of " + type + " to be " + siblingTypes.join(" or ") + " but found " + sibling.type + " instead", sibling);
                     n.valid = false;
                 }
             }

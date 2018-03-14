@@ -57,7 +57,7 @@ class Generator {
         if (rule)
             rule(w, node);
         else
-            console.log("No rule for " + ast_1.AstType[node.type]);
+            console.log("No rule for " + node.type);
         node.generated = true;
     }
     getModule(name) {
@@ -352,7 +352,7 @@ class SchwaGenerator extends Generator {
                 w.uint8(WASM.OpCode.i32_eqz);
             }
             else
-                this.logError("Unknown unary op " + token_1.TokenType[n.token.type], n);
+                this.logError("Unknown unary op " + n.token.type, n);
         });
         this.register(ast_1.AstType.BinaryOp, (w, n) => {
             let t = n.dataType;

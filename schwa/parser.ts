@@ -6,10 +6,10 @@ export type PrefixFunc = (token: Token) => AstNode
 export type InfixFunc = (left: AstNode | null, token: Token) => AstNode
 
 export class Parser {
-	private prefixFuncMap: { [key: number]: PrefixFunc } = {}
-	private infixFuncMap: { [key: number]: InfixFunc } = {}
-	private prefixPrecedenceMap: { [key: number]: number } = {}
-	private infixPrecedenceMap: { [key: number]: number } = {}
+	private prefixFuncMap: { [key: string]: PrefixFunc } = {}
+	private infixFuncMap: { [key: string]: InfixFunc } = {}
+	private prefixPrecedenceMap: { [key: string]: number } = {}
+	private infixPrecedenceMap: { [key: string]: number } = {}
 
 	private index: number = 0
 	private tokens: Token[] | null = null
@@ -30,7 +30,7 @@ export class Parser {
 
 		if (!prefixFunc) {
 			if (token.type != TokenType.Unknown)
-				this.logger.log(new LogMsg(LogType.Error, "Parser", "Unable to parse token " + JSON.stringify(token.value) + " (" + TokenType[token.type] + ")", token.row, token.column, token.value.length))
+				this.logger.log(new LogMsg(LogType.Error, "Parser", "Unable to parse token " + JSON.stringify(token.value) + " (" + token.type + ")", token.row, token.column, token.value.length))
 			return new AstNode(AstType.Unknown, token, [])
 		}
 
@@ -66,10 +66,10 @@ export class Parser {
 		return this.tokens[this.index]
 	}
 
-	protected consumeMatch(type: TokenType): Token | null {
+	protected consumeMatch(type: TokenType, match: TokenType): Token | null {
 		let token = this.peek()
-		if (token && token.type != type) {
-			this.logger.log(new LogMsg(LogType.Error, "Parser", "Unexpected token " + JSON.stringify(token.value) + " (" + TokenType[token.type] + "), expected " + TokenType[type], token.row, token.column, token.value.length))
+		if (token && token.type != match) {
+			this.logger.log(new LogMsg(LogType.Warning, "Parser", type + " expected " + match + " but got " + JSON.stringify(token.value) + " (" + token.type + ")", token.row, token.column, token.value.length))
 			return token
 		}
 		return this.consume()
@@ -87,7 +87,10 @@ export class Parser {
 
 	protected registerPrefixOp(type: TokenType, precedence: number) {
 		this.registerPrefix(type, precedence, (token) => {
-			let n = this.parseNode(precedence)
+			let n
+			if (!this.match(TokenType.EOL)) {
+				n = this.parseNode(precedence)
+			}
 			return new AstNode(AstType.UnaryOp, token, n ? [n] : [])
 		})
 	}
@@ -101,8 +104,10 @@ export class Parser {
 		this.registerInfix(type, precedence, (left, token) => {
 			let children = []
 			if (left) children.push(left)
-			let n = this.parseNode((rightAssociative) ? precedence - 1 : precedence)
-			if (n) children.push(n)
+			if (!this.match(TokenType.EOL)) {
+				let n = this.parseNode((rightAssociative) ? precedence - 1 : precedence)
+				if (n) children.push(n)
+			}
 			return new AstNode(AstType.BinaryOp, token, children)
 		})
 	}
@@ -116,8 +121,7 @@ export class SchwaParser extends Parser {
 	constructor(logger: Logger) {
 		super(logger)
 		this.registerPrefix(TokenType.Name, 0, (t) => {
-			let n = this.peek()
-			if (n && n.type == TokenType.Name) {
+			if (this.match(TokenType.Name)) {
 				let r = this.parseNode(1)
 				if (r && r.type == AstType.VariableId) {
 					return new AstNode(AstType.VariableDef, t, [r])
@@ -138,8 +142,7 @@ export class SchwaParser extends Parser {
 		this.registerPrefix(TokenType.Double, 0, (t) => new AstNode(AstType.Literal, t, []))
 		this.registerPrefix(TokenType.Bool, 0, (t) => new AstNode(AstType.Literal, t, []))
 		this.registerPrefix(TokenType.Type, 2, (t) => {
-			let n = this.peek()
-			if (n && n.type == TokenType.Name) {
+			if (this.match(TokenType.Name)) {
 				let r = this.parseNode(1)
 				if (r && r.type == AstType.VariableId) {
 					return new AstNode(AstType.VariableDef, t, [r])
@@ -153,18 +156,23 @@ export class SchwaParser extends Parser {
 			return new AstNode(AstType.Type, t, [])
 		})
 		this.registerPrefix(TokenType.Const, 1, (t) => {
-			let n = this.parseNode()
+			let n
+			if (!this.match(TokenType.EOL)) n = this.parseNode()
 			if (!n) return new AstNode(AstType.Const, t, [])
 			return new AstNode(n.type, n.token, [...n.children, new AstNode(AstType.Const, t, [])])
 		})
 		this.registerPrefix(TokenType.Export, 1, (t) => {
-			let n = this.parseNode()
+			let n
+			if (!this.match(TokenType.EOL)) n = this.parseNode()
 			if (!n) return new AstNode(AstType.Export, t, [])
 			return new AstNode(n.type, n.token, [...n.children, new AstNode(AstType.Export, t, [])])
 		})
 		this.registerPrefix(TokenType.Struct, 1, (t) => {
-			let n = this.parseNode()
-			if (n && n.type == AstType.VariableId) n.type = AstType.StructId
+			let n
+			if (!this.match(TokenType.EOL)) {
+				n = this.parseNode()
+				if (n && n.type == AstType.VariableId) n.type = AstType.StructId
+			}
 			return new AstNode(AstType.StructDef, t, n ? [n] : [])
 		})
 		this.registerPrefix(TokenType.Map, 2, (t) => {
@@ -173,32 +181,38 @@ export class SchwaParser extends Parser {
 				let n = this.parseNode()
 				if (n) children.push(n)
 			}
-			if (this.consumeMatch(TokenType.At)) {
-				let n = this.parseNode()
-				if (n) children.push(n)
+			let r = this.peek()
+			if (this.match(TokenType.At)) {
+				this.consume()
+				if (!this.match(TokenType.EOL)) {
+					let n = this.parseNode()
+					if (n) children.push(n)
+				}
 			}
 			return new AstNode(AstType.Map, t, children)
 		})
 		this.registerPrefix(TokenType.Comment, 0, (t) => new AstNode(AstType.Comment, t, []))
 		this.registerPrefix(TokenType.InlineComment, 0, (t) => new AstNode(AstType.Comment, t, []))
 		this.registerPrefix(TokenType.If, 1, (t) => {
-			let n = this.parseNode()
+			let n
+			if (!this.match(TokenType.EOL)) n = this.parseNode()
 			return new AstNode(AstType.If, t, n ? [n] : [])
 		})
 		this.registerPrefix(TokenType.Else, 1, (t) => new AstNode(AstType.Else, t, []))
 		this.registerPrefix(TokenType.ElseIf, 1, (t) => {
-			let n = this.parseNode()
+			let n
+			if (!this.match(TokenType.EOL)) n = this.parseNode()
 			return new AstNode(AstType.ElseIf, t, n ? [n] : [])
 		})
 		this.registerPrefix(TokenType.While, 1, (t) => {
-			let n = this.parseNode()
+			let n
+			if (!this.match(TokenType.EOL)) n = this.parseNode()
 			return new AstNode(AstType.While, t, n ? [n] : [])
 		})
 		this.registerPrefix(TokenType.Break, 1, (t) => new AstNode(AstType.Break, t, []))
 		this.registerPrefix(TokenType.Continue, 1, (t) => new AstNode(AstType.Continue, t, []))
 		this.registerPrefix(TokenType.Return, 1, (t) => {
-			let nt = this.peek()
-			if (nt && nt.value == "\n") return new AstNode(AstType.ReturnVoid, t, [])
+			if (this.match(TokenType.EOL)) return new AstNode(AstType.ReturnVoid, t, [])
 			else {
 				let n = this.parseNode()
 				return new AstNode(AstType.Return, t, n ? [n] : [])
@@ -207,8 +221,10 @@ export class SchwaParser extends Parser {
 		this.registerInfix(TokenType.Assign, 1, (l, t) => {
 			let children = []
 			if (l) children.push(l)
-			let n = this.parseNode()
-			if (n) children.push(n)
+			if (!this.match(TokenType.EOL)) {
+				let n = this.parseNode()
+				if (n) children.push(n)
+			}
 			return new AstNode(AstType.Assignment, t, children)
 		})
 		this.registerInfixOp(TokenType.And, 1, false)
@@ -235,15 +251,17 @@ export class SchwaParser extends Parser {
 		this.registerInfixOp(TokenType.To, 10, false)
 		// Unary negation reinterprets prefix Sub as Neg to distinguish them in the AST
 		this.registerPrefix(TokenType.Sub, 11, (t) => {
-			let n = this.parseNode(10)
+			let n
+			if (!this.match(TokenType.EOL)) n = this.parseNode(10)
 			return new AstNode(AstType.UnaryOp, new Token(TokenType.Neg, t.value, t.row, t.column), n ? [n] : [])
 		})
 		this.registerPrefixOp(TokenType.NOT, 11)
 		this.registerPrefixOp(TokenType.Not, 11)
 		// Grouping parentheses
 		this.registerPrefix(TokenType.LParen, 12, (t) => {
-			let n = this.parseNode()
-			this.consumeMatch(TokenType.RParen)
+			let n
+			if (!this.match(TokenType.EOL)) n = this.parseNode()
+			this.consumeMatch(TokenType.LParen, TokenType.RParen)
 			if (!n) return new AstNode(AstType.Unknown, t, [])
 			return n
 		})
@@ -253,11 +271,12 @@ export class SchwaParser extends Parser {
 			if (!this.match(TokenType.RParen)) {
 				do {
 					if (this.match(TokenType.Comma)) this.consume()
-					let n = this.parseNode()
+					let n
+					if (!this.match(TokenType.EOL)) n = this.parseNode()
 					if (n) args.push(n)
 				} while (this.match(TokenType.Comma))
 			}
-			this.consumeMatch(TokenType.RParen)
+			this.consumeMatch(TokenType.LParen, TokenType.RParen)
 			let id = l
 			if (id) {
 				while (id.type == AstType.Access) id = id.children[1]
@@ -272,14 +291,18 @@ export class SchwaParser extends Parser {
 		this.registerInfix(TokenType.Period, 13, (l, t) => {
 			let children = []
 			if (l) children.push(l)
-			let n = this.parseNode(12)
-			if (n) children.push(n)
+			if (this.match(TokenType.Name)) {
+				let n = this.parseNode(12)
+				if (n) children.push(n)
+			}else{
+				this.consumeMatch(TokenType.Period, TokenType.Name)
+			}
 			return new AstNode(AstType.Access, t, children)
 		})
 		// Statements
 		this.registerPrefix(TokenType.BOL, 14, (t) => {
 			let n = this.parseNode()
-			this.consumeMatch(TokenType.EOL)
+			this.consumeMatch(TokenType.BOL, TokenType.EOL)
 			if (!n) return new AstNode(AstType.Unknown, t, [])
 			return n
 		})
@@ -290,7 +313,7 @@ export class SchwaParser extends Parser {
 				let n = this.parseNode()
 				if (n) children.push(n)
 			}
-			this.consumeMatch(TokenType.Dedent)
+			this.consumeMatch(TokenType.Indent, TokenType.Dedent)
 			let n = new AstNode(AstType.Block, t, children)
 			if (l) {
 				if (l.type == AstType.FunctionDef) {
@@ -310,11 +333,10 @@ export class SchwaParser extends Parser {
 				let child = this.parseNode()
 				if (child) {
 					if (child.type == AstType.Assignment) child.type = AstType.Global
-					else if (child.type == AstType.Const && child.children[0].type == AstType.Assignment) child.children[0].type = AstType.Global
 					children.push(child)
 				}
 			}
-			this.consumeMatch(TokenType.EOF)
+			this.consumeMatch(TokenType.EOF, TokenType.EOF)
 			return new AstNode(AstType.Program, t, children)
 		})
 	}

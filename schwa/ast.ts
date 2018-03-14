@@ -3,39 +3,39 @@ import { DataType } from "./datatype"
 import { Scope } from "./scope"
 
 export enum AstType {
-	None,
-	Unknown,
-	VariableId,
-	FunctionId,
-	StructId,
-	Type,
-	Const,
-	Export,
-	Map,
-	Literal,
-	UnaryOp,
-	BinaryOp,
-	VariableDef,
-	FunctionDef,
-	StructDef,
-	Fields,
-	Parameters,
-	FunctionCall,
-	Arguments,
-	Assignment,
-	Global,
-	Access,
-	If,
-	Else,
-	ElseIf,
-	While,
-	Break,
-	Continue,
-	Return,
-	ReturnVoid,
-	Comment,
-	Block,
-	Program
+	None = "none",
+	Unknown = "unknown",
+	VariableId = "variable identifier",
+	FunctionId = "function identifier",
+	StructId = "struct identifier",
+	Type = "type",
+	Const = "const",
+	Export = "export",
+	Map = "map",
+	Literal = "literal value",
+	UnaryOp = "unary operator",
+	BinaryOp = "binary operator",
+	VariableDef = "variable definition",
+	FunctionDef = "function definition",
+	StructDef = "struct definition",
+	Fields = "fields",
+	Parameters = "parameters",
+	FunctionCall = "function call",
+	Arguments = "arguments",
+	Assignment = "assignment",
+	Global = "global variable",
+	Access = "property access",
+	If = "if",
+	Else = "else",
+	ElseIf = "else if",
+	While = "while",
+	Break = "break",
+	Continue = "continue",
+	Return = "return",
+	ReturnVoid = "return void",
+	Comment = "comment",
+	Block = "scope body",
+	Program = "program"
 }
 
 export class AstNode {
@@ -52,8 +52,10 @@ export class AstNode {
 	toString(depth?: number): string {
 		if (!depth) depth = 0
 		let out = "\t".repeat(depth)
-		out += AstType[this.type] + " (" + TokenType[this.token.type]
-		if (this.token.value) out += " " + JSON.stringify(this.token.value)
+		out += this.type + " ("
+		if (this.token.value != this.token.type) out += JSON.stringify(this.token.type)
+		if (this.token.value && this.token.value != this.token.type) out += " "
+		if (this.token.value) out += JSON.stringify(this.token.value)
 		out += ")"
 		if (this.dataType) out += ": " + this.dataType
 		out += "\n"

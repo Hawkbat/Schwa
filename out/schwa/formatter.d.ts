@@ -13,7 +13,7 @@ export declare class Formatter {
 export declare class SchwaFormatter extends Formatter {
     constructor(logger: Logger);
     protected PRECEDENCE_MAP: {
-        [key: number]: number;
+        [key: string]: number;
     };
     protected needsParens(n: AstNode): boolean;
     protected getDepth(node: AstNode): number;

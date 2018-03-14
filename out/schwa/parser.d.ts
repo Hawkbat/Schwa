@@ -17,7 +17,7 @@ export declare class Parser {
     private getPrecedence();
     protected consume(): Token | null;
     protected peek(): Token | null;
-    protected consumeMatch(type: TokenType): Token | null;
+    protected consumeMatch(type: TokenType, match: TokenType): Token | null;
     protected match(type: TokenType): boolean;
     protected registerPrefix(type: TokenType, precedence: number, func: PrefixFunc): void;
     protected registerPrefixOp(type: TokenType, precedence: number): void;

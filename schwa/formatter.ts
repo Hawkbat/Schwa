@@ -5,7 +5,7 @@ import { Logger, LogMsg, LogType } from "./log"
 export type FormatRule = (n: AstNode) => string
 
 export class Formatter {
-	private ruleMap: { [key: number]: FormatRule } = {}
+	private ruleMap: { [key: string]: FormatRule } = {}
 
 	constructor(protected logger: Logger) { }
 
@@ -114,7 +114,7 @@ export class SchwaFormatter extends Formatter {
 		})
 	}
 
-	protected PRECEDENCE_MAP: { [key: number]: number } = {
+	protected PRECEDENCE_MAP: { [key: string]: number } = {
 		[TokenType.And]: 1,
 		[TokenType.Or]: 2,
 		[TokenType.Eq]: 3,

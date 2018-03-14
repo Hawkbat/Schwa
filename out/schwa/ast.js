@@ -1,41 +1,40 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const token_1 = require("./token");
 var AstType;
 (function (AstType) {
-    AstType[AstType["None"] = 0] = "None";
-    AstType[AstType["Unknown"] = 1] = "Unknown";
-    AstType[AstType["VariableId"] = 2] = "VariableId";
-    AstType[AstType["FunctionId"] = 3] = "FunctionId";
-    AstType[AstType["StructId"] = 4] = "StructId";
-    AstType[AstType["Type"] = 5] = "Type";
-    AstType[AstType["Const"] = 6] = "Const";
-    AstType[AstType["Export"] = 7] = "Export";
-    AstType[AstType["Map"] = 8] = "Map";
-    AstType[AstType["Literal"] = 9] = "Literal";
-    AstType[AstType["UnaryOp"] = 10] = "UnaryOp";
-    AstType[AstType["BinaryOp"] = 11] = "BinaryOp";
-    AstType[AstType["VariableDef"] = 12] = "VariableDef";
-    AstType[AstType["FunctionDef"] = 13] = "FunctionDef";
-    AstType[AstType["StructDef"] = 14] = "StructDef";
-    AstType[AstType["Fields"] = 15] = "Fields";
-    AstType[AstType["Parameters"] = 16] = "Parameters";
-    AstType[AstType["FunctionCall"] = 17] = "FunctionCall";
-    AstType[AstType["Arguments"] = 18] = "Arguments";
-    AstType[AstType["Assignment"] = 19] = "Assignment";
-    AstType[AstType["Global"] = 20] = "Global";
-    AstType[AstType["Access"] = 21] = "Access";
-    AstType[AstType["If"] = 22] = "If";
-    AstType[AstType["Else"] = 23] = "Else";
-    AstType[AstType["ElseIf"] = 24] = "ElseIf";
-    AstType[AstType["While"] = 25] = "While";
-    AstType[AstType["Break"] = 26] = "Break";
-    AstType[AstType["Continue"] = 27] = "Continue";
-    AstType[AstType["Return"] = 28] = "Return";
-    AstType[AstType["ReturnVoid"] = 29] = "ReturnVoid";
-    AstType[AstType["Comment"] = 30] = "Comment";
-    AstType[AstType["Block"] = 31] = "Block";
-    AstType[AstType["Program"] = 32] = "Program";
+    AstType["None"] = "none";
+    AstType["Unknown"] = "unknown";
+    AstType["VariableId"] = "variable identifier";
+    AstType["FunctionId"] = "function identifier";
+    AstType["StructId"] = "struct identifier";
+    AstType["Type"] = "type";
+    AstType["Const"] = "const";
+    AstType["Export"] = "export";
+    AstType["Map"] = "map";
+    AstType["Literal"] = "literal value";
+    AstType["UnaryOp"] = "unary operator";
+    AstType["BinaryOp"] = "binary operator";
+    AstType["VariableDef"] = "variable definition";
+    AstType["FunctionDef"] = "function definition";
+    AstType["StructDef"] = "struct definition";
+    AstType["Fields"] = "fields";
+    AstType["Parameters"] = "parameters";
+    AstType["FunctionCall"] = "function call";
+    AstType["Arguments"] = "arguments";
+    AstType["Assignment"] = "assignment";
+    AstType["Global"] = "global variable";
+    AstType["Access"] = "property access";
+    AstType["If"] = "if";
+    AstType["Else"] = "else";
+    AstType["ElseIf"] = "else if";
+    AstType["While"] = "while";
+    AstType["Break"] = "break";
+    AstType["Continue"] = "continue";
+    AstType["Return"] = "return";
+    AstType["ReturnVoid"] = "return void";
+    AstType["Comment"] = "comment";
+    AstType["Block"] = "scope body";
+    AstType["Program"] = "program";
 })(AstType = exports.AstType || (exports.AstType = {}));
 class AstNode {
     constructor(type, token, children) {
@@ -54,9 +53,13 @@ class AstNode {
         if (!depth)
             depth = 0;
         let out = "\t".repeat(depth);
-        out += AstType[this.type] + " (" + token_1.TokenType[this.token.type];
+        out += this.type + " (";
+        if (this.token.value != this.token.type)
+            out += JSON.stringify(this.token.type);
+        if (this.token.value && this.token.value != this.token.type)
+            out += " ";
         if (this.token.value)
-            out += " " + JSON.stringify(this.token.value);
+            out += JSON.stringify(this.token.value);
         out += ")";
         if (this.dataType)
             out += ": " + this.dataType;

@@ -12,7 +12,7 @@ import { write } from "fs";
 export type GenerateRule = (w: Writer, n: AstNode) => void
 
 export class Generator {
-	private ruleMap: { [key: number]: GenerateRule } = {}
+	private ruleMap: { [key: string]: GenerateRule } = {}
 
 	protected ast: AstNode | null = null
 	protected funcTypes: WASM.FunctionType[] = []
@@ -61,7 +61,7 @@ export class Generator {
 		if (!node) return
 		let rule = this.ruleMap[node.type]
 		if (rule) rule(w, node)
-		else console.log("No rule for " + AstType[node.type])
+		else console.log("No rule for " + node.type)
 		node.generated = true
 	}
 
@@ -340,7 +340,7 @@ export class SchwaGenerator extends Generator {
 				this.gen(w, n.children[0])
 				w.uint8(WASM.OpCode.i32_eqz)
 			}
-			else this.logError("Unknown unary op " + TokenType[n.token.type], n)
+			else this.logError("Unknown unary op " + n.token.type, n)
 		})
 
 		this.register(AstType.BinaryOp, (w, n) => {

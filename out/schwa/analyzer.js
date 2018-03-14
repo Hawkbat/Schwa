@@ -557,9 +557,9 @@ class SchwaAnalyzer extends Analyzer {
             if (t0 == datatype_1.DataType.Double && t1 == datatype_1.DataType.ULong)
                 return datatype_1.DataType.ULong;
             if (t0 == datatype_1.DataType.Invalid)
-                this.logError("Invalid value argument to operator " + token_1.TokenType[n.token.type], n.children[0]);
+                this.logError("Invalid value argument to operator " + n.token.type, n.children[0]);
             if (t1 == datatype_1.DataType.Invalid)
-                this.logError("Invalid type argument to operator " + token_1.TokenType[n.token.type], n.children[1]);
+                this.logError("Invalid type argument to operator " + n.token.type, n.children[1]);
             return datatype_1.DataType.Invalid;
         });
         this.registerDataType(ast_1.AstType.BinaryOp, (n) => {
@@ -622,9 +622,9 @@ class SchwaAnalyzer extends Analyzer {
             if (t0 == datatype_1.DataType.Double && t1 == datatype_1.DataType.Float)
                 return datatype_1.DataType.Float;
             if (t0 == datatype_1.DataType.Invalid)
-                this.logError("Invalid value argument to operator " + token_1.TokenType[n.token.type], n.children[0]);
+                this.logError("Invalid value argument to operator " + n.token.type, n.children[0]);
             if (t1 == datatype_1.DataType.Invalid)
-                this.logError("Invalid type argument to operator " + token_1.TokenType[n.token.type], n.children[1]);
+                this.logError("Invalid type argument to operator " + n.token.type, n.children[1]);
             return datatype_1.DataType.Invalid;
         });
         this.registerDataType(ast_1.AstType.FunctionCall, (n) => {
@@ -686,7 +686,7 @@ class SchwaAnalyzer extends Analyzer {
                 if (t == typeSets[i][0])
                     return typeSets[i][1];
             }
-            this.logError("Invalid argument to operator " + token_1.TokenType[n.token.type], n.children[0]);
+            this.logError("Invalid argument to operator " + n.token.type, n.children[0]);
             return datatype_1.DataType.Invalid;
         });
     }
@@ -700,8 +700,8 @@ class SchwaAnalyzer extends Analyzer {
                 if (t0 == typeSets[i][0] && t1 == typeSets[i][1])
                     return typeSets[i][2];
             }
-            this.logError("Invalid 1st argument to operator " + token_1.TokenType[n.token.type], n.children[0]);
-            this.logError("Invalid 2nd argument to operator " + token_1.TokenType[n.token.type], n.children[1]);
+            this.logError("Invalid 1st argument to operator " + n.token.type, n.children[0]);
+            this.logError("Invalid 2nd argument to operator " + n.token.type, n.children[1]);
             return datatype_1.DataType.Invalid;
         });
     }

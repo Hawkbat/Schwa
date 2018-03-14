@@ -14,7 +14,7 @@ export declare class SchwaValidator extends Validator {
     constructor(logger: Logger);
     protected registerParentType(type: AstType, parentTypes: AstType[]): void;
     protected registerAncestorType(type: AstType, ancestorTypes: AstType[]): void;
-    protected registerChildCount(type: AstType, count: number): void;
+    protected registerChildCount(type: AstType, min: number, max?: number): void;
     protected formatOrdinal(n: number): string;
     protected registerChildTypes(type: AstType, childTypes: AstType[][], startIndex?: number): void;
     protected registerChildrenType(type: AstType, childrenTypes: AstType[], startIndex?: number): void;

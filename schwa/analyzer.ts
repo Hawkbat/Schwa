@@ -20,9 +20,9 @@ export type DataTypeRule = (n: AstNode) => string | null
 export type AnalyzeRule = (n: AstNode) => void
 
 export class Analyzer {
-	private scopeRuleMap: { [key: number]: ScopeRule[] } = {}
-	private dataTypeRuleMap: { [key: number]: DataTypeRule[] } = {}
-	private analysisRuleMap: { [key: number]: AnalyzeRule[] } = {}
+	private scopeRuleMap: { [key: string]: ScopeRule[] } = {}
+	private dataTypeRuleMap: { [key: string]: DataTypeRule[] } = {}
+	private analysisRuleMap: { [key: string]: AnalyzeRule[] } = {}
 
 	protected rootScope: Scope = new Scope(null, null, '')
 
@@ -539,8 +539,8 @@ export class SchwaAnalyzer extends Analyzer {
 			if (t0 == DataType.Double && t1 == DataType.Long) return DataType.Long
 			if (t0 == DataType.Double && t1 == DataType.ULong) return DataType.ULong
 
-			if (t0 == DataType.Invalid) this.logError("Invalid value argument to operator " + TokenType[n.token.type], n.children[0])
-			if (t1 == DataType.Invalid) this.logError("Invalid type argument to operator " + TokenType[n.token.type], n.children[1])
+			if (t0 == DataType.Invalid) this.logError("Invalid value argument to operator " + n.token.type, n.children[0])
+			if (t1 == DataType.Invalid) this.logError("Invalid type argument to operator " + n.token.type, n.children[1])
 			return DataType.Invalid
 		})
 
@@ -577,8 +577,8 @@ export class SchwaAnalyzer extends Analyzer {
 			if (t0 == DataType.Double && t1 == DataType.ULong) return DataType.ULong
 			if (t0 == DataType.Double && t1 == DataType.Float) return DataType.Float
 
-			if (t0 == DataType.Invalid) this.logError("Invalid value argument to operator " + TokenType[n.token.type], n.children[0])
-			if (t1 == DataType.Invalid) this.logError("Invalid type argument to operator " + TokenType[n.token.type], n.children[1])
+			if (t0 == DataType.Invalid) this.logError("Invalid value argument to operator " + n.token.type, n.children[0])
+			if (t1 == DataType.Invalid) this.logError("Invalid type argument to operator " + n.token.type, n.children[1])
 			return DataType.Invalid
 		})
 
@@ -638,7 +638,7 @@ export class SchwaAnalyzer extends Analyzer {
 			for (let i = 0; i < typeSets.length; i++) {
 				if (t == typeSets[i][0]) return typeSets[i][1]
 			}
-			this.logError("Invalid argument to operator " + TokenType[n.token.type], n.children[0])
+			this.logError("Invalid argument to operator " + n.token.type, n.children[0])
 			return DataType.Invalid
 		})
 	}
@@ -651,8 +651,8 @@ export class SchwaAnalyzer extends Analyzer {
 			for (let i = 0; i < typeSets.length; i++) {
 				if (t0 == typeSets[i][0] && t1 == typeSets[i][1]) return typeSets[i][2]
 			}
-			this.logError("Invalid 1st argument to operator " + TokenType[n.token.type], n.children[0])
-			this.logError("Invalid 2nd argument to operator " + TokenType[n.token.type], n.children[1])
+			this.logError("Invalid 1st argument to operator " + n.token.type, n.children[0])
+			this.logError("Invalid 2nd argument to operator " + n.token.type, n.children[1])
 			return DataType.Invalid
 		})
 	}
