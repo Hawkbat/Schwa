@@ -42,10 +42,10 @@ export class SchwaValidator extends Validator {
 		this.registerChildrenType(AstType.Block, [AstType.VariableDef, AstType.Assignment, AstType.FunctionCall, AstType.Comment, AstType.If, AstType.Else, AstType.ElseIf, AstType.While, AstType.Break, AstType.Continue, AstType.Return, AstType.ReturnVoid])
 
 		this.registerChildCount(AstType.Access, 2)
-		this.registerChildTypes(AstType.Access, [[AstType.VariableId, AstType.Type], [AstType.FunctionId, AstType.VariableId, AstType.Access]])
+		this.registerChildTypes(AstType.Access, [[AstType.VariableId, AstType.Type, AstType.Indexer, AstType.Access], [AstType.FunctionId, AstType.VariableId]])
 
 		this.registerChildCount(AstType.If, 2)
-		this.registerChildTypes(AstType.If, [[AstType.VariableId, AstType.Access, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall], [AstType.Block]])
+		this.registerChildTypes(AstType.If, [[AstType.VariableId, AstType.Access, AstType.Indexer, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall], [AstType.Block]])
 
 		this.registerChildCount(AstType.Else, 1)
 		this.registerPreviousSiblingType(AstType.Else, [AstType.If, AstType.ElseIf])
@@ -53,10 +53,10 @@ export class SchwaValidator extends Validator {
 
 		this.registerChildCount(AstType.ElseIf, 2)
 		this.registerPreviousSiblingType(AstType.ElseIf, [AstType.If, AstType.ElseIf])
-		this.registerChildTypes(AstType.ElseIf, [[AstType.VariableId, AstType.Access, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall], [AstType.Block]])
+		this.registerChildTypes(AstType.ElseIf, [[AstType.VariableId, AstType.Access, AstType.Indexer, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall], [AstType.Block]])
 
 		this.registerChildCount(AstType.While, 2)
-		this.registerChildTypes(AstType.While, [[AstType.VariableId, AstType.Access, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall], [AstType.Block]])
+		this.registerChildTypes(AstType.While, [[AstType.VariableId, AstType.Access, AstType.Indexer, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall], [AstType.Block]])
 
 		this.registerChildCount(AstType.Break, 0)
 		this.registerAncestorType(AstType.Break, [AstType.While])
@@ -65,7 +65,7 @@ export class SchwaValidator extends Validator {
 		this.registerAncestorType(AstType.Continue, [AstType.While])
 
 		this.registerChildCount(AstType.Return, 1)
-		this.registerChildTypes(AstType.Return, [[AstType.VariableId, AstType.Access, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall]])
+		this.registerChildTypes(AstType.Return, [[AstType.VariableId, AstType.Access, AstType.Indexer, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall]])
 
 		this.registerAncestorType(AstType.Return, [AstType.FunctionDef])
 
@@ -73,7 +73,7 @@ export class SchwaValidator extends Validator {
 		this.registerAncestorType(AstType.ReturnVoid, [AstType.FunctionDef])
 
 		this.registerChildCount(AstType.Assignment, 2)
-		this.registerChildTypes(AstType.Assignment, [[AstType.VariableDef, AstType.VariableId, AstType.Access]])
+		this.registerChildTypes(AstType.Assignment, [[AstType.VariableDef, AstType.VariableId, AstType.Access,  AstType.Indexer]])
 
 		this.registerChildTypes(AstType.Global, [[AstType.VariableDef], [AstType.Literal]])
 		this.registerChildrenType(AstType.Global, [AstType.Const, AstType.Export], 2)
@@ -81,7 +81,7 @@ export class SchwaValidator extends Validator {
 		this.registerChildCount(AstType.FunctionCall, 2)
 		this.registerChildTypes(AstType.FunctionCall, [[AstType.FunctionId, AstType.Access], [AstType.Arguments]])
 
-		this.registerChildrenType(AstType.Arguments, [AstType.VariableId, AstType.Access, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall])
+		this.registerChildrenType(AstType.Arguments, [AstType.VariableId, AstType.Access, AstType.Indexer, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall])
 
 		this.registerChildrenType(AstType.Fields, [AstType.VariableDef, AstType.Comment])
 
@@ -93,15 +93,16 @@ export class SchwaValidator extends Validator {
 
 		this.registerChildrenType(AstType.Parameters, [AstType.VariableDef])
 
-		this.registerChildCount(AstType.VariableDef, 1)
+		this.registerChildCount(AstType.VariableDef, 1, 2)
 		this.registerChildTypes(AstType.VariableDef, [[AstType.VariableId]])
+		this.registerChildrenType(AstType.VariableDef, [AstType.Literal], 1)
 		this.registerAncestorType(AstType.VariableDef, [AstType.Assignment, AstType.Global, AstType.Map, AstType.Parameters, AstType.Fields])
 
 		this.registerChildCount(AstType.UnaryOp, 1)
-		this.registerChildrenType(AstType.UnaryOp, [AstType.VariableId, AstType.Access, AstType.Type, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall])
+		this.registerChildrenType(AstType.UnaryOp, [AstType.VariableId, AstType.Access, AstType.Indexer, AstType.Type, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall])
 
 		this.registerChildCount(AstType.BinaryOp, 2)
-		this.registerChildrenType(AstType.BinaryOp, [AstType.VariableId, AstType.Access, AstType.Type, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall])
+		this.registerChildrenType(AstType.BinaryOp, [AstType.VariableId, AstType.Access, AstType.Indexer, AstType.Type, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall])
 
 		this.registerChildCount(AstType.StructId, 0)
 

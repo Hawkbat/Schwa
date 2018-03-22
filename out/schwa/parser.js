@@ -27,7 +27,7 @@ class Parser {
         let prefixFunc = this.prefixFuncMap[token.type];
         if (!prefixFunc) {
             if (token.type != token_1.TokenType.Unknown)
-                this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Parser", "Unable to parse token " + JSON.stringify(token.value) + (token.type == token.value ? "" : " (" + token.type + ")"), token.row, token.column, token.value.length));
+                this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Parser", "Unable to parse token " + token.type + (token.type == token.value ? "" : " " + JSON.stringify(token.value)), token.row, token.column, token.value.length));
             return new ast_1.AstNode(ast_1.AstType.Unknown, token, []);
         }
         let left = prefixFunc(token);
@@ -63,7 +63,7 @@ class Parser {
     consumeMatch(type, match) {
         let token = this.peek();
         if (token && token.type != match) {
-            this.logger.log(new log_1.LogMsg(log_1.LogType.Warning, "Parser", type + " expected " + match + " but got " + JSON.stringify(token.value) + " (" + token.type + ")", token.row, token.column, token.value.length));
+            this.logger.log(new log_1.LogMsg(log_1.LogType.Warning, "Parser", type + " expected " + match + " but got " + (token.type == token.value ? token.type : token.type + " " + JSON.stringify(token.value)), token.row, token.column, token.value.length));
             return token;
         }
         return this.consume();
@@ -113,6 +113,9 @@ class SchwaParser extends Parser {
         this.registerPrefix(token_1.TokenType.Name, 0, (t) => {
             if (this.match(token_1.TokenType.Name)) {
                 let r = this.parseNode(1);
+                if (r && r.type == ast_1.AstType.Indexer) {
+                    return new ast_1.AstNode(ast_1.AstType.VariableDef, t, [...r.children]);
+                }
                 if (r && r.type == ast_1.AstType.VariableId) {
                     return new ast_1.AstNode(ast_1.AstType.VariableDef, t, [r]);
                 }
@@ -286,7 +289,7 @@ class SchwaParser extends Parser {
             this.consumeMatch(token_1.TokenType.LParen, token_1.TokenType.RParen);
             let id = l;
             if (id) {
-                while (id.type == ast_1.AstType.Access)
+                while (id.type == ast_1.AstType.Access || id.type == ast_1.AstType.Indexer)
                     id = id.children[1];
                 if (id.type == ast_1.AstType.VariableId)
                     id.type = ast_1.AstType.FunctionId;
@@ -297,13 +300,30 @@ class SchwaParser extends Parser {
             children.push(new ast_1.AstNode(ast_1.AstType.Arguments, t, args));
             return new ast_1.AstNode(ast_1.AstType.FunctionCall, new token_1.Token(token_1.TokenType.None, '', t.row, t.column), children);
         });
+        // Array indexing
+        this.registerInfix(token_1.TokenType.LBracket, 13, (l, t) => {
+            let children = [];
+            if (l)
+                children.push(l);
+            while (!this.match(token_1.TokenType.RBracket) && !this.match(token_1.TokenType.EOL)) {
+                let n;
+                if (!this.match(token_1.TokenType.EOL))
+                    n = this.parseNode();
+                if (n)
+                    children.push(n);
+                if (this.match(token_1.TokenType.Comma))
+                    this.consume();
+            }
+            this.consumeMatch(token_1.TokenType.LBracket, token_1.TokenType.RBracket);
+            return new ast_1.AstNode(ast_1.AstType.Indexer, t, children);
+        });
         // Scope access
-        this.registerInfix(token_1.TokenType.Period, 13, (l, t) => {
+        this.registerInfix(token_1.TokenType.Period, 14, (l, t) => {
             let children = [];
             if (l)
                 children.push(l);
             if (this.match(token_1.TokenType.Name)) {
-                let n = this.parseNode(12);
+                let n = this.parseNode(14);
                 if (n)
                     children.push(n);
             }
@@ -313,7 +333,7 @@ class SchwaParser extends Parser {
             return new ast_1.AstNode(ast_1.AstType.Access, t, children);
         });
         // Statements
-        this.registerPrefix(token_1.TokenType.BOL, 14, (t) => {
+        this.registerPrefix(token_1.TokenType.BOL, 15, (t) => {
             let n = this.parseNode();
             this.consumeMatch(token_1.TokenType.BOL, token_1.TokenType.EOL);
             if (!n)
@@ -321,7 +341,7 @@ class SchwaParser extends Parser {
             return n;
         });
         // Blocks
-        this.registerInfix(token_1.TokenType.Indent, 15, (l, t) => {
+        this.registerInfix(token_1.TokenType.Indent, 16, (l, t) => {
             let children = [];
             while (!this.match(token_1.TokenType.Dedent)) {
                 let n = this.parseNode();
@@ -343,7 +363,7 @@ class SchwaParser extends Parser {
             return n;
         });
         // Program
-        this.registerPrefix(token_1.TokenType.BOF, 16, (t) => {
+        this.registerPrefix(token_1.TokenType.BOF, 17, (t) => {
             let children = [];
             while (!this.match(token_1.TokenType.EOF)) {
                 let child = this.parseNode();

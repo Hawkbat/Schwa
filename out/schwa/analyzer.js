@@ -46,10 +46,11 @@ class Analyzer {
             this.scopePass(child);
         }
     }
-    getScope(node) {
+    getScope(node, parentScope = null) {
         if (node.scope)
             return node.scope;
-        let parentScope = (node.parent) ? this.getScope(node.parent) : this.rootScope;
+        if (!parentScope)
+            parentScope = (node.parent) ? this.getScope(node.parent) : this.rootScope;
         let rules = this.scopeRuleMap[node.type];
         if (rules) {
             for (let rule of rules)
@@ -89,17 +90,26 @@ class Analyzer {
             this.analysisPass(child);
         }
     }
-    makeStructScope(v, p, depth = 0) {
+    makeComplexScope(v, p, depth = 0) {
         if (depth > MAX_TYPE_DEPTH)
             return;
         if (datatype_1.DataType.isPrimitive(v.type))
             return;
-        let struct = p.getStruct(v.type);
-        if (!struct) {
-            if (v.node)
-                this.logError('No struct named ' + v.type + ' exists in the current scope', v.node);
+        if (v.type.indexOf('[') >= 0) {
+            this.makeArrayScope(v, p, depth);
             return;
         }
+        let struct = p.getStruct(v.type);
+        if (struct) {
+            this.makeStructScope(v, p, struct, depth);
+        }
+        else if (v.node) {
+            this.logError('No struct named ' + v.type + ' found', v.node);
+        }
+    }
+    makeStructScope(v, p, struct, depth = 0) {
+        if (!struct)
+            return;
         let scope = new scope_1.Scope(v.node, p, v.id);
         p.scopes[scope.id] = scope;
         let offset = v.offset;
@@ -110,14 +120,31 @@ class Analyzer {
             nvar.export = v.export;
             nvar.mapped = v.mapped;
             nvar.offset = offset;
-            offset += this.getSize(nvar, scope);
-            this.makeStructScope(scope.vars[field.id], scope, depth + 1);
+            nvar.size = this.getSize(nvar.type, scope);
+            offset += nvar.size;
+            this.makeComplexScope(nvar, scope, depth + 1);
         }
     }
-    getSize(v, p, depth = 0) {
+    makeArrayScope(v, p, depth = 0) {
+        let baseType = v.type.substring(0, v.type.indexOf('['));
+        let length = parseInt(v.type.substring(v.type.indexOf('[') + 1, v.type.indexOf(']')));
+        let scope = new scope_1.Scope(v.node, p, v.id);
+        p.scopes[scope.id] = scope;
+        for (let i = 0; i < length; i++) {
+            let nvar = new scope_1.Variable(null, scope, '' + i, baseType);
+            scope.vars[nvar.id] = nvar;
+            nvar.const = v.const;
+            nvar.export = v.export;
+            nvar.mapped = v.mapped;
+            nvar.size = this.getSize(nvar.type, scope);
+            nvar.offset = v.offset + nvar.size * i;
+            this.makeComplexScope(nvar, scope, depth + 1);
+        }
+    }
+    getSize(type, p, depth = 0) {
         if (depth > MAX_TYPE_DEPTH)
             return 0;
-        switch (v.type) {
+        switch (type) {
             case datatype_1.DataType.Int:
             case datatype_1.DataType.UInt:
             case datatype_1.DataType.Float:
@@ -128,18 +155,35 @@ class Analyzer {
             case datatype_1.DataType.Double:
                 return 8;
         }
-        if (datatype_1.DataType.isPrimitive(v.type))
+        if (datatype_1.DataType.isPrimitive(type))
             return 0;
-        let struct = p.getStruct(v.type);
+        if (type.indexOf('[') >= 0) {
+            let length = parseInt(type.substring(type.indexOf('[') + 1, type.indexOf(']')));
+            let size = this.getSize(type.substring(0, type.indexOf('[')), p, depth + 1);
+            return size * length;
+        }
+        let struct = p.getStruct(type);
         if (!struct) {
-            if (v.node)
-                this.logError('No struct named ' + v.type + ' exists in the current scope', v.node);
             return 0;
         }
         let size = 0;
         for (let field of struct.fields)
-            size += this.getSize(field, field.scope, depth + 1);
+            size += this.getSize(field.type, field.scope, depth + 1);
         return size;
+    }
+    tryEval(node) {
+        if (node.token.type != token_1.TokenType.Int && node.token.type != token_1.TokenType.UInt) {
+            this.logError("Invalid constant expression " + JSON.stringify(node.token.value), node);
+            return 0;
+        }
+        try {
+            let result = eval(node.token.value);
+            return result;
+        }
+        catch (e) {
+            this.logError("Invalid constant expression " + JSON.stringify(node.token.value), node);
+            return 0;
+        }
     }
     registerScope(type, rule) {
         if (!this.scopeRuleMap[type])
@@ -264,11 +308,14 @@ class SchwaAnalyzer extends Analyzer {
             for (let i = 0; i < fieldNodes.length; i++) {
                 if (fieldNodes[i].type != ast_1.AstType.VariableDef)
                     continue;
-                fields.push(new scope_1.Variable(fieldNodes[i], scope, fieldNodes[i].children[0].token.value, fieldNodes[i].token.value));
+                let fieldType = fieldNodes[i].token.value;
+                if (fieldNodes[i].children.length > 1)
+                    fieldType += '[' + this.tryEval(fieldNodes[i].children[1]) + ']';
+                fields.push(new scope_1.Variable(fieldNodes[i], scope, fieldNodes[i].children[0].token.value, fieldType));
             }
             let struct = new scope_1.Struct(n, scope, n.children[0].token.value, fields);
             if (p.structs[struct.id]) {
-                this.logError("A struct with the name " + JSON.stringify(struct.id) + " already exists in the current scope", n);
+                this.logError("A struct with the name " + JSON.stringify(struct.id) + " already found", n);
             }
             else {
                 p.structs[struct.id] = struct;
@@ -281,11 +328,20 @@ class SchwaAnalyzer extends Analyzer {
             let params = [];
             let paramNodes = n.children[1].children;
             for (let i = 0; i < paramNodes.length; i++) {
-                params.push(new scope_1.Variable(paramNodes[i], scope, paramNodes[i].children[0].token.value, paramNodes[i].token.value));
+                if (!paramNodes[i].children.length)
+                    continue;
+                let paramType = paramNodes[i].token.value;
+                if (paramNodes[i].children.length > 1)
+                    paramType += '[' + this.tryEval(paramNodes[i].children[1]) + ']';
+                if (paramType.indexOf('[') >= 0) {
+                    this.logError("Arrays cannot be used as function parameters", paramNodes[i]);
+                    continue;
+                }
+                params.push(new scope_1.Variable(paramNodes[i], scope, paramNodes[i].children[0].token.value, paramType));
             }
             let func = new scope_1.Function(n, scope, n.children[0].token.value, n.token.value, params);
             if (p.funcs[func.id]) {
-                this.logError("A function with the name " + JSON.stringify(func.id) + " already exists in the current scope", n);
+                this.logError("A function with the name " + JSON.stringify(func.id) + " already found", n);
             }
             else {
                 p.funcs[func.id] = func;
@@ -294,12 +350,16 @@ class SchwaAnalyzer extends Analyzer {
             return scope;
         });
         this.registerScope(ast_1.AstType.VariableDef, (n, p) => {
-            let nvar = new scope_1.Variable(n, p, n.children[0].token.value, n.token.value);
+            let type = n.token.value;
+            if (n.children.length > 1)
+                type += '[' + this.tryEval(n.children[1]) + ']';
+            let nvar = new scope_1.Variable(n, p, n.children[0].token.value, type);
             if (p.vars[nvar.id]) {
-                this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already exists in the current scope", n);
+                this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already found", n);
             }
             else {
                 p.vars[nvar.id] = nvar;
+                nvar.size = this.getSize(nvar.type, p);
                 let pn = n.parent;
                 while (pn && pn.type != ast_1.AstType.Global)
                     pn = pn.parent;
@@ -312,20 +372,47 @@ class SchwaAnalyzer extends Analyzer {
                     nvar.global = true;
                     nvar.mapped = true;
                     if (pn.children.length >= 2) {
-                        nvar.offset = parseInt(pn.children[1].token.value);
+                        nvar.offset = this.tryEval(pn.children[1]);
                     }
                 }
-                this.makeStructScope(nvar, p);
+                this.makeComplexScope(nvar, p);
             }
             return p;
         });
+        this.registerScope(ast_1.AstType.Indexer, (n, p) => {
+            let scope = p;
+            this.getScope(n.children[1], p);
+            if (n.children[0].type == ast_1.AstType.VariableId) {
+                scope = p.getScope(n.children[0].token.value);
+            }
+            else {
+                scope = this.getScope(n.children[0], p);
+            }
+            if (scope)
+                scope = scope.getScope('0');
+            if (!scope) {
+                this.logError("No scope named " + JSON.stringify(n.children[0].token.value) + " found", n);
+                return p;
+            }
+            return scope;
+        });
         this.registerScope(ast_1.AstType.Access, (n, p) => {
             let scope = p;
-            if (scope)
-                scope = scope.getScope(n.children[0].token.value);
+            if (n.children[0].type == ast_1.AstType.VariableId || n.children[0].type == ast_1.AstType.Type) {
+                scope = p.getScope(n.children[0].token.value);
+            }
+            else {
+                scope = this.getScope(n.children[0], p);
+            }
             if (!scope) {
-                this.logError("No scope named " + JSON.stringify(n.children[0].token.value) + " exists in the current scope", n);
+                this.logError("Invalid left-hand side of property access", n);
                 return p;
+            }
+            this.getScope(n.children[1], scope);
+            if (scope) {
+                let childScope = scope.getScope(n.children[1].token.value);
+                if (childScope)
+                    scope = childScope;
             }
             return scope;
         });
@@ -357,9 +444,20 @@ class SchwaAnalyzer extends Analyzer {
             }
             return p;
         });
+        this.registerDataType(ast_1.AstType.Indexer, (n) => {
+            if (n.children.length) {
+                let node = n.children[0];
+                if (node) {
+                    let type = this.getDataType(node);
+                    type = type.substring(0, type.indexOf('['));
+                    return type;
+                }
+            }
+            return datatype_1.DataType.Invalid;
+        });
         this.registerDataType(ast_1.AstType.Access, (n) => {
             if (n.children.length >= 2) {
-                let node = this.getIdentifier(n);
+                let node = n.children[1];
                 if (node)
                     return this.getDataType(node);
             }
@@ -371,7 +469,7 @@ class SchwaAnalyzer extends Analyzer {
                 if (nvar)
                     return nvar.type;
                 else
-                    this.logError("No variable named " + JSON.stringify(n.token.value) + " exists in the current scope", n);
+                    this.logError("No variable named " + JSON.stringify(n.token.value) + " found", n);
             }
             return datatype_1.DataType.Invalid;
         });
@@ -381,7 +479,7 @@ class SchwaAnalyzer extends Analyzer {
                 if (func)
                     return func.type;
                 else
-                    this.logError("No function named " + JSON.stringify(n.token.value) + " exists in the current scope", n);
+                    this.logError("No function named " + JSON.stringify(n.token.value) + " found", n);
             }
             return datatype_1.DataType.Invalid;
         });
@@ -391,12 +489,17 @@ class SchwaAnalyzer extends Analyzer {
                 if (struct)
                     return struct.id;
                 else
-                    this.logError("No struct named " + JSON.stringify(n.token.value) + " exists in the current scope", n);
+                    this.logError("No struct named " + JSON.stringify(n.token.value) + " found", n);
             }
             return datatype_1.DataType.Invalid;
         });
         this.registerDataType(ast_1.AstType.Type, (n) => datatype_1.DataType.Type);
-        this.registerDataType(ast_1.AstType.VariableDef, (n) => n.token.value);
+        this.registerDataType(ast_1.AstType.VariableDef, (n) => {
+            let type = n.token.value;
+            if (n.children.length > 1)
+                type += '[' + this.tryEval(n.children[1]) + ']';
+            return type;
+        });
         this.registerDataType(ast_1.AstType.FunctionDef, (n) => n.token.value);
         this.registerDataType(ast_1.AstType.StructDef, (n) => n.children[0].token.value);
         this.registerDataType(ast_1.AstType.Literal, (n) => {
@@ -635,7 +738,7 @@ class SchwaAnalyzer extends Analyzer {
             }
             let func = this.getScope(ident).getFunction(ident.token.value);
             if (!func) {
-                this.logError("No function named " + JSON.stringify(ident.token.value) + " exists in the current scope", n);
+                this.logError("No function named " + JSON.stringify(ident.token.value) + " found", n);
                 return datatype_1.DataType.Invalid;
             }
             if (func.params.length != n.children[1].children.length) {
@@ -710,6 +813,8 @@ class SchwaAnalyzer extends Analyzer {
             return node;
         if (node.type == ast_1.AstType.Access)
             return this.getIdentifier(node.children[1]);
+        if (node.type == ast_1.AstType.Indexer)
+            return this.getIdentifier(node.children[0]);
         return null;
     }
 }

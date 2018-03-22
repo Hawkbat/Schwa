@@ -23,6 +23,7 @@ export declare enum AstType {
     Assignment = "assignment",
     Global = "global variable",
     Access = "property access",
+    Indexer = "array indexer",
     If = "if",
     Else = "else",
     ElseIf = "else if",

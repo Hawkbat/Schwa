@@ -3,14 +3,21 @@ TODO
 For optimization purposes, a switch/branch-table construct would be helpful
 Note that WASM's br_table requires keeping track of parent block labels, which requires context not currently available to the generator. Switches where every case ends in return/break are usually compiled to if/else chains anyway
 
-We should also create a VSCode language server that provides realtime analysis and validation. Take a look at textdiff-create on NPM for generating diffs to apply formatting
+As an ongoing task, add more semantic checks, warnings, and error messages (such as non-void functions missing a return statement, access operator used on primitively typed variables, recursive type warnings, etc.)
+
+Project-based compilation
+	Should follow a similar design to TypeScript's tsconfig files
+	Default values for command-line arguments should be loaded from the config file if present
 
 Exports and imports
     Imports require definition of type signatures
     Have two different import syntaxes; explicit (with type signatures spelled out) and implicit (resolved at compile time)
+	Explicit imports are assumed to be JavaScript imports and are not checked
+	Implicit imports are resolved by looking up a .schwa file at the relative path and compiling it to find the relevant data types
     Note that only _immutable_ globals (constants) can be imported/exported
     Also have both whole-module imports (import bar) and named imports (from bar import Foo)
     Aliasing should also be possible: (import bar as bar), (from bar import void Foo() as Foobar), (export Foo as Bar)
+	The user could potentially define "mutually recursive" dependent files (both use types from each other). This is distinct from but related to recursive types (both types have properties of the other type). To support this use case, the analyzer will need to be modified to resolve imported types from other analyzer instances between the hoist and scope passes
 
 Pointers/Memory access
     There are load/store functions included in the type namespaces (i.e. int.load()) but the preferred form of memory access is mapping
@@ -18,9 +25,8 @@ Pointers/Memory access
 	In the future if we have struct initialization, those values should be filled at instantiation time via the WASM Data section
 
 Arrays
-	Arrays still need to be added
-    They should be similar to structs; always fixed-size, let user code keep a dynamic length separately if desired
-	Arrays are a lot trickier than they look. To use them as parameters/locals, we need to know the index at compile time because the argument to get_local is an immediate, not a stack value. For mapped array accesses, we need to somehow thread the indexing stack value to the generated load/store ops, multiply it by the array type's size, and add it to the computed offset.
+	Arrays are implemented but are currently restricted to mapped globals only; use as locals/globals/parameters will come later
+    They are similar to structs; always fixed-size, user code can keep a dynamic length separately if desired
 	To use arrays as locals/globals we could generate branch-tables that get/set the appropriate local/global using the computed index
 
 Structs

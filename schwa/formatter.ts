@@ -42,7 +42,7 @@ export class SchwaFormatter extends Formatter {
 			if (this.needsParens(n)) out = '(' + out + ')'
 			return out
 		})
-		this.register(AstType.VariableDef, (n) => n.token.value + ' ' + this.printNode(n.children[0]))
+		this.register(AstType.VariableDef, (n) => n.token.value + ' ' + this.printNode(n.children[0]) + (n.children.length > 1 ? '['+ this.printNode(n.children[1]) + ']' : ''))
 		this.register(AstType.FunctionDef, (n) => '\n' + n.children.slice(3).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 3 ? ' ' : '') + n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]) + this.printNode(n.children[2]))
 		this.register(AstType.StructDef, (n) => '\n' + n.children.slice(2).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 2 ? ' ' : '') + n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]))
 		this.register(AstType.Fields, (n) => {
@@ -69,7 +69,8 @@ export class SchwaFormatter extends Formatter {
 		this.register(AstType.Arguments, (n) => '(' + n.children.map((c) => this.printNode(c)).join(', ') + ')')
 		this.register(AstType.Assignment, (n) => this.printNode(n.children[0]) + ' ' + n.token.value + ' ' + this.printNode(n.children[1]))
 		this.register(AstType.Global, (n) => n.children.slice(2).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 2 ? ' ' : '') + this.printNode(n.children[0]) + ' ' + n.token.value + ' ' + this.printNode(n.children[1]))
-		this.register(AstType.Access, (n) => this.printNode(n.children[0]) + n.token.value + this.printNode(n.children[1]))
+		this.register(AstType.Indexer, (n) => this.printNode(n.children[0]) + '[' + this.printNode(n.children[1]) + ']')
+		this.register(AstType.Access, (n) => this.printNode(n.children[0]) + '.' + this.printNode(n.children[1]))
 		this.register(AstType.Map, (n) => '\n' + n.token.value + ' ' + this.printNode(n.children[0]) + ' at ' + this.printNode(n.children[1]))
 		this.register(AstType.If, (n) => n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]))
 		this.register(AstType.Else, (n) => n.token.value + this.printNode(n.children[0]))
@@ -105,10 +106,14 @@ export class SchwaFormatter extends Formatter {
 					if (lines.length > 1) out += '\n'
 					if (lines.length > 0) out += lines.slice(1).join('\n')
 					i++
-				} else {
+					out += '\n'
+				} else if (n.children[i].token.type == TokenType.Comment) {
+					out += '\n'
 					out += this.printNode(n.children[i])
+				}else{
+					out += this.printNode(n.children[i])
+					out += '\n'
 				}
-				out += '\n'
 			}
 			return out
 		})

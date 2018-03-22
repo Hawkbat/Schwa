@@ -25,6 +25,7 @@ export enum AstType {
 	Assignment = "assignment",
 	Global = "global variable",
 	Access = "property access",
+	Indexer = "array indexer",
 	If = "if",
 	Else = "else",
 	ElseIf = "else if",
@@ -53,7 +54,7 @@ export class AstNode {
 		if (!depth) depth = 0
 		let out = "\t".repeat(depth)
 		out += this.type + " ("
-		if (this.token.value != this.token.type) out += JSON.stringify(this.token.type)
+		if (this.token.value != this.token.type) out += this.token.type
 		if (this.token.value && this.token.value != this.token.type) out += " "
 		if (this.token.value) out += JSON.stringify(this.token.value)
 		out += ")"

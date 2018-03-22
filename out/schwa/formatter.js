@@ -69,7 +69,7 @@ class SchwaFormatter extends Formatter {
                 out = '(' + out + ')';
             return out;
         });
-        this.register(ast_1.AstType.VariableDef, (n) => n.token.value + ' ' + this.printNode(n.children[0]));
+        this.register(ast_1.AstType.VariableDef, (n) => n.token.value + ' ' + this.printNode(n.children[0]) + (n.children.length > 1 ? '[' + this.printNode(n.children[1]) + ']' : ''));
         this.register(ast_1.AstType.FunctionDef, (n) => '\n' + n.children.slice(3).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 3 ? ' ' : '') + n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]) + this.printNode(n.children[2]));
         this.register(ast_1.AstType.StructDef, (n) => '\n' + n.children.slice(2).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 2 ? ' ' : '') + n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]));
         this.register(ast_1.AstType.Fields, (n) => {
@@ -101,7 +101,8 @@ class SchwaFormatter extends Formatter {
         this.register(ast_1.AstType.Arguments, (n) => '(' + n.children.map((c) => this.printNode(c)).join(', ') + ')');
         this.register(ast_1.AstType.Assignment, (n) => this.printNode(n.children[0]) + ' ' + n.token.value + ' ' + this.printNode(n.children[1]));
         this.register(ast_1.AstType.Global, (n) => n.children.slice(2).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 2 ? ' ' : '') + this.printNode(n.children[0]) + ' ' + n.token.value + ' ' + this.printNode(n.children[1]));
-        this.register(ast_1.AstType.Access, (n) => this.printNode(n.children[0]) + n.token.value + this.printNode(n.children[1]));
+        this.register(ast_1.AstType.Indexer, (n) => this.printNode(n.children[0]) + '[' + this.printNode(n.children[1]) + ']');
+        this.register(ast_1.AstType.Access, (n) => this.printNode(n.children[0]) + '.' + this.printNode(n.children[1]));
         this.register(ast_1.AstType.Map, (n) => '\n' + n.token.value + ' ' + this.printNode(n.children[0]) + ' at ' + this.printNode(n.children[1]));
         this.register(ast_1.AstType.If, (n) => n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]));
         this.register(ast_1.AstType.Else, (n) => n.token.value + this.printNode(n.children[0]));
@@ -144,11 +145,16 @@ class SchwaFormatter extends Formatter {
                     if (lines.length > 0)
                         out += lines.slice(1).join('\n');
                     i++;
+                    out += '\n';
+                }
+                else if (n.children[i].token.type == token_1.TokenType.Comment) {
+                    out += '\n';
+                    out += this.printNode(n.children[i]);
                 }
                 else {
                     out += this.printNode(n.children[i]);
+                    out += '\n';
                 }
-                out += '\n';
             }
             return out;
         });

@@ -61,7 +61,7 @@ export class Generator {
 		if (!node) return
 		let rule = this.ruleMap[node.type]
 		if (rule) rule(w, node)
-		else console.log("No rule for " + node.type)
+		else this.logError("No generation rule exists for " + node.type, node)
 		node.generated = true
 	}
 
@@ -236,20 +236,49 @@ export class Generator {
 export class SchwaGenerator extends Generator {
 	constructor(logger: Logger) {
 		super(logger)
+		
+		this.register(AstType.Indexer, (w, n) => {
+			if (n.scope && n.scope.parent) {
+				let nvar = n.scope.parent.getVariable(n.scope.id)
+				if (nvar) {
+					w.uint8(WASM.OpCode.i32_const)
+					w.varintN(nvar.size, 32)
+					this.gen(w, n.children[1])
+					w.uint8(WASM.OpCode.i32_mul)
+				}
+			}
+		})
 
 		this.register(AstType.Access, (w, n) => {
-			this.gen(w, n.children[1])
+			if (n.parent && n.parent.type != AstType.Access && n.parent.type != AstType.Indexer) this.gen(w, n.children[1])
 		})
 
 		this.register(AstType.VariableId, (w, n) => {
 			if (!n.scope) return
 			let nodeVar = n.scope.getVariable(n.token.value)
 			if (nodeVar) {
+				let indexers = []
+				let node: AstNode | null = null
+				if (n.parent && (n.parent.type == AstType.Access || n.parent.type == AstType.Indexer)) node = n.parent
+				while (node && node.children[0]) node = node.children[0]
+				while (node) {
+					if (node.type == AstType.Indexer) indexers.push(node)
+					node = node.parent
+				}
+
 				let vars = this.getPrimitiveVars(nodeVar)
 				for (let nvar of vars) {
 					if (nvar.mapped) {
-						w.uint8(WASM.OpCode.i32_const)
-						w.varintN(nvar.offset, 32)
+						if (indexers.length > 0) {
+							for (let i = 0; i < indexers.length; i ++) {
+								this.gen(w, indexers[i])
+								if (i > 0) w.uint8(WASM.OpCode.i32_add)
+							}
+						}else{
+							w.uint8(WASM.OpCode.i32_const)
+							w.varintN(0, 32)
+						}
+						
 						if (nvar.type == DataType.Int || nvar.type == DataType.UInt || nvar.type == DataType.Bool) {
 							w.uint8(WASM.OpCode.i32_load)
 						}else if (nvar.type == DataType.Long || nvar.type == DataType.ULong) {
@@ -260,7 +289,7 @@ export class SchwaGenerator extends Generator {
 							w.uint8(WASM.OpCode.f64_load)
 						}
 						w.varuintN(2, 32)
-						w.varuintN(0, 32)
+						w.varuintN(nvar.offset, 32)
 					}else{
 						if (nvar.global) w.uint8(WASM.OpCode.get_global)
 						else w.uint8(WASM.OpCode.get_local)
@@ -515,6 +544,11 @@ export class SchwaGenerator extends Generator {
 			}
 		})
 
+		this.register(AstType.VariableDef, (w, n) => {
+			if (n.children[0].generated) return
+			this.gen(w, n.children[0])
+		})
+
 		this.register(AstType.FunctionCall, (w, n) => {
 			for (let i = 0; i < n.children[1].children.length; i++) this.gen(w, n.children[1].children[i])
 
@@ -675,6 +709,7 @@ export class SchwaGenerator extends Generator {
 		this.register(AstType.Assignment, (w, n) => {
 			let id = this.getIdentifier(n.children[0])
 			if (!id || !id.scope) return
+			
 			let nvar = id.scope.getVariable(id.token.value)
 			if (nvar) {
 				if (!DataType.isPrimitive(nvar.type)) {
@@ -682,8 +717,22 @@ export class SchwaGenerator extends Generator {
 					return
 				}
 				if (nvar.mapped) {
-					w.uint8(WASM.OpCode.i32_const)
-					w.varintN(nvar.offset, 32)
+					let indexers = []
+					let node: AstNode | null = n.children[0]
+					while (node && node.children[0]) node = node.children[0]
+					while (node) {
+						if (node.type == AstType.Indexer) indexers.push(node)
+						node = node.parent
+					}
+					if (indexers.length > 0) {
+						for (let i = 0; i < indexers.length; i ++) {
+							this.gen(w, indexers[i])
+							if (i > 0) w.uint8(WASM.OpCode.i32_add)
+						}
+					}else{
+						w.uint8(WASM.OpCode.i32_const)
+						w.varintN(0, 32)
+					}
 					this.gen(w, n.children[1])
 					if (nvar.type == DataType.Int || nvar.type == DataType.UInt || nvar.type == DataType.Bool) {
 						w.uint8(WASM.OpCode.i32_store)
@@ -695,7 +744,7 @@ export class SchwaGenerator extends Generator {
 						w.uint8(WASM.OpCode.f64_store)
 					}
 					w.varuintN(2, 32)
-					w.varuintN(0, 32)
+					w.varuintN(nvar.offset, 32)
 				}else{
 					this.gen(w, n.children[1])
 					if (nvar.global) w.uint8(WASM.OpCode.set_global)
@@ -794,6 +843,7 @@ export class SchwaGenerator extends Generator {
 		if (node.type == AstType.FunctionId || node.type == AstType.VariableId) return node
 		if (node.type == AstType.VariableDef) return this.getIdentifier(node.children[0])
 		if (node.type == AstType.Access) return this.getIdentifier(node.children[1])
+		if (node.type == AstType.Indexer) return this.getIdentifier(node.children[0])
 		return null
 	}
 

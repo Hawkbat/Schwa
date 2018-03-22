@@ -6,6 +6,7 @@ export class Variable {
 	public export: boolean = false
 	public mapped: boolean = false
 	public offset: number = 0
+	public size: number = 0
 
 	constructor(public node: AstNode | null, public scope: Scope, public id: string, public type: string) { }
 

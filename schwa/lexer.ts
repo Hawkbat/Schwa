@@ -132,6 +132,8 @@ export class SchwaLexer extends Lexer {
 		this.registerMatch(TokenType.Gt, ">")
 		this.registerMatch(TokenType.Not, "!")
 		this.registerMatch(TokenType.Assign, "=")
+		this.registerMatch(TokenType.LBracket, "[")
+		this.registerMatch(TokenType.RBracket, "]")
 		this.registerMatch(TokenType.LParen, "(")
 		this.registerMatch(TokenType.RParen, ")")
 		this.registerMatch(TokenType.Comma, ",")

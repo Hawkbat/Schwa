@@ -9,6 +9,7 @@ export declare class Variable {
     export: boolean;
     mapped: boolean;
     offset: number;
+    size: number;
     constructor(node: AstNode | null, scope: Scope, id: string, type: string);
     getPath(untilNode?: boolean): string;
     toString(): string;

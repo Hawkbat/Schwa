@@ -56,8 +56,10 @@ export enum TokenType {
 	Return = 'return',
 
 	Comment = '//',
-	InlineComment = '//',
-
+	InlineComment = ' //',
+	
+	LBracket = '[',
+	RBracket = ']',
 	LParen = '(',
 	RParen = ')',
 	Comma = ',',

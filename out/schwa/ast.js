@@ -24,6 +24,7 @@ var AstType;
     AstType["Assignment"] = "assignment";
     AstType["Global"] = "global variable";
     AstType["Access"] = "property access";
+    AstType["Indexer"] = "array indexer";
     AstType["If"] = "if";
     AstType["Else"] = "else";
     AstType["ElseIf"] = "else if";
@@ -55,7 +56,7 @@ class AstNode {
         let out = "\t".repeat(depth);
         out += this.type + " (";
         if (this.token.value != this.token.type)
-            out += JSON.stringify(this.token.type);
+            out += this.token.type;
         if (this.token.value && this.token.value != this.token.type)
             out += " ";
         if (this.token.value)

@@ -129,6 +129,8 @@ class SchwaLexer extends Lexer {
         this.registerMatch(token_1.TokenType.Gt, ">");
         this.registerMatch(token_1.TokenType.Not, "!");
         this.registerMatch(token_1.TokenType.Assign, "=");
+        this.registerMatch(token_1.TokenType.LBracket, "[");
+        this.registerMatch(token_1.TokenType.RBracket, "]");
         this.registerMatch(token_1.TokenType.LParen, "(");
         this.registerMatch(token_1.TokenType.RParen, ")");
         this.registerMatch(token_1.TokenType.Comma, ",");

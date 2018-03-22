@@ -11,6 +11,7 @@ class Variable {
         this.export = false;
         this.mapped = false;
         this.offset = 0;
+        this.size = 0;
     }
     getPath(untilNode = false) {
         let path = this.id;

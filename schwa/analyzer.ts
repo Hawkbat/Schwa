@@ -1,5 +1,5 @@
 import { LogType, LogMsg, Logger } from "./log"
-import { TokenType } from "./token"
+import { TokenType, Token } from "./token"
 import { AstNode, AstType } from "./ast"
 import { DataType } from "./datatype"
 import { Scope, Struct, Function, Variable } from "./scope"
@@ -50,9 +50,9 @@ export class Analyzer {
 		}
 	}
 
-	protected getScope(node: AstNode): Scope {
+	protected getScope(node: AstNode, parentScope: Scope | null = null): Scope {
 		if (node.scope) return node.scope
-		let parentScope = (node.parent) ? this.getScope(node.parent) : this.rootScope
+		if (!parentScope) parentScope = (node.parent) ? this.getScope(node.parent) : this.rootScope
 
 		let rules = this.scopeRuleMap[node.type]
 		if (rules) {
@@ -93,15 +93,23 @@ export class Analyzer {
 		}
 	}
 
-	protected makeStructScope(v: Variable, p: Scope, depth = 0) {
+	protected makeComplexScope(v: Variable, p: Scope, depth = 0) {
 		if (depth > MAX_TYPE_DEPTH) return
 		if (DataType.isPrimitive(v.type)) return
-		let struct = p.getStruct(v.type)
-		if (!struct) {
-			if (v.node)
-				this.logError('No struct named ' + v.type + ' exists in the current scope', v.node)
+		if (v.type.indexOf('[') >= 0) {
+			this.makeArrayScope(v, p, depth)
 			return
 		}
+		let struct = p.getStruct(v.type)
+		if (struct) {
+			this.makeStructScope(v, p, struct, depth)
+		}else if (v.node) {
+			this.logError('No struct named ' + v.type + ' found', v.node)
+		}
+	}
+
+	protected makeStructScope(v: Variable, p: Scope, struct: Struct, depth = 0) {
+		if (!struct) return
 		let scope = new Scope(v.node, p, v.id)
 		p.scopes[scope.id] = scope
 		let offset = v.offset
@@ -112,14 +120,34 @@ export class Analyzer {
 			nvar.export = v.export
 			nvar.mapped = v.mapped
 			nvar.offset = offset
-			offset += this.getSize(nvar, scope)
-			this.makeStructScope(scope.vars[field.id], scope, depth + 1)
+			nvar.size = this.getSize(nvar.type, scope)
+			offset += nvar.size
+			this.makeComplexScope(nvar, scope, depth + 1)
 		}
 	}
 
-	protected getSize(v: Variable, p: Scope, depth: number = 0) {
+	protected makeArrayScope(v: Variable, p: Scope, depth = 0) {
+		let baseType = v.type.substring(0, v.type.indexOf('['))
+		let length = parseInt(v.type.substring(v.type.indexOf('[') + 1, v.type.indexOf(']')))
+
+		let scope = new Scope(v.node, p, v.id)
+		p.scopes[scope.id] = scope
+
+		for (let i = 0; i < length; i ++) {
+			let nvar = new Variable(null, scope, '' + i, baseType)
+			scope.vars[nvar.id] = nvar
+			nvar.const = v.const
+			nvar.export = v.export
+			nvar.mapped = v.mapped
+			nvar.size = this.getSize(nvar.type, scope)
+			nvar.offset = v.offset + nvar.size * i
+			this.makeComplexScope(nvar, scope, depth + 1)
+		}
+	}
+
+	protected getSize(type: string, p: Scope, depth: number = 0): number {
 		if (depth > MAX_TYPE_DEPTH) return 0
-		switch (v.type) {
+		switch (type) {
 			case DataType.Int:
 			case DataType.UInt:
 			case DataType.Float:
@@ -130,16 +158,33 @@ export class Analyzer {
 			case DataType.Double:
 				return 8
 		}
-		if (DataType.isPrimitive(v.type)) return 0
-		let struct = p.getStruct(v.type)
+		if (DataType.isPrimitive(type)) return 0
+		if (type.indexOf('[') >= 0) {
+			let length = parseInt(type.substring(type.indexOf('[') + 1, type.indexOf(']')))
+			let size = this.getSize(type.substring(0, type.indexOf('[')), p, depth + 1)
+			return size * length
+		}
+		let struct = p.getStruct(type)
 		if (!struct) {
-			if (v.node)
-				this.logError('No struct named ' + v.type + ' exists in the current scope', v.node)
 			return 0
 		}
 		let size = 0
-		for (let field of struct.fields) size += this.getSize(field, field.scope, depth + 1)
+		for (let field of struct.fields) size += this.getSize(field.type, field.scope, depth + 1)
 		return size
+	}
+
+	protected tryEval(node: AstNode) {
+		if (node.token.type != TokenType.Int && node.token.type != TokenType.UInt) {
+			this.logError("Invalid constant expression " + JSON.stringify(node.token.value), node)
+			return 0
+		}
+		try {
+			let result = eval(node.token.value)
+			return result
+		} catch (e) {
+			this.logError("Invalid constant expression " + JSON.stringify(node.token.value), node)
+			return 0
+		}
 	}
 
 	protected registerScope(type: AstType, rule: ScopeRule) {
@@ -276,11 +321,13 @@ export class SchwaAnalyzer extends Analyzer {
 			let fieldNodes = n.children[1].children
 			for (let i = 0; i < fieldNodes.length; i++) {
 				if (fieldNodes[i].type != AstType.VariableDef) continue
-				fields.push(new Variable(fieldNodes[i], scope, fieldNodes[i].children[0].token.value, fieldNodes[i].token.value))
+				let fieldType = fieldNodes[i].token.value
+				if (fieldNodes[i].children.length > 1) fieldType += '[' + this.tryEval(fieldNodes[i].children[1]) + ']'
+				fields.push(new Variable(fieldNodes[i], scope, fieldNodes[i].children[0].token.value, fieldType))
 			}
 			let struct = new Struct(n, scope, n.children[0].token.value, fields)
 			if (p.structs[struct.id]) {
-				this.logError("A struct with the name " + JSON.stringify(struct.id) + " already exists in the current scope", n)
+				this.logError("A struct with the name " + JSON.stringify(struct.id) + " already found", n)
 			} else {
 				p.structs[struct.id] = struct
 				p.scopes[scope.id] = scope
@@ -292,11 +339,18 @@ export class SchwaAnalyzer extends Analyzer {
 			let params: Variable[] = []
 			let paramNodes = n.children[1].children
 			for (let i = 0; i < paramNodes.length; i++) {
-				params.push(new Variable(paramNodes[i], scope, paramNodes[i].children[0].token.value, paramNodes[i].token.value))
+				if (!paramNodes[i].children.length) continue
+				let paramType = paramNodes[i].token.value
+				if (paramNodes[i].children.length > 1) paramType += '[' + this.tryEval(paramNodes[i].children[1]) + ']'
+				if (paramType.indexOf('[') >= 0) {
+					this.logError("Arrays cannot be used as function parameters", paramNodes[i])
+					continue
+				}
+				params.push(new Variable(paramNodes[i], scope, paramNodes[i].children[0].token.value, paramType))
 			}
 			let func = new Function(n, scope, n.children[0].token.value, n.token.value, params)
 			if (p.funcs[func.id]) {
-				this.logError("A function with the name " + JSON.stringify(func.id) + " already exists in the current scope", n)
+				this.logError("A function with the name " + JSON.stringify(func.id) + " already found", n)
 			} else {
 				p.funcs[func.id] = func
 				p.scopes[scope.id] = scope
@@ -304,11 +358,14 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.VariableDef, (n, p) => {
-			let nvar = new Variable(n, p, n.children[0].token.value, n.token.value)
+			let type = n.token.value
+			if (n.children.length > 1) type += '[' + this.tryEval(n.children[1]) + ']'
+			let nvar = new Variable(n, p, n.children[0].token.value, type)
 			if (p.vars[nvar.id]) {
-				this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already exists in the current scope", n)
+				this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already found", n)
 			} else {
 				p.vars[nvar.id] = nvar
+				nvar.size = this.getSize(nvar.type, p)
 
 				let pn = n.parent
 				while (pn && pn.type != AstType.Global) pn = pn.parent
@@ -320,20 +377,44 @@ export class SchwaAnalyzer extends Analyzer {
 					nvar.global = true
 					nvar.mapped = true
 					if (pn.children.length >= 2) {
-						nvar.offset = parseInt(pn.children[1].token.value)
+						nvar.offset = this.tryEval(pn.children[1])
 					}
 				}
 
-				this.makeStructScope(nvar, p)
+				this.makeComplexScope(nvar, p)
 			}
 			return p
 		})
+		this.registerScope(AstType.Indexer, (n, p) => {
+			let scope: Scope | null = p
+			this.getScope(n.children[1], p)
+			if (n.children[0].type == AstType.VariableId) {
+				scope = p.getScope(n.children[0].token.value)
+			}else{
+				scope = this.getScope(n.children[0], p)
+			}
+			if (scope) scope = scope.getScope('0')
+			if (!scope) {
+				this.logError("No scope named " + JSON.stringify(n.children[0].token.value) + " found", n)
+				return p
+			}
+			return scope
+		})
 		this.registerScope(AstType.Access, (n, p) => {
 			let scope: Scope | null = p
-			if (scope) scope = scope.getScope(n.children[0].token.value)
+			if (n.children[0].type == AstType.VariableId || n.children[0].type == AstType.Type) {
+				scope = p.getScope(n.children[0].token.value)
+			}else{
+				scope = this.getScope(n.children[0], p)
+			}
 			if (!scope) {
-				this.logError("No scope named " + JSON.stringify(n.children[0].token.value) + " exists in the current scope", n)
+				this.logError("Invalid left-hand side of property access", n)
 				return p
+			}
+			this.getScope(n.children[1], scope)
+			if (scope) {
+				let childScope = scope.getScope(n.children[1].token.value)
+				if (childScope) scope = childScope
 			}
 			return scope
 		})
@@ -360,9 +441,20 @@ export class SchwaAnalyzer extends Analyzer {
 			return p
 		})
 
+		this.registerDataType(AstType.Indexer, (n) => {
+			if (n.children.length) {
+				let node = n.children[0]
+				if (node) {
+					let type = this.getDataType(node)
+					type = type.substring(0, type.indexOf('['))
+					return type
+				}
+			}
+			return DataType.Invalid
+		})
 		this.registerDataType(AstType.Access, (n) => {
 			if (n.children.length >= 2) {
-				let node = this.getIdentifier(n)
+				let node = n.children[1]
 				if (node) return this.getDataType(node)
 			}
 			return DataType.Invalid
@@ -371,7 +463,7 @@ export class SchwaAnalyzer extends Analyzer {
 			if (this.getScope(n)) {
 				let nvar = this.getScope(n).getVariable(n.token.value)
 				if (nvar) return nvar.type
-				else this.logError("No variable named " + JSON.stringify(n.token.value) + " exists in the current scope", n)
+				else this.logError("No variable named " + JSON.stringify(n.token.value) + " found", n)
 			}
 			return DataType.Invalid
 		})
@@ -379,7 +471,7 @@ export class SchwaAnalyzer extends Analyzer {
 			if (this.getScope(n)) {
 				let func = this.getScope(n).getFunction(n.token.value)
 				if (func) return func.type
-				else this.logError("No function named " + JSON.stringify(n.token.value) + " exists in the current scope", n)
+				else this.logError("No function named " + JSON.stringify(n.token.value) + " found", n)
 			}
 			return DataType.Invalid
 		})
@@ -387,12 +479,16 @@ export class SchwaAnalyzer extends Analyzer {
 			if (this.getScope(n)) {
 				let struct = this.getScope(n).getStruct(n.token.value)
 				if (struct) return struct.id
-				else this.logError("No struct named " + JSON.stringify(n.token.value) + " exists in the current scope", n)
+				else this.logError("No struct named " + JSON.stringify(n.token.value) + " found", n)
 			}
 			return DataType.Invalid
 		})
 		this.registerDataType(AstType.Type, (n) => DataType.Type)
-		this.registerDataType(AstType.VariableDef, (n) => n.token.value)
+		this.registerDataType(AstType.VariableDef, (n) => {
+			let type = n.token.value
+			if (n.children.length > 1) type += '[' + this.tryEval(n.children[1]) + ']'
+			return type
+		})
 		this.registerDataType(AstType.FunctionDef, (n) => n.token.value)
 		this.registerDataType(AstType.StructDef, (n) => n.children[0].token.value)
 		this.registerDataType(AstType.Literal, (n) => {
@@ -590,7 +686,7 @@ export class SchwaAnalyzer extends Analyzer {
 			}
 			let func = this.getScope(ident).getFunction(ident.token.value)
 			if (!func) {
-				this.logError("No function named " + JSON.stringify(ident.token.value) + " exists in the current scope", n)
+				this.logError("No function named " + JSON.stringify(ident.token.value) + " found", n)
 				return DataType.Invalid
 			}
 			if (func.params.length != n.children[1].children.length) {
@@ -660,6 +756,7 @@ export class SchwaAnalyzer extends Analyzer {
 	protected getIdentifier(node: AstNode): AstNode | null {
 		if (node.type == AstType.FunctionId || node.type == AstType.VariableId) return node
 		if (node.type == AstType.Access) return this.getIdentifier(node.children[1])
+		if (node.type == AstType.Indexer) return this.getIdentifier(node.children[0])
 		return null
 	}
 }
