@@ -35,7 +35,7 @@ class Analyzer {
     hoistPass(node) {
         node.scope = this.getScope(node);
         for (let child of node.children) {
-            if (child.type != ast_1.AstType.StructDef)
+            if (!child || child.type != ast_1.AstType.StructDef)
                 continue;
             this.hoistPass(child);
         }
@@ -43,7 +43,8 @@ class Analyzer {
     scopePass(node) {
         node.scope = this.getScope(node);
         for (let child of node.children) {
-            this.scopePass(child);
+            if (child)
+                this.scopePass(child);
         }
     }
     getScope(node, parentScope = null) {
@@ -63,7 +64,8 @@ class Analyzer {
     typePass(node) {
         node.dataType = this.getDataType(node);
         for (let child of node.children) {
-            this.typePass(child);
+            if (child)
+                this.typePass(child);
         }
     }
     getDataType(node) {
@@ -87,7 +89,8 @@ class Analyzer {
                 rule(node);
         }
         for (let child of node.children) {
-            this.analysisPass(child);
+            if (child)
+                this.analysisPass(child);
         }
     }
     makeComplexScope(v, p, depth = 0) {
@@ -302,18 +305,27 @@ class SchwaAnalyzer extends Analyzer {
             return scope;
         });
         this.registerScope(ast_1.AstType.StructDef, (n, p) => {
-            let scope = new scope_1.Scope(n, p, n.children[0].token.value);
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return p;
+            let scope = new scope_1.Scope(n, p, l.token.value);
             let fields = [];
-            let fieldNodes = n.children[1].children;
-            for (let i = 0; i < fieldNodes.length; i++) {
-                if (fieldNodes[i].type != ast_1.AstType.VariableDef)
+            let fieldNodes = r.children;
+            for (let i = 0; i < r.children.length; i++) {
+                let fieldNode = r.children[i];
+                if (!fieldNode || fieldNode.type != ast_1.AstType.VariableDef)
                     continue;
-                let fieldType = fieldNodes[i].token.value;
-                if (fieldNodes[i].children.length > 1)
-                    fieldType += '[' + this.tryEval(fieldNodes[i].children[1]) + ']';
-                fields.push(new scope_1.Variable(fieldNodes[i], scope, fieldNodes[i].children[0].token.value, fieldType));
+                let fieldType = fieldNode.token.value;
+                let fl = fieldNode.children[0];
+                if (!fl)
+                    continue;
+                let fr = fieldNode.children[1];
+                if (fr)
+                    fieldType += '[' + this.tryEval(fr) + ']';
+                fields.push(new scope_1.Variable(fieldNode, scope, fl.token.value, fieldType));
             }
-            let struct = new scope_1.Struct(n, scope, n.children[0].token.value, fields);
+            let struct = new scope_1.Struct(n, scope, l.token.value, fields);
             if (p.structs[struct.id]) {
                 this.logError("A struct with the name " + JSON.stringify(struct.id) + " already found", n);
             }
@@ -324,22 +336,30 @@ class SchwaAnalyzer extends Analyzer {
             return scope;
         });
         this.registerScope(ast_1.AstType.FunctionDef, (n, p) => {
-            let scope = new scope_1.Scope(n, p, n.children[0].token.value);
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return p;
+            let scope = new scope_1.Scope(n, p, l.token.value);
             let params = [];
-            let paramNodes = n.children[1].children;
-            for (let i = 0; i < paramNodes.length; i++) {
-                if (!paramNodes[i].children.length)
+            for (let i = 0; i < r.children.length; i++) {
+                let paramNode = r.children[i];
+                if (!paramNode)
                     continue;
-                let paramType = paramNodes[i].token.value;
-                if (paramNodes[i].children.length > 1)
-                    paramType += '[' + this.tryEval(paramNodes[i].children[1]) + ']';
+                let pl = paramNode.children[0];
+                let pr = paramNode.children[1];
+                if (!pl)
+                    continue;
+                let paramType = paramNode.token.value;
+                if (pr)
+                    paramType += '[' + this.tryEval(pr) + ']';
                 if (paramType.indexOf('[') >= 0) {
-                    this.logError("Arrays cannot be used as function parameters", paramNodes[i]);
+                    this.logError("Arrays cannot be used as function parameters", paramNode);
                     continue;
                 }
-                params.push(new scope_1.Variable(paramNodes[i], scope, paramNodes[i].children[0].token.value, paramType));
+                params.push(new scope_1.Variable(paramNode, scope, pl.token.value, paramType));
             }
-            let func = new scope_1.Function(n, scope, n.children[0].token.value, n.token.value, params);
+            let func = new scope_1.Function(n, scope, l.token.value, n.token.value, params);
             if (p.funcs[func.id]) {
                 this.logError("A function with the name " + JSON.stringify(func.id) + " already found", n);
             }
@@ -350,10 +370,14 @@ class SchwaAnalyzer extends Analyzer {
             return scope;
         });
         this.registerScope(ast_1.AstType.VariableDef, (n, p) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l)
+                return p;
             let type = n.token.value;
-            if (n.children.length > 1)
-                type += '[' + this.tryEval(n.children[1]) + ']';
-            let nvar = new scope_1.Variable(n, p, n.children[0].token.value, type);
+            if (r)
+                type += '[' + this.tryEval(r) + ']';
+            let nvar = new scope_1.Variable(n, p, l.token.value, type);
             if (p.vars[nvar.id]) {
                 this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already found", n);
             }
@@ -371,48 +395,58 @@ class SchwaAnalyzer extends Analyzer {
                 if (pn && pn.type == ast_1.AstType.Map) {
                     nvar.global = true;
                     nvar.mapped = true;
-                    if (pn.children.length >= 2) {
-                        nvar.offset = this.tryEval(pn.children[1]);
-                    }
+                    let pr = pn.children[1];
+                    if (pr)
+                        nvar.offset = this.tryEval(pr);
                 }
                 this.makeComplexScope(nvar, p);
             }
             return p;
         });
         this.registerScope(ast_1.AstType.Indexer, (n, p) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return p;
             let scope = p;
-            this.getScope(n.children[1], p);
-            if (n.children[0].type == ast_1.AstType.VariableId) {
-                scope = p.getScope(n.children[0].token.value);
+            this.getScope(r, p);
+            if (l.type == ast_1.AstType.VariableId) {
+                scope = p.getScope(l.token.value);
             }
             else {
-                scope = this.getScope(n.children[0], p);
+                scope = this.getScope(l, p);
             }
             if (scope)
                 scope = scope.getScope('0');
             if (!scope) {
-                this.logError("No scope named " + JSON.stringify(n.children[0].token.value) + " found", n);
+                this.logError("No scope named " + JSON.stringify(l.token.value) + " found", n);
                 return p;
             }
             return scope;
         });
         this.registerScope(ast_1.AstType.Access, (n, p) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l)
+                return p;
             let scope = p;
-            if (n.children[0].type == ast_1.AstType.VariableId || n.children[0].type == ast_1.AstType.Type) {
-                scope = p.getScope(n.children[0].token.value);
+            if (l.type == ast_1.AstType.VariableId || l.type == ast_1.AstType.Type) {
+                scope = p.getScope(l.token.value);
             }
             else {
-                scope = this.getScope(n.children[0], p);
+                scope = this.getScope(l, p);
             }
             if (!scope) {
                 this.logError("Invalid left-hand side of property access", n);
                 return p;
             }
-            this.getScope(n.children[1], scope);
-            if (scope) {
-                let childScope = scope.getScope(n.children[1].token.value);
-                if (childScope)
-                    scope = childScope;
+            if (r) {
+                this.getScope(r, scope);
+                if (scope) {
+                    let childScope = scope.getScope(r.token.value);
+                    if (childScope)
+                        scope = childScope;
+                }
             }
             return scope;
         });
@@ -496,12 +530,18 @@ class SchwaAnalyzer extends Analyzer {
         this.registerDataType(ast_1.AstType.Type, (n) => datatype_1.DataType.Type);
         this.registerDataType(ast_1.AstType.VariableDef, (n) => {
             let type = n.token.value;
-            if (n.children.length > 1)
-                type += '[' + this.tryEval(n.children[1]) + ']';
+            let r = n.children[1];
+            if (r)
+                type += '[' + this.tryEval(r) + ']';
             return type;
         });
         this.registerDataType(ast_1.AstType.FunctionDef, (n) => n.token.value);
-        this.registerDataType(ast_1.AstType.StructDef, (n) => n.children[0].token.value);
+        this.registerDataType(ast_1.AstType.StructDef, (n) => {
+            let l = n.children[0];
+            if (l)
+                return l.token.value;
+            return datatype_1.DataType.Invalid;
+        });
         this.registerDataType(ast_1.AstType.Literal, (n) => {
             let type = datatype_1.DataType.fromTokenType(n.token.type);
             if (type == datatype_1.DataType.Float || type == datatype_1.DataType.Double) {
@@ -589,7 +629,11 @@ class SchwaAnalyzer extends Analyzer {
         this.registerDataTypeBinaryOp(token_1.TokenType.And, [boolTypeSet]);
         this.registerDataTypeBinaryOp(token_1.TokenType.Or, [boolTypeSet]);
         this.registerDataType(ast_1.AstType.Assignment, (n) => {
-            let ident = this.getIdentifier(n.children[0]);
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return datatype_1.DataType.Invalid;
+            let ident = this.getIdentifier(l);
             if (ident) {
                 let nvar = this.getScope(ident).getVariable(ident.token.value);
                 if (nvar && nvar.const) {
@@ -597,13 +641,13 @@ class SchwaAnalyzer extends Analyzer {
                     return datatype_1.DataType.Invalid;
                 }
             }
-            let t0 = this.getDataType(n.children[0]);
-            let t1 = this.getDataType(n.children[1]);
+            let t0 = this.getDataType(l);
+            let t1 = this.getDataType(r);
             if (t0 == datatype_1.DataType.Invalid || t1 == datatype_1.DataType.Invalid) {
                 if (t0 == datatype_1.DataType.Invalid)
-                    this.logError("Invalid left-hand side of assignment", n.children[0]);
+                    this.logError("Invalid left-hand side of assignment", l);
                 if (t1 == datatype_1.DataType.Invalid)
-                    this.logError("Invalid right-hand side of assignment", n.children[1]);
+                    this.logError("Invalid right-hand side of assignment", r);
                 return datatype_1.DataType.Invalid;
             }
             if (t0 != t1) {
@@ -613,13 +657,17 @@ class SchwaAnalyzer extends Analyzer {
             return t0;
         });
         this.registerDataType(ast_1.AstType.Global, (n) => {
-            let t0 = this.getDataType(n.children[0]);
-            let t1 = this.getDataType(n.children[1]);
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return datatype_1.DataType.Invalid;
+            let t0 = this.getDataType(l);
+            let t1 = this.getDataType(r);
             if (t0 == datatype_1.DataType.Invalid || t1 == datatype_1.DataType.Invalid) {
                 if (t0 == datatype_1.DataType.Invalid)
-                    this.logError("Invalid left-hand side of assignment", n.children[0]);
+                    this.logError("Invalid left-hand side of assignment", l);
                 if (t1 == datatype_1.DataType.Invalid)
-                    this.logError("Invalid right-hand side of assignment", n.children[1]);
+                    this.logError("Invalid right-hand side of assignment", r);
                 return datatype_1.DataType.Invalid;
             }
             if (t0 != t1) {
@@ -629,10 +677,14 @@ class SchwaAnalyzer extends Analyzer {
             return t0;
         });
         this.registerDataType(ast_1.AstType.BinaryOp, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return datatype_1.DataType.Invalid;
             if (n.dataType || n.token.type != token_1.TokenType.As)
                 return n.dataType;
-            let t0 = this.getDataType(n.children[0]);
-            let t1 = (n.children[1].type == ast_1.AstType.Type) ? n.children[1].token.value : datatype_1.DataType.Invalid;
+            let t0 = this.getDataType(l);
+            let t1 = (r.type == ast_1.AstType.Type) ? r.token.value : datatype_1.DataType.Invalid;
             if (t1 == datatype_1.DataType.Bool)
                 t1 = datatype_1.DataType.Invalid;
             if (t0 == datatype_1.DataType.Int && t1 == datatype_1.DataType.UInt)
@@ -660,16 +712,20 @@ class SchwaAnalyzer extends Analyzer {
             if (t0 == datatype_1.DataType.Double && t1 == datatype_1.DataType.ULong)
                 return datatype_1.DataType.ULong;
             if (t0 == datatype_1.DataType.Invalid)
-                this.logError("Invalid value argument to operator " + n.token.type, n.children[0]);
+                this.logError("Invalid value argument to operator " + n.token.type, l);
             if (t1 == datatype_1.DataType.Invalid)
-                this.logError("Invalid type argument to operator " + n.token.type, n.children[1]);
+                this.logError("Invalid type argument to operator " + n.token.type, r);
             return datatype_1.DataType.Invalid;
         });
         this.registerDataType(ast_1.AstType.BinaryOp, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return datatype_1.DataType.Invalid;
             if (n.dataType || n.token.type != token_1.TokenType.To)
                 return n.dataType;
-            let t0 = this.getDataType(n.children[0]);
-            let t1 = (n.children[1].type == ast_1.AstType.Type) ? n.children[1].token.value : datatype_1.DataType.Invalid;
+            let t0 = this.getDataType(l);
+            let t1 = (r.type == ast_1.AstType.Type) ? r.token.value : datatype_1.DataType.Invalid;
             if (t1 == datatype_1.DataType.Bool)
                 t1 = datatype_1.DataType.Invalid;
             if (t0 == datatype_1.DataType.Int && t1 == datatype_1.DataType.Long)
@@ -725,13 +781,17 @@ class SchwaAnalyzer extends Analyzer {
             if (t0 == datatype_1.DataType.Double && t1 == datatype_1.DataType.Float)
                 return datatype_1.DataType.Float;
             if (t0 == datatype_1.DataType.Invalid)
-                this.logError("Invalid value argument to operator " + n.token.type, n.children[0]);
+                this.logError("Invalid value argument to operator " + n.token.type, l);
             if (t1 == datatype_1.DataType.Invalid)
-                this.logError("Invalid type argument to operator " + n.token.type, n.children[1]);
+                this.logError("Invalid type argument to operator " + n.token.type, r);
             return datatype_1.DataType.Invalid;
         });
         this.registerDataType(ast_1.AstType.FunctionCall, (n) => {
-            let ident = this.getIdentifier(n.children[0]);
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return datatype_1.DataType.Invalid;
+            let ident = this.getIdentifier(l);
             if (!ident) {
                 this.logError("Invalid function identifier", n);
                 return datatype_1.DataType.Invalid;
@@ -741,15 +801,18 @@ class SchwaAnalyzer extends Analyzer {
                 this.logError("No function named " + JSON.stringify(ident.token.value) + " found", n);
                 return datatype_1.DataType.Invalid;
             }
-            if (func.params.length != n.children[1].children.length) {
-                this.logError("Function " + JSON.stringify(func.id) + " takes " + func.params.length + " arguments, not " + n.children[1].children.length, n);
+            if (func.params.length != r.children.length) {
+                this.logError("Function " + JSON.stringify(func.id) + " takes " + func.params.length + " arguments, not " + r.children.length, n);
                 return datatype_1.DataType.Invalid;
             }
             let valid = true;
             for (let i = 0; i < func.params.length; i++) {
-                let type = this.getDataType(n.children[1].children[i]);
+                let param = r.children[i];
+                if (!param)
+                    continue;
+                let type = this.getDataType(param);
                 if (type != func.params[i].type) {
-                    this.logError("The " + formatOrdinal(i + 1) + " parameter (" + JSON.stringify(func.params[i].id) + ") of function " + JSON.stringify(func.id) + " is type " + func.params[i].type + ", not " + type, n.children[1].children[i]);
+                    this.logError("The " + formatOrdinal(i + 1) + " parameter (" + JSON.stringify(func.params[i].id) + ") of function " + JSON.stringify(func.id) + " is type " + func.params[i].type + ", not " + type, param);
                     valid = false;
                 }
             }
@@ -759,22 +822,32 @@ class SchwaAnalyzer extends Analyzer {
                 return datatype_1.DataType.Invalid;
         });
         this.registerDataType(ast_1.AstType.Return, (n) => {
-            let t = this.getDataType(n.children[0]);
+            let l = n.children[0];
+            if (!l)
+                return datatype_1.DataType.Invalid;
+            let t = this.getDataType(l);
             let p = n.parent;
             while (p && p.type != ast_1.AstType.FunctionDef)
                 p = p.parent;
             if (p && (t != p.token.value || p.token.value == datatype_1.DataType.None)) {
-                this.logError("Type of return value (" + t + ") does not match function " + p.children[0].token.value + "'s return type (" + p.token.value + ")", n.children[0]);
+                let pn = p.children[0];
+                if (pn)
+                    this.logError("Type of return value (" + t + ") does not match function " + pn.token.value + "'s return type (" + p.token.value + ")", l);
                 return datatype_1.DataType.Invalid;
             }
             return t;
         });
         this.registerDataType(ast_1.AstType.ReturnVoid, (n) => {
+            let l = n.children[0];
+            if (!l)
+                return datatype_1.DataType.Invalid;
             let p = n.parent;
             while (p && p.type != ast_1.AstType.FunctionDef)
                 p = p.parent;
             if (p && p.token.value != datatype_1.DataType.None) {
-                this.logError("Type of return value (" + datatype_1.DataType.None + ") does not match function " + p.children[0].token.value + "'s return type (" + p.token.value + ")", n.children[0]);
+                let pn = p.children[0];
+                if (pn)
+                    this.logError("Type of return value (" + datatype_1.DataType.None + ") does not match function " + pn.token.value + "'s return type (" + p.token.value + ")", l);
                 return datatype_1.DataType.Invalid;
             }
             return datatype_1.DataType.None;
@@ -782,39 +855,48 @@ class SchwaAnalyzer extends Analyzer {
     }
     registerDataTypeUnaryOp(type, typeSets) {
         this.registerDataType(ast_1.AstType.UnaryOp, (n) => {
+            let l = n.children[0];
+            if (!l)
+                return datatype_1.DataType.Invalid;
             if (n.dataType || n.token.type != type)
                 return n.dataType;
-            let t = this.getDataType(n.children[0]);
+            let t = this.getDataType(l);
             for (let i = 0; i < typeSets.length; i++) {
                 if (t == typeSets[i][0])
                     return typeSets[i][1];
             }
-            this.logError("Invalid argument to operator " + n.token.type, n.children[0]);
+            this.logError("Invalid argument to operator " + n.token.type, l);
             return datatype_1.DataType.Invalid;
         });
     }
     registerDataTypeBinaryOp(type, typeSets) {
         this.registerDataType(ast_1.AstType.BinaryOp, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return datatype_1.DataType.Invalid;
             if (n.dataType || n.token.type != type)
                 return n.dataType;
-            let t0 = this.getDataType(n.children[0]);
-            let t1 = this.getDataType(n.children[1]);
+            let t0 = this.getDataType(l);
+            let t1 = this.getDataType(r);
             for (let i = 0; i < typeSets.length; i++) {
                 if (t0 == typeSets[i][0] && t1 == typeSets[i][1])
                     return typeSets[i][2];
             }
-            this.logError("Invalid 1st argument to operator " + n.token.type, n.children[0]);
-            this.logError("Invalid 2nd argument to operator " + n.token.type, n.children[1]);
+            this.logError("Invalid 1st argument to operator " + n.token.type, l);
+            this.logError("Invalid 2nd argument to operator " + n.token.type, r);
             return datatype_1.DataType.Invalid;
         });
     }
     getIdentifier(node) {
         if (node.type == ast_1.AstType.FunctionId || node.type == ast_1.AstType.VariableId)
             return node;
-        if (node.type == ast_1.AstType.Access)
-            return this.getIdentifier(node.children[1]);
-        if (node.type == ast_1.AstType.Indexer)
-            return this.getIdentifier(node.children[0]);
+        let l = node.children[0];
+        let r = node.children[1];
+        if (r && node.type == ast_1.AstType.Access)
+            return this.getIdentifier(r);
+        if (l && node.type == ast_1.AstType.Indexer)
+            return this.getIdentifier(l);
         return null;
     }
 }

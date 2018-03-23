@@ -46,8 +46,8 @@ export class AstNode {
 	public dataType: string | null = null
 	public generated: boolean | null = null
 
-	constructor(public type: AstType, public token: Token, public children: AstNode[]) {
-		for (let child of children) child.parent = this
+	constructor(public type: AstType, public token: Token, public children: (AstNode | undefined)[]) {
+		for (let child of children) if (child) child.parent = this
 	}
 
 	toString(depth?: number): string {
@@ -60,7 +60,7 @@ export class AstNode {
 		out += ")"
 		if (this.dataType) out += ": " + this.dataType
 		out += "\n"
-		for (let child of this.children) out += child.toString(depth + 1)
+		for (let child of this.children) if (child) out += child.toString(depth + 1)
 		return out
 	}
 }

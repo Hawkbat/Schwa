@@ -48,7 +48,8 @@ class AstNode {
         this.dataType = null;
         this.generated = null;
         for (let child of children)
-            child.parent = this;
+            if (child)
+                child.parent = this;
     }
     toString(depth) {
         if (!depth)
@@ -66,7 +67,8 @@ class AstNode {
             out += ": " + this.dataType;
         out += "\n";
         for (let child of this.children)
-            out += child.toString(depth + 1);
+            if (child)
+                out += child.toString(depth + 1);
         return out;
     }
 }

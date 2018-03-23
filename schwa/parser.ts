@@ -131,7 +131,7 @@ export class SchwaParser extends Parser {
 				}
 				else if (r && r.type == AstType.FunctionCall) {
 					let params = r.children[1]
-					params.type = AstType.Parameters
+					if (params) params.type = AstType.Parameters
 					return new AstNode(AstType.FunctionDef, t, [r.children[0], params])
 				}
 			}
@@ -152,7 +152,7 @@ export class SchwaParser extends Parser {
 				}
 				else if (r && r.type == AstType.FunctionCall) {
 					let params = r.children[1]
-					params.type = AstType.Parameters
+					if (params) params.type = AstType.Parameters
 					return new AstNode(AstType.FunctionDef, t, [r.children[0], params])
 				}
 			}
@@ -278,10 +278,13 @@ export class SchwaParser extends Parser {
 				if (this.match(TokenType.Comma)) this.consume()
 			}
 			this.consumeMatch(TokenType.LParen, TokenType.RParen)
-			let id = l
+			let id: AstNode | undefined | null = l
 			if (id) {
-				while (id.type == AstType.Access || id.type == AstType.Indexer) id = id.children[1]
-				if (id.type == AstType.VariableId) id.type = AstType.FunctionId
+				while (id && (id.type == AstType.Access || id.type == AstType.Indexer)) {
+					if (id.type == AstType.Indexer) id = id.children[0]
+					else if (id.type == AstType.Access) id = id.children[1]
+				}
+				if (id && id.type == AstType.VariableId) id.type = AstType.FunctionId
 			}
 			let children = []
 			if (l) children.push(l)
@@ -308,7 +311,7 @@ export class SchwaParser extends Parser {
 			if (this.match(TokenType.Name)) {
 				let n = this.parseNode(14)
 				if (n) children.push(n)
-			}else{
+			} else {
 				this.consumeMatch(TokenType.Period, TokenType.Name)
 			}
 			return new AstNode(AstType.Access, t, children)
@@ -333,7 +336,7 @@ export class SchwaParser extends Parser {
 				if (l.type == AstType.FunctionDef) {
 					l.children.splice(2, 0, n)
 					return new AstNode(l.type, l.token, l.children)
-				}else if (l.type == AstType.StructDef) {
+				} else if (l.type == AstType.StructDef) {
 					n.type = AstType.Fields
 				}
 				return new AstNode(l.type, l.token, l.children.concat([n]))

@@ -6,7 +6,7 @@ export declare class Formatter {
     private ruleMap;
     constructor(logger: Logger);
     format(ast: AstNode): string;
-    protected printNode(node: AstNode): string;
+    protected printNode(node: AstNode | undefined | null): string;
     protected register(type: AstType, rule: FormatRule): void;
     protected logError(msg: string, node: AstNode): void;
 }

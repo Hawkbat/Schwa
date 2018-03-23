@@ -39,12 +39,12 @@ export declare enum AstType {
 export declare class AstNode {
     type: AstType;
     token: Token;
-    children: AstNode[];
+    children: (AstNode | undefined)[];
     parent: AstNode | null;
     valid: boolean | null;
     scope: Scope | null;
     dataType: string | null;
     generated: boolean | null;
-    constructor(type: AstType, token: Token, children: AstNode[]);
+    constructor(type: AstType, token: Token, children: (AstNode | undefined)[]);
     toString(depth?: number): string;
 }

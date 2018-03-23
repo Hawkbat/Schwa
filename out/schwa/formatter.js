@@ -58,75 +58,255 @@ class SchwaFormatter extends Formatter {
             [token_1.TokenType.Not]: 11
         };
         this.register(ast_1.AstType.UnaryOp, (n) => {
-            let out = n.token.value + this.printNode(n.children[0]);
+            let l = n.children[0];
+            let out = n.token.value;
+            if (l)
+                out += this.printNode(l);
             if (this.needsParens(n))
                 out = '(' + out + ')';
             return out;
         });
         this.register(ast_1.AstType.BinaryOp, (n) => {
-            let out = this.printNode(n.children[0]) + ' ' + n.token.value + ' ' + this.printNode(n.children[1]);
+            let l = n.children[0];
+            let r = n.children[1];
+            let out = '';
+            if (l)
+                out += this.printNode(l) + ' ';
+            out += n.token.value;
+            if (r)
+                out += ' ' + this.printNode(r);
             if (this.needsParens(n))
                 out = '(' + out + ')';
             return out;
         });
-        this.register(ast_1.AstType.VariableDef, (n) => n.token.value + ' ' + this.printNode(n.children[0]) + (n.children.length > 1 ? '[' + this.printNode(n.children[1]) + ']' : ''));
-        this.register(ast_1.AstType.FunctionDef, (n) => '\n' + n.children.slice(3).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 3 ? ' ' : '') + n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]) + this.printNode(n.children[2]));
-        this.register(ast_1.AstType.StructDef, (n) => '\n' + n.children.slice(2).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 2 ? ' ' : '') + n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]));
+        this.register(ast_1.AstType.VariableDef, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            let out = n.token.value;
+            if (l)
+                out += ' ' + this.printNode(l);
+            if (r)
+                out += '[' + this.printNode(r) + ']';
+            return out;
+        });
+        this.register(ast_1.AstType.FunctionDef, (n) => {
+            let c0 = n.children[0];
+            let c1 = n.children[1];
+            let c2 = n.children[2];
+            let out = '\n';
+            if (n.children.length > 3) {
+                out += n.children.slice(3).reverse().map((c) => this.printNode(c)).join(' ');
+                out += ' ';
+            }
+            out += n.token.value;
+            if (c0 || c1 || c2)
+                out += ' ';
+            if (c0)
+                out += this.printNode(c0);
+            if (c1)
+                out += this.printNode(c1);
+            if (c2)
+                out += this.printNode(c2);
+            return out;
+        });
+        this.register(ast_1.AstType.StructDef, (n) => {
+            let c0 = n.children[0];
+            let c1 = n.children[1];
+            let out = '\n';
+            if (n.children.length > 2) {
+                out += n.children.slice(2).reverse().map((c) => this.printNode(c)).join(' ');
+                out += ' ';
+            }
+            out += n.token.value;
+            if (c0 || c1)
+                out += ' ';
+            if (c0)
+                out += this.printNode(c0);
+            if (c1)
+                out += this.printNode(c1);
+            return out;
+        });
         this.register(ast_1.AstType.Fields, (n) => {
             let out = '\n';
             for (let i = 0; i < n.children.length; i++) {
-                if (n.children[i].token.type == token_1.TokenType.InlineComment && i + 1 < n.children.length) {
-                    let lines = ('\t'.repeat(this.getDepth(n.children[i + 1])) + this.printNode(n.children[i + 1])).split('\n');
-                    out += lines[0];
-                    out += this.printNode(n.children[i]);
-                    if (lines.length > 1)
-                        out += '\n';
-                    if (lines.length > 0)
-                        out += lines.slice(1).join('\n');
+                let c = n.children[i];
+                if (!c)
+                    continue;
+                if (c.token.type == token_1.TokenType.InlineComment && i + 1 < n.children.length) {
+                    let cn = n.children[i + 1];
+                    if (cn) {
+                        let lines = ('\t'.repeat(this.getDepth(cn)) + this.printNode(cn)).split('\n');
+                        out += lines[0];
+                        out += this.printNode(c);
+                        if (lines.length > 1)
+                            out += '\n';
+                        if (lines.length > 0)
+                            out += lines.slice(1).join('\n');
+                    }
                     i++;
                 }
-                else if (n.children[i].token.type == token_1.TokenType.Comment) {
-                    out += this.printNode(n.children[i]);
+                else if (c.token.type == token_1.TokenType.Comment) {
+                    out += this.printNode(c);
                 }
                 else {
-                    out += '\t'.repeat(this.getDepth(n.children[i])) + this.printNode(n.children[i]);
+                    out += '\t'.repeat(this.getDepth(c)) + this.printNode(c);
                 }
                 if (i != n.children.length - 1)
                     out += '\n';
             }
             return out;
         });
-        this.register(ast_1.AstType.Parameters, (n) => '(' + n.children.map((c) => this.printNode(c)).join(', ') + ')');
-        this.register(ast_1.AstType.FunctionCall, (n) => this.printNode(n.children[0]) + this.printNode(n.children[1]));
-        this.register(ast_1.AstType.Arguments, (n) => '(' + n.children.map((c) => this.printNode(c)).join(', ') + ')');
-        this.register(ast_1.AstType.Assignment, (n) => this.printNode(n.children[0]) + ' ' + n.token.value + ' ' + this.printNode(n.children[1]));
-        this.register(ast_1.AstType.Global, (n) => n.children.slice(2).reverse().map((c) => this.printNode(c)).join(' ') + (n.children.length > 2 ? ' ' : '') + this.printNode(n.children[0]) + ' ' + n.token.value + ' ' + this.printNode(n.children[1]));
-        this.register(ast_1.AstType.Indexer, (n) => this.printNode(n.children[0]) + '[' + this.printNode(n.children[1]) + ']');
-        this.register(ast_1.AstType.Access, (n) => this.printNode(n.children[0]) + '.' + this.printNode(n.children[1]));
-        this.register(ast_1.AstType.Map, (n) => '\n' + n.token.value + ' ' + this.printNode(n.children[0]) + ' at ' + this.printNode(n.children[1]));
-        this.register(ast_1.AstType.If, (n) => n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]));
-        this.register(ast_1.AstType.Else, (n) => n.token.value + this.printNode(n.children[0]));
-        this.register(ast_1.AstType.ElseIf, (n) => n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]));
-        this.register(ast_1.AstType.While, (n) => n.token.value + ' ' + this.printNode(n.children[0]) + this.printNode(n.children[1]));
-        this.register(ast_1.AstType.Return, (n) => n.token.value + ' ' + this.printNode(n.children[0]));
+        this.register(ast_1.AstType.Parameters, (n) => {
+            let out = '(' + n.children.map((c) => this.printNode(c)).join(', ') + ')';
+            return out;
+        });
+        this.register(ast_1.AstType.FunctionCall, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            let out = '';
+            if (l)
+                out += this.printNode(l);
+            if (r)
+                out += this.printNode(r);
+            return out;
+        });
+        this.register(ast_1.AstType.Arguments, (n) => {
+            let out = '(' + n.children.map((c) => this.printNode(c)).join(', ') + ')';
+            return out;
+        });
+        this.register(ast_1.AstType.Assignment, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            let out = '';
+            if (l)
+                out += this.printNode(l) + ' ';
+            out += '=';
+            if (r)
+                out += ' ' + this.printNode(r);
+            return out;
+        });
+        this.register(ast_1.AstType.Global, (n) => {
+            let c0 = n.children[0];
+            let c1 = n.children[1];
+            let out = '';
+            if (n.children.length > 2) {
+                out += n.children.slice(2).reverse().map((c) => this.printNode(c)).join(' ');
+                out += ' ';
+            }
+            if (c0)
+                out += this.printNode(c0);
+            out += ' = ';
+            if (c1)
+                out += this.printNode(c1);
+            return out;
+        });
+        this.register(ast_1.AstType.Indexer, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            let out = '';
+            if (l)
+                out += this.printNode(l);
+            if (r)
+                out += '[' + this.printNode(r) + ']';
+            return out;
+        });
+        this.register(ast_1.AstType.Access, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            let out = '';
+            if (l)
+                out += this.printNode(l);
+            out += '.';
+            if (r)
+                out += this.printNode(r);
+            return out;
+        });
+        this.register(ast_1.AstType.Map, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            let out = '\n';
+            out += 'map';
+            if (l)
+                out += ' ' + this.printNode(l);
+            out += ' at ';
+            if (r)
+                out += this.printNode(r);
+            return out;
+        });
+        this.register(ast_1.AstType.If, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            let out = 'if';
+            if (l || r)
+                out += ' ';
+            if (l)
+                out += this.printNode(l);
+            if (r)
+                out += this.printNode(r);
+            return out;
+        });
+        this.register(ast_1.AstType.Else, (n) => {
+            let l = n.children[0];
+            let out = 'else';
+            if (l)
+                out += this.printNode(l);
+            return out;
+        });
+        this.register(ast_1.AstType.ElseIf, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            let out = 'else if';
+            if (l || r)
+                out += ' ';
+            if (l)
+                out += this.printNode(l);
+            if (r)
+                out += this.printNode(r);
+            return out;
+        });
+        this.register(ast_1.AstType.While, (n) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            let out = 'while';
+            if (l || r)
+                out += ' ';
+            if (l)
+                out += this.printNode(l);
+            if (r)
+                out += this.printNode(r);
+            return out;
+        });
+        this.register(ast_1.AstType.Return, (n) => {
+            let l = n.children[0];
+            let out = 'return';
+            if (l)
+                out += ' ' + this.printNode(l);
+            return out;
+        });
         this.register(ast_1.AstType.Block, (n) => {
             let out = '\n';
             for (let i = 0; i < n.children.length; i++) {
-                if (n.children[i].token.type == token_1.TokenType.InlineComment && i + 1 < n.children.length) {
-                    let lines = ('\t'.repeat(this.getDepth(n.children[i + 1])) + this.printNode(n.children[i + 1])).split('\n');
-                    out += lines[0];
-                    out += this.printNode(n.children[i]);
-                    if (lines.length > 1)
-                        out += '\n';
-                    if (lines.length > 0)
-                        out += lines.slice(1).join('\n');
+                let c = n.children[i];
+                if (!c)
+                    continue;
+                if (c.token.type == token_1.TokenType.InlineComment && i + 1 < n.children.length) {
+                    let cn = n.children[i + 1];
+                    if (cn) {
+                        let lines = ('\t'.repeat(this.getDepth(cn)) + this.printNode(cn)).split('\n');
+                        out += lines[0];
+                        out += this.printNode(c);
+                        if (lines.length > 1)
+                            out += '\n';
+                        if (lines.length > 0)
+                            out += lines.slice(1).join('\n');
+                    }
                     i++;
                 }
-                else if (n.children[i].token.type == token_1.TokenType.Comment) {
-                    out += this.printNode(n.children[i]);
+                else if (c.token.type == token_1.TokenType.Comment) {
+                    out += this.printNode(c);
                 }
                 else {
-                    out += '\t'.repeat(this.getDepth(n.children[i])) + this.printNode(n.children[i]);
+                    out += '\t'.repeat(this.getDepth(c)) + this.printNode(c);
                 }
                 if (i != n.children.length - 1)
                     out += '\n';
@@ -136,23 +316,29 @@ class SchwaFormatter extends Formatter {
         this.register(ast_1.AstType.Program, (n) => {
             let out = '';
             for (let i = 0; i < n.children.length; i++) {
-                if (n.children[i].token.type == token_1.TokenType.InlineComment && i + 1 < n.children.length) {
-                    let lines = this.printNode(n.children[i + 1]).split('\n');
-                    out += lines[0];
-                    out += this.printNode(n.children[i]);
-                    if (lines.length > 1)
-                        out += '\n';
-                    if (lines.length > 0)
-                        out += lines.slice(1).join('\n');
+                let c = n.children[i];
+                if (!c)
+                    continue;
+                if (c.token.type == token_1.TokenType.InlineComment && i + 1 < n.children.length) {
+                    let cn = n.children[i + 1];
+                    if (cn) {
+                        let lines = this.printNode(cn).split('\n');
+                        out += lines[0];
+                        out += this.printNode(c);
+                        if (lines.length > 1)
+                            out += '\n';
+                        if (lines.length > 0)
+                            out += lines.slice(1).join('\n');
+                    }
                     i++;
                     out += '\n';
                 }
-                else if (n.children[i].token.type == token_1.TokenType.Comment) {
+                else if (c.token.type == token_1.TokenType.Comment) {
                     out += '\n';
-                    out += this.printNode(n.children[i]);
+                    out += this.printNode(c);
                 }
                 else {
-                    out += this.printNode(n.children[i]);
+                    out += this.printNode(c);
                     out += '\n';
                 }
             }

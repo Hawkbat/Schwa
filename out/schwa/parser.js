@@ -121,7 +121,8 @@ class SchwaParser extends Parser {
                 }
                 else if (r && r.type == ast_1.AstType.FunctionCall) {
                     let params = r.children[1];
-                    params.type = ast_1.AstType.Parameters;
+                    if (params)
+                        params.type = ast_1.AstType.Parameters;
                     return new ast_1.AstNode(ast_1.AstType.FunctionDef, t, [r.children[0], params]);
                 }
             }
@@ -142,7 +143,8 @@ class SchwaParser extends Parser {
                 }
                 else if (r && r.type == ast_1.AstType.FunctionCall) {
                     let params = r.children[1];
-                    params.type = ast_1.AstType.Parameters;
+                    if (params)
+                        params.type = ast_1.AstType.Parameters;
                     return new ast_1.AstNode(ast_1.AstType.FunctionDef, t, [r.children[0], params]);
                 }
             }
@@ -289,9 +291,13 @@ class SchwaParser extends Parser {
             this.consumeMatch(token_1.TokenType.LParen, token_1.TokenType.RParen);
             let id = l;
             if (id) {
-                while (id.type == ast_1.AstType.Access || id.type == ast_1.AstType.Indexer)
-                    id = id.children[1];
-                if (id.type == ast_1.AstType.VariableId)
+                while (id && (id.type == ast_1.AstType.Access || id.type == ast_1.AstType.Indexer)) {
+                    if (id.type == ast_1.AstType.Indexer)
+                        id = id.children[0];
+                    else if (id.type == ast_1.AstType.Access)
+                        id = id.children[1];
+                }
+                if (id && id.type == ast_1.AstType.VariableId)
                     id.type = ast_1.AstType.FunctionId;
             }
             let children = [];

@@ -41,25 +41,24 @@ export int inc()
 	return val
 
 // Accessing this struct's properties will emit loads/stores starting at address 64
-map Object objects[1] at 8
+map Object object at 64
 
 export float getLength(Vector v)
 	return float.sqrt(v.x * v.x + v.y * v.y)
 
-export void normalize(int i)
-	float len = getLength(objects[i].position)
-	float x = objects[i].position.x / len
-	float y = objects[i].position.y / len
-	objects[i].position.x = x
-	objects[i].position.y = y
-	objects[i].colors[i].r = 0
+export void normalize()
+	float len = getLength(object.position)
+	float x = object.position.x / len
+	float y = object.position.y / len
+	object.position.x = x
+	object.position.y = y
 
-export float sumLengths(Vector vs[4])
-	float len = 0f
-	int i = 0
-	while i < 4
-		len = len + getLength(vs[i])
-		i = i + 1
+export void resetColor(int i)
+	object.colors[i].r = 0
+	object.colors[i].g = 0
+	object.colors[i].b = 0
+	object.colors[i].a = 255
+
 
 struct Vector
 	float x // The horizontal coordinate

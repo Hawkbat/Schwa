@@ -97,9 +97,11 @@ export class Generator {
 	}
 
 	private addFunctionBody(func: Function): void {
-		let localNamings: WASM.Naming[] = []
 		if (!func.node) return
+		let funcBody = func.node.children[2]
+		if (!funcBody) return
 
+		let localNamings: WASM.Naming[] = []
 		let params: WASM.LangType[] = []
 		let paramIndex = 0
 		for (let i = 0; i < func.params.length; i++) {
@@ -113,7 +115,7 @@ export class Generator {
 			}
 		}
 		let returns: WASM.LangType[] = []
-		
+
 		if (func.type != DataType.None) {
 			let returnType = this.toWasmType(func.type)
 			if (!returnType) {
@@ -138,7 +140,7 @@ export class Generator {
 		this.addLocals(locals, localNamings, func.node, params.length)
 
 		let writer = new Writer()
-		this.gen(writer, func.node.children[2])
+		this.gen(writer, funcBody)
 		this.funcBodies.push(new WASM.FunctionBody(locals, writer.toTypedArray()))
 
 		this.funcNames.push(new WASM.Naming(this.funcPathToIndex[func.getPath()], func.id))
@@ -148,8 +150,9 @@ export class Generator {
 	}
 
 	private addLocals(locals: WASM.LocalEntry[], localNamings: WASM.Naming[], node: AstNode, index: number): number {
-		if (node.parent && node.scope && node.type == AstType.VariableDef && node.parent.type != AstType.Parameters) {
-			let localVar = node.scope.getVariable(node.children[0].token.value)
+		let c = node.children[0]
+		if (c && node.parent && node.scope && node.type == AstType.VariableDef && node.parent.type != AstType.Parameters) {
+			let localVar = node.scope.getVariable(c.token.value)
 			if (localVar) {
 				let vars = this.getPrimitiveVars(localVar)
 				for (let lvar of vars) {
@@ -163,7 +166,9 @@ export class Generator {
 			}
 		}
 		for (let i = 0; i < node.children.length; i++) {
-			index = this.addLocals(locals, localNamings, node.children[i], index)
+			let c = node.children[i]
+			if (!c) continue
+			index = this.addLocals(locals, localNamings, c, index)
 		}
 		return index
 	}
@@ -176,13 +181,15 @@ export class Generator {
 			if (!type) continue
 			let initExpr: Uint8Array | null = null
 			if (gvar.node && gvar.node.parent) {
-				let writer = new Writer()
-				this.varPathToIndex[gvar.getPath()] = this.globals.length
-				this.gen(writer, gvar.node.parent.children[1])
-				initExpr = writer.toTypedArray()
-			}else{
-				initExpr = this.getDefaultInitializer(gvar.type)
+				let initBody = gvar.node.parent.children[1]
+				if (initBody) {
+					let writer = new Writer()
+					this.varPathToIndex[gvar.getPath()] = this.globals.length
+					this.gen(writer, initBody)
+					initExpr = writer.toTypedArray()
+				}
 			}
+			if (!initExpr) initExpr = this.getDefaultInitializer(gvar.type)
 			if (gvar.export) this.exports.push(new WASM.ExportEntry(gvar.getPath(true), WASM.ExternalKind.Global, this.globals.length))
 			this.globals.push(new WASM.GlobalEntry(new WASM.GlobalType(type, !gvar.const), new WASM.InitializerExpression(initExpr)))
 		}
@@ -201,15 +208,15 @@ export class Generator {
 		if (type == DataType.Int || type == DataType.UInt || type == DataType.Bool) {
 			w.uint8(WASM.OpCode.i32_const)
 			w.varintN(0, 32)
-		}else if (type == DataType.Long || type == DataType.ULong) {
+		} else if (type == DataType.Long || type == DataType.ULong) {
 			w.uint8(WASM.OpCode.i64_const)
 			w.varintN(0, 32)
-		}else if (type == DataType.Float) {
+		} else if (type == DataType.Float) {
 			w.uint8(WASM.OpCode.f32_const)
 			let arr = new Float32Array(1)
 			arr[0] = 0
 			w.bytes(new Uint8Array(arr.buffer))
-		}else if (type == DataType.Double) {
+		} else if (type == DataType.Double) {
 			w.uint8(WASM.OpCode.f64_const)
 			let arr = new Float64Array(1)
 			arr[0] = 0
@@ -236,21 +243,23 @@ export class Generator {
 export class SchwaGenerator extends Generator {
 	constructor(logger: Logger) {
 		super(logger)
-		
+
 		this.register(AstType.Indexer, (w, n) => {
-			if (n.scope && n.scope.parent) {
+			let r = n.children[1]
+			if (r && n.scope && n.scope.parent) {
 				let nvar = n.scope.parent.getVariable(n.scope.id)
 				if (nvar) {
 					w.uint8(WASM.OpCode.i32_const)
 					w.varintN(nvar.size, 32)
-					this.gen(w, n.children[1])
+					this.gen(w, r)
 					w.uint8(WASM.OpCode.i32_mul)
 				}
 			}
 		})
 
 		this.register(AstType.Access, (w, n) => {
-			if (n.parent && n.parent.type != AstType.Access && n.parent.type != AstType.Indexer) this.gen(w, n.children[1])
+			let r = n.children[1]
+			if (r && n.parent && n.parent.type != AstType.Access && n.parent.type != AstType.Indexer) this.gen(w, r)
 		})
 
 		this.register(AstType.VariableId, (w, n) => {
@@ -258,7 +267,7 @@ export class SchwaGenerator extends Generator {
 			let nodeVar = n.scope.getVariable(n.token.value)
 			if (nodeVar) {
 				let indexers = []
-				let node: AstNode | null = null
+				let node: AstNode | undefined | null = null
 				if (n.parent && (n.parent.type == AstType.Access || n.parent.type == AstType.Indexer)) node = n.parent
 				while (node && node.children[0]) node = node.children[0]
 				while (node) {
@@ -270,27 +279,27 @@ export class SchwaGenerator extends Generator {
 				for (let nvar of vars) {
 					if (nvar.mapped) {
 						if (indexers.length > 0) {
-							for (let i = 0; i < indexers.length; i ++) {
+							for (let i = 0; i < indexers.length; i++) {
 								this.gen(w, indexers[i])
 								if (i > 0) w.uint8(WASM.OpCode.i32_add)
 							}
-						}else{
+						} else {
 							w.uint8(WASM.OpCode.i32_const)
 							w.varintN(0, 32)
 						}
-						
+
 						if (nvar.type == DataType.Int || nvar.type == DataType.UInt || nvar.type == DataType.Bool) {
 							w.uint8(WASM.OpCode.i32_load)
-						}else if (nvar.type == DataType.Long || nvar.type == DataType.ULong) {
+						} else if (nvar.type == DataType.Long || nvar.type == DataType.ULong) {
 							w.uint8(WASM.OpCode.i64_load)
-						}else if (nvar.type == DataType.Float) {
+						} else if (nvar.type == DataType.Float) {
 							w.uint8(WASM.OpCode.f32_load)
-						}else if (nvar.type == DataType.Double) {
+						} else if (nvar.type == DataType.Double) {
 							w.uint8(WASM.OpCode.f64_load)
 						}
 						w.varuintN(2, 32)
 						w.varuintN(nvar.offset, 32)
-					}else{
+					} else {
 						if (nvar.global) w.uint8(WASM.OpCode.get_global)
 						else w.uint8(WASM.OpCode.get_local)
 						w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
@@ -330,24 +339,26 @@ export class SchwaGenerator extends Generator {
 
 		this.register(AstType.UnaryOp, (w, n) => {
 			let t = n.dataType
+			let c = n.children[0]
+			if (!c) return
 
 			if (n.token.type == TokenType.Neg) {
 				if (t == DataType.Int) {
 					w.uint8(WASM.OpCode.i32_const)
 					w.varintN(0, 32)
-					this.gen(w, n.children[0])
+					this.gen(w, c)
 					w.uint8(WASM.OpCode.i32_sub)
 				} else if (t == DataType.Long) {
 					w.uint8(WASM.OpCode.i64_const)
 					w.varintN(0, 64)
-					this.gen(w, n.children[0])
+					this.gen(w, c)
 					w.uint8(WASM.OpCode.i64_sub)
 				} else if (t == DataType.Float) {
-					this.gen(w, n.children[0])
+					this.gen(w, c)
 					w.uint8(WASM.OpCode.f32_neg)
 				}
 				else if (t == DataType.Double) {
-					this.gen(w, n.children[0])
+					this.gen(w, c)
 					w.uint8(WASM.OpCode.f64_neg)
 				}
 			}
@@ -355,18 +366,18 @@ export class SchwaGenerator extends Generator {
 				if (t == DataType.Int || t == DataType.UInt) {
 					w.uint8(WASM.OpCode.i32_const)
 					w.varintN(-1, 32)
-					this.gen(w, n.children[0])
+					this.gen(w, c)
 					w.uint8(WASM.OpCode.i32_xor)
 				}
 				else if (t == DataType.Long || t == DataType.ULong) {
 					w.uint8(WASM.OpCode.i64_const)
 					w.varintN(-1, 64)
-					this.gen(w, n.children[0])
+					this.gen(w, c)
 					w.uint8(WASM.OpCode.i64_xor)
 				}
 			}
 			else if (n.token.type == TokenType.Not) {
-				this.gen(w, n.children[0])
+				this.gen(w, c)
 				w.uint8(WASM.OpCode.i32_eqz)
 			}
 			else this.logError("Unknown unary op " + n.token.type, n)
@@ -374,12 +385,15 @@ export class SchwaGenerator extends Generator {
 
 		this.register(AstType.BinaryOp, (w, n) => {
 			let t = n.dataType
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return
 
 			if (n.token.type == TokenType.As) {
-				let t0 = n.children[0].dataType
-				let t1 = n.children[1].token.value
+				let t0 = l.dataType
+				let t1 = r.token.value
 
-				this.gen(w, n.children[0])
+				this.gen(w, l)
 
 				if (t0 == DataType.Int && t1 == DataType.UInt) { /* nop */ }
 				else if (t0 == DataType.Int && t1 == DataType.Float) w.uint8(WASM.OpCode.f32_reinterpret_i32)
@@ -394,10 +408,10 @@ export class SchwaGenerator extends Generator {
 				else if (t0 == DataType.Double && t1 == DataType.Long) w.uint8(WASM.OpCode.i64_reinterpret_f64)
 				else if (t0 == DataType.Double && t1 == DataType.ULong) w.uint8(WASM.OpCode.i64_reinterpret_f64)
 			} else if (n.token.type == TokenType.To) {
-				let t0 = n.children[0].dataType
-				let t1 = n.children[1].token.value
+				let t0 = l.dataType
+				let t1 = r.token.value
 
-				this.gen(w, n.children[0])
+				this.gen(w, l)
 
 				if (t0 == DataType.Int && t1 == DataType.Long) w.uint8(WASM.OpCode.i64_extend_s_i32)
 				else if (t0 == DataType.Int && t1 == DataType.ULong) w.uint8(WASM.OpCode.i64_extend_s_i32)
@@ -426,27 +440,27 @@ export class SchwaGenerator extends Generator {
 				else if (t0 == DataType.Double && t1 == DataType.ULong) w.uint8(WASM.OpCode.i64_trunc_u_f64)
 				else if (t0 == DataType.Double && t1 == DataType.Float) w.uint8(WASM.OpCode.f32_demote_f64)
 			} else if (n.token.type == TokenType.And) {
-				this.gen(w, n.children[0])
+				this.gen(w, l)
 				w.uint8(WASM.OpCode.if)
 				w.uint8(WASM.LangType.i32)
-				this.gen(w, n.children[1])
+				this.gen(w, r)
 				w.uint8(WASM.OpCode.else)
 				w.uint8(WASM.OpCode.i32_const)
 				w.varintN(0, 32)
 				w.uint8(WASM.OpCode.end)
 			} else if (n.token.type == TokenType.Or) {
-				this.gen(w, n.children[0])
+				this.gen(w, l)
 				w.uint8(WASM.OpCode.if)
 				w.uint8(WASM.LangType.i32)
 				w.uint8(WASM.OpCode.i32_const)
 				w.varintN(1, 32)
 				w.uint8(WASM.OpCode.else)
-				this.gen(w, n.children[1])
+				this.gen(w, r)
 				w.uint8(WASM.OpCode.end)
 			}
 			else {
-				this.gen(w, n.children[0])
-				this.gen(w, n.children[1])
+				this.gen(w, l)
+				this.gen(w, r)
 
 				if (n.token.type == TokenType.Add) {
 					if (t == DataType.Int || t == DataType.UInt) w.uint8(WASM.OpCode.i32_add)
@@ -501,7 +515,7 @@ export class SchwaGenerator extends Generator {
 				}
 
 				// Switch on the type of the children, not the op itself (for comparison ops, their type is always bool)
-				t = n.children[0].dataType
+				t = l.dataType
 				if (n.token.type == TokenType.Eq) {
 					if (t == DataType.Int || t == DataType.UInt || t == DataType.Bool) w.uint8(WASM.OpCode.i32_eq)
 					else if (t == DataType.Long || t == DataType.ULong) w.uint8(WASM.OpCode.i64_eq)
@@ -545,14 +559,21 @@ export class SchwaGenerator extends Generator {
 		})
 
 		this.register(AstType.VariableDef, (w, n) => {
-			if (n.children[0].generated) return
-			this.gen(w, n.children[0])
+			let c = n.children[0]
+			if (!c || c.generated) return
+			this.gen(w, c)
 		})
 
 		this.register(AstType.FunctionCall, (w, n) => {
-			for (let i = 0; i < n.children[1].children.length; i++) this.gen(w, n.children[1].children[i])
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return
+			for (let i = 0; i < r.children.length; i++) {
+				let c = r.children[i]
+				if (c) this.gen(w, c)
+			}
 
-			let id = this.getIdentifier(n.children[0])
+			let id = this.getIdentifier(l)
 			if (!id || !id.scope) return
 			let func = id.scope.getFunction(id.token.value)
 			if (!func) return
@@ -707,9 +728,12 @@ export class SchwaGenerator extends Generator {
 		})
 
 		this.register(AstType.Assignment, (w, n) => {
-			let id = this.getIdentifier(n.children[0])
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return
+			let id = this.getIdentifier(l)
 			if (!id || !id.scope) return
-			
+
 			let nvar = id.scope.getVariable(id.token.value)
 			if (nvar) {
 				if (!DataType.isPrimitive(nvar.type)) {
@@ -718,35 +742,35 @@ export class SchwaGenerator extends Generator {
 				}
 				if (nvar.mapped) {
 					let indexers = []
-					let node: AstNode | null = n.children[0]
+					let node: AstNode | undefined | null = l
 					while (node && node.children[0]) node = node.children[0]
 					while (node) {
 						if (node.type == AstType.Indexer) indexers.push(node)
 						node = node.parent
 					}
 					if (indexers.length > 0) {
-						for (let i = 0; i < indexers.length; i ++) {
+						for (let i = 0; i < indexers.length; i++) {
 							this.gen(w, indexers[i])
 							if (i > 0) w.uint8(WASM.OpCode.i32_add)
 						}
-					}else{
+					} else {
 						w.uint8(WASM.OpCode.i32_const)
 						w.varintN(0, 32)
 					}
-					this.gen(w, n.children[1])
+					this.gen(w, r)
 					if (nvar.type == DataType.Int || nvar.type == DataType.UInt || nvar.type == DataType.Bool) {
 						w.uint8(WASM.OpCode.i32_store)
-					}else if (nvar.type == DataType.Long || nvar.type == DataType.ULong) {
+					} else if (nvar.type == DataType.Long || nvar.type == DataType.ULong) {
 						w.uint8(WASM.OpCode.i64_store)
-					}else if (nvar.type == DataType.Float) {
+					} else if (nvar.type == DataType.Float) {
 						w.uint8(WASM.OpCode.f32_store)
-					}else if (nvar.type == DataType.Double) {
+					} else if (nvar.type == DataType.Double) {
 						w.uint8(WASM.OpCode.f64_store)
 					}
 					w.varuintN(2, 32)
 					w.varuintN(nvar.offset, 32)
-				}else{
-					this.gen(w, n.children[1])
+				} else {
+					this.gen(w, r)
 					if (nvar.global) w.uint8(WASM.OpCode.set_global)
 					else w.uint8(WASM.OpCode.set_local)
 					w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
@@ -755,10 +779,13 @@ export class SchwaGenerator extends Generator {
 		})
 
 		this.register(AstType.If, (w, n) => {
-			this.gen(w, n.children[0])
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l) return
+			this.gen(w, l)
 			w.uint8(WASM.OpCode.if)
 			w.uint8(WASM.LangType.void)
-			this.gen(w, n.children[1])
+			if (r) this.gen(w, r)
 
 			if (n.parent) {
 				let sibling = n.parent.children[n.parent.children.indexOf(n) + 1]
@@ -769,18 +796,22 @@ export class SchwaGenerator extends Generator {
 		this.register(AstType.Else, (w, n) => {
 			if (n.generated) return
 			w.uint8(WASM.OpCode.else)
-			this.gen(w, n.children[0])
+			let l = n.children[0]
+			if (l) this.gen(w, l)
 			w.uint8(WASM.OpCode.end)
 		})
 
 		this.register(AstType.ElseIf, (w, n) => {
 			if (n.generated) return
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l) return
 			w.uint8(WASM.OpCode.else)
 
-			this.gen(w, n.children[0])
+			this.gen(w, l)
 			w.uint8(WASM.OpCode.if)
 			w.uint8(WASM.LangType.void)
-			this.gen(w, n.children[1])
+			if (r) this.gen(w, r)
 
 			if (n.parent) {
 				let sibling = n.parent.children[n.parent.children.indexOf(n) + 1]
@@ -795,16 +826,19 @@ export class SchwaGenerator extends Generator {
 		})
 
 		this.register(AstType.While, (w, n) => {
-			this.gen(w, n.children[0])
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l) return
+			this.gen(w, l)
 			w.uint8(WASM.OpCode.if)
 			w.uint8(WASM.LangType.void)
 
 			w.uint8(WASM.OpCode.loop)
 			w.uint8(WASM.LangType.void)
 
-			this.gen(w, n.children[1])
+			if (r) this.gen(w, r)
 
-			this.gen(w, n.children[0])
+			this.gen(w, l)
 			w.uint8(WASM.OpCode.br_if)
 			w.varuintN(0, 32)
 
@@ -824,7 +858,9 @@ export class SchwaGenerator extends Generator {
 		})
 
 		this.register(AstType.Return, (w, n) => {
-			this.gen(w, n.children[0])
+			let l = n.children[0]
+			if (!l) return
+			this.gen(w, l)
 			w.uint8(WASM.OpCode.return)
 		})
 
@@ -835,15 +871,20 @@ export class SchwaGenerator extends Generator {
 		this.register(AstType.Comment, (w, n) => { })
 
 		this.register(AstType.Block, (w, n) => {
-			for (let i = 0; i < n.children.length; i++) this.gen(w, n.children[i])
+			for (let i = 0; i < n.children.length; i++) {
+				let c = n.children[i]
+				if (c) this.gen(w, c)
+			}
 		})
 	}
 
 	protected getIdentifier(node: AstNode): AstNode | null {
 		if (node.type == AstType.FunctionId || node.type == AstType.VariableId) return node
-		if (node.type == AstType.VariableDef) return this.getIdentifier(node.children[0])
-		if (node.type == AstType.Access) return this.getIdentifier(node.children[1])
-		if (node.type == AstType.Indexer) return this.getIdentifier(node.children[0])
+		let l = node.children[0]
+		let r = node.children[1]
+		if (l && node.type == AstType.VariableDef) return this.getIdentifier(l)
+		if (r && node.type == AstType.Access) return this.getIdentifier(r)
+		if (l && node.type == AstType.Indexer) return this.getIdentifier(l)
 		return null
 	}
 

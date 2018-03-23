@@ -38,7 +38,7 @@ export class Analyzer {
 	protected hoistPass(node: AstNode) {
 		node.scope = this.getScope(node)
 		for (let child of node.children) {
-			if (child.type != AstType.StructDef) continue
+			if (!child || child.type != AstType.StructDef) continue
 			this.hoistPass(child)
 		}
 	}
@@ -46,7 +46,7 @@ export class Analyzer {
 	protected scopePass(node: AstNode) {
 		node.scope = this.getScope(node)
 		for (let child of node.children) {
-			this.scopePass(child)
+			if (child) this.scopePass(child)
 		}
 	}
 
@@ -66,7 +66,7 @@ export class Analyzer {
 	protected typePass(node: AstNode) {
 		node.dataType = this.getDataType(node)
 		for (let child of node.children) {
-			this.typePass(child)
+			if (child) this.typePass(child)
 		}
 	}
 
@@ -89,7 +89,7 @@ export class Analyzer {
 			for (let rule of rules) rule(node)
 		}
 		for (let child of node.children) {
-			this.analysisPass(child)
+			if (child) this.analysisPass(child)
 		}
 	}
 
@@ -103,7 +103,7 @@ export class Analyzer {
 		let struct = p.getStruct(v.type)
 		if (struct) {
 			this.makeStructScope(v, p, struct, depth)
-		}else if (v.node) {
+		} else if (v.node) {
 			this.logError('No struct named ' + v.type + ' found', v.node)
 		}
 	}
@@ -133,7 +133,7 @@ export class Analyzer {
 		let scope = new Scope(v.node, p, v.id)
 		p.scopes[scope.id] = scope
 
-		for (let i = 0; i < length; i ++) {
+		for (let i = 0; i < length; i++) {
 			let nvar = new Variable(null, scope, '' + i, baseType)
 			scope.vars[nvar.id] = nvar
 			nvar.const = v.const
@@ -316,16 +316,23 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.StructDef, (n, p) => {
-			let scope = new Scope(n, p, n.children[0].token.value)
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return p
+			let scope = new Scope(n, p, l.token.value)
 			let fields: Variable[] = []
-			let fieldNodes = n.children[1].children
-			for (let i = 0; i < fieldNodes.length; i++) {
-				if (fieldNodes[i].type != AstType.VariableDef) continue
-				let fieldType = fieldNodes[i].token.value
-				if (fieldNodes[i].children.length > 1) fieldType += '[' + this.tryEval(fieldNodes[i].children[1]) + ']'
-				fields.push(new Variable(fieldNodes[i], scope, fieldNodes[i].children[0].token.value, fieldType))
+			let fieldNodes = r.children
+			for (let i = 0; i < r.children.length; i++) {
+				let fieldNode = r.children[i]
+				if (!fieldNode || fieldNode.type != AstType.VariableDef) continue
+				let fieldType = fieldNode.token.value
+				let fl = fieldNode.children[0]
+				if (!fl) continue
+				let fr = fieldNode.children[1]
+				if (fr) fieldType += '[' + this.tryEval(fr) + ']'
+				fields.push(new Variable(fieldNode, scope, fl.token.value, fieldType))
 			}
-			let struct = new Struct(n, scope, n.children[0].token.value, fields)
+			let struct = new Struct(n, scope, l.token.value, fields)
 			if (p.structs[struct.id]) {
 				this.logError("A struct with the name " + JSON.stringify(struct.id) + " already found", n)
 			} else {
@@ -335,20 +342,26 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.FunctionDef, (n, p) => {
-			let scope = new Scope(n, p, n.children[0].token.value)
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return p
+			let scope = new Scope(n, p, l.token.value)
 			let params: Variable[] = []
-			let paramNodes = n.children[1].children
-			for (let i = 0; i < paramNodes.length; i++) {
-				if (!paramNodes[i].children.length) continue
-				let paramType = paramNodes[i].token.value
-				if (paramNodes[i].children.length > 1) paramType += '[' + this.tryEval(paramNodes[i].children[1]) + ']'
+			for (let i = 0; i < r.children.length; i++) {
+				let paramNode = r.children[i]
+				if (!paramNode) continue
+				let pl = paramNode.children[0]
+				let pr = paramNode.children[1]
+				if (!pl) continue
+				let paramType = paramNode.token.value
+				if (pr) paramType += '[' + this.tryEval(pr) + ']'
 				if (paramType.indexOf('[') >= 0) {
-					this.logError("Arrays cannot be used as function parameters", paramNodes[i])
+					this.logError("Arrays cannot be used as function parameters", paramNode)
 					continue
 				}
-				params.push(new Variable(paramNodes[i], scope, paramNodes[i].children[0].token.value, paramType))
+				params.push(new Variable(paramNode, scope, pl.token.value, paramType))
 			}
-			let func = new Function(n, scope, n.children[0].token.value, n.token.value, params)
+			let func = new Function(n, scope, l.token.value, n.token.value, params)
 			if (p.funcs[func.id]) {
 				this.logError("A function with the name " + JSON.stringify(func.id) + " already found", n)
 			} else {
@@ -358,9 +371,12 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.VariableDef, (n, p) => {
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l) return p
 			let type = n.token.value
-			if (n.children.length > 1) type += '[' + this.tryEval(n.children[1]) + ']'
-			let nvar = new Variable(n, p, n.children[0].token.value, type)
+			if (r) type += '[' + this.tryEval(r) + ']'
+			let nvar = new Variable(n, p, l.token.value, type)
 			if (p.vars[nvar.id]) {
 				this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already found", n)
 			} else {
@@ -376,9 +392,8 @@ export class SchwaAnalyzer extends Analyzer {
 				if (pn && pn.type == AstType.Map) {
 					nvar.global = true
 					nvar.mapped = true
-					if (pn.children.length >= 2) {
-						nvar.offset = this.tryEval(pn.children[1])
-					}
+					let pr = pn.children[1]
+					if (pr) nvar.offset = this.tryEval(pr)
 				}
 
 				this.makeComplexScope(nvar, p)
@@ -386,40 +401,48 @@ export class SchwaAnalyzer extends Analyzer {
 			return p
 		})
 		this.registerScope(AstType.Indexer, (n, p) => {
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return p
 			let scope: Scope | null = p
-			this.getScope(n.children[1], p)
-			if (n.children[0].type == AstType.VariableId) {
-				scope = p.getScope(n.children[0].token.value)
-			}else{
-				scope = this.getScope(n.children[0], p)
+			this.getScope(r, p)
+			if (l.type == AstType.VariableId) {
+				scope = p.getScope(l.token.value)
+			} else {
+				scope = this.getScope(l, p)
 			}
 			if (scope) scope = scope.getScope('0')
 			if (!scope) {
-				this.logError("No scope named " + JSON.stringify(n.children[0].token.value) + " found", n)
+				this.logError("No scope named " + JSON.stringify(l.token.value) + " found", n)
 				return p
 			}
 			return scope
 		})
 		this.registerScope(AstType.Access, (n, p) => {
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l) return p
 			let scope: Scope | null = p
-			if (n.children[0].type == AstType.VariableId || n.children[0].type == AstType.Type) {
-				scope = p.getScope(n.children[0].token.value)
-			}else{
-				scope = this.getScope(n.children[0], p)
+			if (l.type == AstType.VariableId || l.type == AstType.Type) {
+				scope = p.getScope(l.token.value)
+			} else {
+				scope = this.getScope(l, p)
 			}
 			if (!scope) {
 				this.logError("Invalid left-hand side of property access", n)
 				return p
 			}
-			this.getScope(n.children[1], scope)
-			if (scope) {
-				let childScope = scope.getScope(n.children[1].token.value)
-				if (childScope) scope = childScope
+			if (r) {
+				this.getScope(r, scope)
+				if (scope) {
+					let childScope = scope.getScope(r.token.value)
+					if (childScope) scope = childScope
+				}
 			}
 			return scope
 		})
 		this.registerScope(AstType.Const, (n, p) => {
-			let node = n.parent
+			let node: AstNode | undefined | null = n.parent
 			while (node && node.children) node = node.children[0]
 			if (node) {
 				let nvar = p.getVariable(node.token.value)
@@ -428,7 +451,7 @@ export class SchwaAnalyzer extends Analyzer {
 			return p
 		})
 		this.registerScope(AstType.Export, (n, p) => {
-			let node = n.parent
+			let node: AstNode | undefined | null = n.parent
 			while (node && node.children) node = node.children[0]
 			if (node) {
 				let nvar = p.getVariable(node.token.value)
@@ -486,22 +509,27 @@ export class SchwaAnalyzer extends Analyzer {
 		this.registerDataType(AstType.Type, (n) => DataType.Type)
 		this.registerDataType(AstType.VariableDef, (n) => {
 			let type = n.token.value
-			if (n.children.length > 1) type += '[' + this.tryEval(n.children[1]) + ']'
+			let r = n.children[1]
+			if (r) type += '[' + this.tryEval(r) + ']'
 			return type
 		})
 		this.registerDataType(AstType.FunctionDef, (n) => n.token.value)
-		this.registerDataType(AstType.StructDef, (n) => n.children[0].token.value)
+		this.registerDataType(AstType.StructDef, (n) => {
+			let l = n.children[0]
+			if (l) return l.token.value
+			return DataType.Invalid
+		})
 		this.registerDataType(AstType.Literal, (n) => {
 			let type = DataType.fromTokenType(n.token.type)
 			if (type == DataType.Float || type == DataType.Double) {
 				return type
-			}else if (type == DataType.Int || type == DataType.UInt || type == DataType.Long || type == DataType.ULong) {
+			} else if (type == DataType.Int || type == DataType.UInt || type == DataType.Long || type == DataType.ULong) {
 				let val = n.token.value
 				let unsigned = type == DataType.UInt || type == DataType.ULong
 				let isLong = type == DataType.Long || type == DataType.ULong
 				let neg = val.startsWith('-')
 				if (neg) val = val.substr(1)
-				
+
 				if (unsigned) val = val.substr(0, val.length - 1)
 				if (isLong) val = val.substr(0, val.length - 1)
 
@@ -529,7 +557,7 @@ export class SchwaAnalyzer extends Analyzer {
 				if (long.toString(radix).toUpperCase() != val) isValid = false
 				if (!isValid) console.log(val, long.toString(radix).toUpperCase())
 				if (isValid) return type
-			}else{
+			} else {
 				return type
 			}
 			this.logError("The value " + JSON.stringify(n.token.value) + " is out of range", n)
@@ -578,7 +606,10 @@ export class SchwaAnalyzer extends Analyzer {
 		this.registerDataTypeBinaryOp(TokenType.Or, [boolTypeSet])
 
 		this.registerDataType(AstType.Assignment, (n) => {
-			let ident = this.getIdentifier(n.children[0])
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return DataType.Invalid
+			let ident = this.getIdentifier(l)
 			if (ident) {
 				let nvar = this.getScope(ident).getVariable(ident.token.value)
 				if (nvar && nvar.const) {
@@ -587,11 +618,11 @@ export class SchwaAnalyzer extends Analyzer {
 				}
 			}
 
-			let t0 = this.getDataType(n.children[0])
-			let t1 = this.getDataType(n.children[1])
+			let t0 = this.getDataType(l)
+			let t1 = this.getDataType(r)
 			if (t0 == DataType.Invalid || t1 == DataType.Invalid) {
-				if (t0 == DataType.Invalid) this.logError("Invalid left-hand side of assignment", n.children[0])
-				if (t1 == DataType.Invalid) this.logError("Invalid right-hand side of assignment", n.children[1])
+				if (t0 == DataType.Invalid) this.logError("Invalid left-hand side of assignment", l)
+				if (t1 == DataType.Invalid) this.logError("Invalid right-hand side of assignment", r)
 				return DataType.Invalid
 			}
 			if (t0 != t1) {
@@ -602,11 +633,14 @@ export class SchwaAnalyzer extends Analyzer {
 		})
 
 		this.registerDataType(AstType.Global, (n) => {
-			let t0 = this.getDataType(n.children[0])
-			let t1 = this.getDataType(n.children[1])
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return DataType.Invalid
+			let t0 = this.getDataType(l)
+			let t1 = this.getDataType(r)
 			if (t0 == DataType.Invalid || t1 == DataType.Invalid) {
-				if (t0 == DataType.Invalid) this.logError("Invalid left-hand side of assignment", n.children[0])
-				if (t1 == DataType.Invalid) this.logError("Invalid right-hand side of assignment", n.children[1])
+				if (t0 == DataType.Invalid) this.logError("Invalid left-hand side of assignment", l)
+				if (t1 == DataType.Invalid) this.logError("Invalid right-hand side of assignment", r)
 				return DataType.Invalid
 			}
 			if (t0 != t1) {
@@ -617,9 +651,12 @@ export class SchwaAnalyzer extends Analyzer {
 		})
 
 		this.registerDataType(AstType.BinaryOp, (n) => {
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return DataType.Invalid
 			if (n.dataType || n.token.type != TokenType.As) return n.dataType
-			let t0 = this.getDataType(n.children[0])
-			let t1 = (n.children[1].type == AstType.Type) ? n.children[1].token.value : DataType.Invalid
+			let t0 = this.getDataType(l)
+			let t1 = (r.type == AstType.Type) ? r.token.value : DataType.Invalid
 			if (t1 == DataType.Bool) t1 = DataType.Invalid
 
 			if (t0 == DataType.Int && t1 == DataType.UInt) return DataType.UInt
@@ -635,15 +672,18 @@ export class SchwaAnalyzer extends Analyzer {
 			if (t0 == DataType.Double && t1 == DataType.Long) return DataType.Long
 			if (t0 == DataType.Double && t1 == DataType.ULong) return DataType.ULong
 
-			if (t0 == DataType.Invalid) this.logError("Invalid value argument to operator " + n.token.type, n.children[0])
-			if (t1 == DataType.Invalid) this.logError("Invalid type argument to operator " + n.token.type, n.children[1])
+			if (t0 == DataType.Invalid) this.logError("Invalid value argument to operator " + n.token.type, l)
+			if (t1 == DataType.Invalid) this.logError("Invalid type argument to operator " + n.token.type, r)
 			return DataType.Invalid
 		})
 
 		this.registerDataType(AstType.BinaryOp, (n) => {
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return DataType.Invalid
 			if (n.dataType || n.token.type != TokenType.To) return n.dataType
-			let t0 = this.getDataType(n.children[0])
-			let t1 = (n.children[1].type == AstType.Type) ? n.children[1].token.value : DataType.Invalid
+			let t0 = this.getDataType(l)
+			let t1 = (r.type == AstType.Type) ? r.token.value : DataType.Invalid
 			if (t1 == DataType.Bool) t1 = DataType.Invalid
 
 			if (t0 == DataType.Int && t1 == DataType.Long) return DataType.Long
@@ -673,13 +713,16 @@ export class SchwaAnalyzer extends Analyzer {
 			if (t0 == DataType.Double && t1 == DataType.ULong) return DataType.ULong
 			if (t0 == DataType.Double && t1 == DataType.Float) return DataType.Float
 
-			if (t0 == DataType.Invalid) this.logError("Invalid value argument to operator " + n.token.type, n.children[0])
-			if (t1 == DataType.Invalid) this.logError("Invalid type argument to operator " + n.token.type, n.children[1])
+			if (t0 == DataType.Invalid) this.logError("Invalid value argument to operator " + n.token.type, l)
+			if (t1 == DataType.Invalid) this.logError("Invalid type argument to operator " + n.token.type, r)
 			return DataType.Invalid
 		})
 
 		this.registerDataType(AstType.FunctionCall, (n) => {
-			let ident = this.getIdentifier(n.children[0])
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return DataType.Invalid
+			let ident = this.getIdentifier(l)
 			if (!ident) {
 				this.logError("Invalid function identifier", n)
 				return DataType.Invalid
@@ -689,15 +732,17 @@ export class SchwaAnalyzer extends Analyzer {
 				this.logError("No function named " + JSON.stringify(ident.token.value) + " found", n)
 				return DataType.Invalid
 			}
-			if (func.params.length != n.children[1].children.length) {
-				this.logError("Function " + JSON.stringify(func.id) + " takes " + func.params.length + " arguments, not " + n.children[1].children.length, n)
+			if (func.params.length != r.children.length) {
+				this.logError("Function " + JSON.stringify(func.id) + " takes " + func.params.length + " arguments, not " + r.children.length, n)
 				return DataType.Invalid
 			}
 			let valid = true
 			for (let i = 0; i < func.params.length; i++) {
-				let type = this.getDataType(n.children[1].children[i])
+				let param = r.children[i]
+				if (!param) continue
+				let type = this.getDataType(param)
 				if (type != func.params[i].type) {
-					this.logError("The " + formatOrdinal(i + 1) + " parameter (" + JSON.stringify(func.params[i].id) + ") of function " + JSON.stringify(func.id) + " is type " + func.params[i].type + ", not " + type, n.children[1].children[i])
+					this.logError("The " + formatOrdinal(i + 1) + " parameter (" + JSON.stringify(func.params[i].id) + ") of function " + JSON.stringify(func.id) + " is type " + func.params[i].type + ", not " + type, param)
 					valid = false
 				}
 			}
@@ -706,21 +751,27 @@ export class SchwaAnalyzer extends Analyzer {
 		})
 
 		this.registerDataType(AstType.Return, (n) => {
-			let t = this.getDataType(n.children[0])
+			let l = n.children[0]
+			if (!l) return DataType.Invalid
+			let t = this.getDataType(l)
 			let p = n.parent
 			while (p && p.type != AstType.FunctionDef) p = p.parent
 			if (p && (t != p.token.value || p.token.value == DataType.None)) {
-				this.logError("Type of return value (" + t + ") does not match function " + p.children[0].token.value + "'s return type (" + p.token.value + ")", n.children[0])
+				let pn = p.children[0]
+				if (pn) this.logError("Type of return value (" + t + ") does not match function " + pn.token.value + "'s return type (" + p.token.value + ")", l)
 				return DataType.Invalid
 			}
 			return t
 		})
 
 		this.registerDataType(AstType.ReturnVoid, (n) => {
+			let l = n.children[0]
+			if (!l) return DataType.Invalid
 			let p = n.parent
 			while (p && p.type != AstType.FunctionDef) p = p.parent
 			if (p && p.token.value != DataType.None) {
-				this.logError("Type of return value (" + DataType.None + ") does not match function " + p.children[0].token.value + "'s return type (" + p.token.value + ")", n.children[0])
+				let pn = p.children[0]
+				if (pn) this.logError("Type of return value (" + DataType.None + ") does not match function " + pn.token.value + "'s return type (" + p.token.value + ")", l)
 				return DataType.Invalid
 			}
 			return DataType.None
@@ -729,34 +780,41 @@ export class SchwaAnalyzer extends Analyzer {
 
 	protected registerDataTypeUnaryOp(type: TokenType, typeSets: DataType[][]) {
 		this.registerDataType(AstType.UnaryOp, (n) => {
+			let l = n.children[0]
+			if (!l) return DataType.Invalid
 			if (n.dataType || n.token.type != type) return n.dataType
-			let t = this.getDataType(n.children[0])
+			let t = this.getDataType(l)
 			for (let i = 0; i < typeSets.length; i++) {
 				if (t == typeSets[i][0]) return typeSets[i][1]
 			}
-			this.logError("Invalid argument to operator " + n.token.type, n.children[0])
+			this.logError("Invalid argument to operator " + n.token.type, l)
 			return DataType.Invalid
 		})
 	}
 
 	protected registerDataTypeBinaryOp(type: TokenType, typeSets: DataType[][]) {
 		this.registerDataType(AstType.BinaryOp, (n) => {
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l || !r) return DataType.Invalid
 			if (n.dataType || n.token.type != type) return n.dataType
-			let t0 = this.getDataType(n.children[0])
-			let t1 = this.getDataType(n.children[1])
+			let t0 = this.getDataType(l)
+			let t1 = this.getDataType(r)
 			for (let i = 0; i < typeSets.length; i++) {
 				if (t0 == typeSets[i][0] && t1 == typeSets[i][1]) return typeSets[i][2]
 			}
-			this.logError("Invalid 1st argument to operator " + n.token.type, n.children[0])
-			this.logError("Invalid 2nd argument to operator " + n.token.type, n.children[1])
+			this.logError("Invalid 1st argument to operator " + n.token.type, l)
+			this.logError("Invalid 2nd argument to operator " + n.token.type, r)
 			return DataType.Invalid
 		})
 	}
 
 	protected getIdentifier(node: AstNode): AstNode | null {
 		if (node.type == AstType.FunctionId || node.type == AstType.VariableId) return node
-		if (node.type == AstType.Access) return this.getIdentifier(node.children[1])
-		if (node.type == AstType.Indexer) return this.getIdentifier(node.children[0])
+		let l = node.children[0]
+		let r = node.children[1]
+		if (r && node.type == AstType.Access) return this.getIdentifier(r)
+		if (l && node.type == AstType.Indexer) return this.getIdentifier(l)
 		return null
 	}
 }

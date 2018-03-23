@@ -20,7 +20,7 @@ export class Validator {
 			for (let rule of rules) rule(node)
 		}
 		if (node.children) {
-			for (let child of node.children) this.validateNode(child)
+			for (let child of node.children) if (child) this.validateNode(child)
 		}
 	}
 
@@ -73,7 +73,7 @@ export class SchwaValidator extends Validator {
 		this.registerAncestorType(AstType.ReturnVoid, [AstType.FunctionDef])
 
 		this.registerChildCount(AstType.Assignment, 2)
-		this.registerChildTypes(AstType.Assignment, [[AstType.VariableDef, AstType.VariableId, AstType.Access,  AstType.Indexer]])
+		this.registerChildTypes(AstType.Assignment, [[AstType.VariableDef, AstType.VariableId, AstType.Access, AstType.Indexer]])
 
 		this.registerChildTypes(AstType.Global, [[AstType.VariableDef], [AstType.Literal]])
 		this.registerChildrenType(AstType.Global, [AstType.Const, AstType.Export], 2)
@@ -180,16 +180,19 @@ export class SchwaValidator extends Validator {
 					this.logError("Expected " + this.formatOrdinal(i + 1) + " child of " + type + " to be " + childTypes[i - startIndex].join(" or ") + " but node has no " + this.formatOrdinal(i + 1) + " child", n)
 					n.valid = false
 				} else {
-					let validType = false
-					for (let type of childTypes[i - startIndex]) {
-						if (n.children[i].type == type) {
-							validType = true
-							break
+					let child = n.children[i]
+					if (child) {
+						let validType = false
+						for (let type of childTypes[i - startIndex]) {
+							if (child.type == type) {
+								validType = true
+								break
+							}
 						}
-					}
-					if (!validType) {
-						this.logError("Expected " + this.formatOrdinal(i + 1) + " child of " + type + " to be " + childTypes[i - startIndex].join(" or ") + " but found " + n.children[i].type + " instead", n.children[i])
-						n.valid = false
+						if (!validType) {
+							this.logError("Expected " + this.formatOrdinal(i + 1) + " child of " + type + " to be " + childTypes[i - startIndex].join(" or ") + " but found " + child.type + " instead", child)
+							n.valid = false
+						}
 					}
 				}
 			}
@@ -200,16 +203,19 @@ export class SchwaValidator extends Validator {
 		this.register(type, (n) => {
 			if (n.children) {
 				for (let i = startIndex; i < n.children.length; i++) {
-					let validType = false
-					for (let type of childrenTypes) {
-						if (n.children[i].type == type) {
-							validType = true
-							break
+					let child = n.children[i]
+					if (child) {
+						let validType = false
+						for (let type of childrenTypes) {
+							if (child.type == type) {
+								validType = true
+								break
+							}
 						}
-					}
-					if (!validType) {
-						this.logError("Expected child of " + type + " to be " + childrenTypes.join(" or ") + " but found " + n.children[i].type + " instead", n.children[i])
-						n.valid = false
+						if (!validType) {
+							this.logError("Expected child of " + type + " to be " + childrenTypes.join(" or ") + " but found " + child.type + " instead", child)
+							n.valid = false
+						}
 					}
 				}
 			}
@@ -229,16 +235,18 @@ export class SchwaValidator extends Validator {
 				n.valid = false
 			} else {
 				let sibling = n.parent.children[index + 1]
-				let validType = false
-				for (let type of siblingTypes) {
-					if (sibling.type == type) {
-						validType = true
-						break
+				if (sibling) {
+					let validType = false
+					for (let type of siblingTypes) {
+						if (sibling.type == type) {
+							validType = true
+							break
+						}
 					}
-				}
-				if (!validType) {
-					this.logError("Expected next sibling of " + type + " to be " + siblingTypes.join(" or ") + " but found " + sibling.type + " instead", sibling)
-					n.valid = false
+					if (!validType) {
+						this.logError("Expected next sibling of " + type + " to be " + siblingTypes.join(" or ") + " but found " + sibling.type + " instead", sibling)
+						n.valid = false
+					}
 				}
 			}
 		})
@@ -257,16 +265,18 @@ export class SchwaValidator extends Validator {
 				n.valid = false
 			} else {
 				let sibling = n.parent.children[index - 1]
-				let validType = false
-				for (let type of siblingTypes) {
-					if (sibling.type == type) {
-						validType = true
-						break
+				if (sibling) {
+					let validType = false
+					for (let type of siblingTypes) {
+						if (sibling.type == type) {
+							validType = true
+							break
+						}
 					}
-				}
-				if (!validType) {
-					this.logError("Expected previous sibling of " + type + " to be " + siblingTypes.join(" or ") + " but found " + sibling.type + " instead", sibling)
-					n.valid = false
+					if (!validType) {
+						this.logError("Expected previous sibling of " + type + " to be " + siblingTypes.join(" or ") + " but found " + sibling.type + " instead", sibling)
+						n.valid = false
+					}
 				}
 			}
 		})

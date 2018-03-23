@@ -93,9 +93,12 @@ class Generator {
         this.funcIndex++;
     }
     addFunctionBody(func) {
-        let localNamings = [];
         if (!func.node)
             return;
+        let funcBody = func.node.children[2];
+        if (!funcBody)
+            return;
+        let localNamings = [];
         let params = [];
         let paramIndex = 0;
         for (let i = 0; i < func.params.length; i++) {
@@ -132,7 +135,7 @@ class Generator {
         let locals = [];
         this.addLocals(locals, localNamings, func.node, params.length);
         let writer = new io_1.Writer();
-        this.gen(writer, func.node.children[2]);
+        this.gen(writer, funcBody);
         this.funcBodies.push(new WASM.FunctionBody(locals, writer.toTypedArray()));
         this.funcNames.push(new WASM.Naming(this.funcPathToIndex[func.getPath()], func.id));
         this.localNames.push(new WASM.LocalName(this.funcPathToIndex[func.getPath()], new WASM.NameMap(localNamings)));
@@ -140,8 +143,9 @@ class Generator {
             this.exports.push(new WASM.ExportEntry(func.id, WASM.ExternalKind.Function, this.funcPathToIndex[func.getPath()]));
     }
     addLocals(locals, localNamings, node, index) {
-        if (node.parent && node.scope && node.type == ast_1.AstType.VariableDef && node.parent.type != ast_1.AstType.Parameters) {
-            let localVar = node.scope.getVariable(node.children[0].token.value);
+        let c = node.children[0];
+        if (c && node.parent && node.scope && node.type == ast_1.AstType.VariableDef && node.parent.type != ast_1.AstType.Parameters) {
+            let localVar = node.scope.getVariable(c.token.value);
             if (localVar) {
                 let vars = this.getPrimitiveVars(localVar);
                 for (let lvar of vars) {
@@ -156,7 +160,10 @@ class Generator {
             }
         }
         for (let i = 0; i < node.children.length; i++) {
-            index = this.addLocals(locals, localNamings, node.children[i], index);
+            let c = node.children[i];
+            if (!c)
+                continue;
+            index = this.addLocals(locals, localNamings, c, index);
         }
         return index;
     }
@@ -170,14 +177,16 @@ class Generator {
                 continue;
             let initExpr = null;
             if (gvar.node && gvar.node.parent) {
-                let writer = new io_1.Writer();
-                this.varPathToIndex[gvar.getPath()] = this.globals.length;
-                this.gen(writer, gvar.node.parent.children[1]);
-                initExpr = writer.toTypedArray();
+                let initBody = gvar.node.parent.children[1];
+                if (initBody) {
+                    let writer = new io_1.Writer();
+                    this.varPathToIndex[gvar.getPath()] = this.globals.length;
+                    this.gen(writer, initBody);
+                    initExpr = writer.toTypedArray();
+                }
             }
-            else {
+            if (!initExpr)
                 initExpr = this.getDefaultInitializer(gvar.type);
-            }
             if (gvar.export)
                 this.exports.push(new WASM.ExportEntry(gvar.getPath(true), WASM.ExternalKind.Global, this.globals.length));
             this.globals.push(new WASM.GlobalEntry(new WASM.GlobalType(type, !gvar.const), new WASM.InitializerExpression(initExpr)));
@@ -238,19 +247,21 @@ class SchwaGenerator extends Generator {
     constructor(logger) {
         super(logger);
         this.register(ast_1.AstType.Indexer, (w, n) => {
-            if (n.scope && n.scope.parent) {
+            let r = n.children[1];
+            if (r && n.scope && n.scope.parent) {
                 let nvar = n.scope.parent.getVariable(n.scope.id);
                 if (nvar) {
                     w.uint8(WASM.OpCode.i32_const);
                     w.varintN(nvar.size, 32);
-                    this.gen(w, n.children[1]);
+                    this.gen(w, r);
                     w.uint8(WASM.OpCode.i32_mul);
                 }
             }
         });
         this.register(ast_1.AstType.Access, (w, n) => {
-            if (n.parent && n.parent.type != ast_1.AstType.Access && n.parent.type != ast_1.AstType.Indexer)
-                this.gen(w, n.children[1]);
+            let r = n.children[1];
+            if (r && n.parent && n.parent.type != ast_1.AstType.Access && n.parent.type != ast_1.AstType.Indexer)
+                this.gen(w, r);
         });
         this.register(ast_1.AstType.VariableId, (w, n) => {
             if (!n.scope)
@@ -343,25 +354,28 @@ class SchwaGenerator extends Generator {
         });
         this.register(ast_1.AstType.UnaryOp, (w, n) => {
             let t = n.dataType;
+            let c = n.children[0];
+            if (!c)
+                return;
             if (n.token.type == token_1.TokenType.Neg) {
                 if (t == datatype_1.DataType.Int) {
                     w.uint8(WASM.OpCode.i32_const);
                     w.varintN(0, 32);
-                    this.gen(w, n.children[0]);
+                    this.gen(w, c);
                     w.uint8(WASM.OpCode.i32_sub);
                 }
                 else if (t == datatype_1.DataType.Long) {
                     w.uint8(WASM.OpCode.i64_const);
                     w.varintN(0, 64);
-                    this.gen(w, n.children[0]);
+                    this.gen(w, c);
                     w.uint8(WASM.OpCode.i64_sub);
                 }
                 else if (t == datatype_1.DataType.Float) {
-                    this.gen(w, n.children[0]);
+                    this.gen(w, c);
                     w.uint8(WASM.OpCode.f32_neg);
                 }
                 else if (t == datatype_1.DataType.Double) {
-                    this.gen(w, n.children[0]);
+                    this.gen(w, c);
                     w.uint8(WASM.OpCode.f64_neg);
                 }
             }
@@ -369,18 +383,18 @@ class SchwaGenerator extends Generator {
                 if (t == datatype_1.DataType.Int || t == datatype_1.DataType.UInt) {
                     w.uint8(WASM.OpCode.i32_const);
                     w.varintN(-1, 32);
-                    this.gen(w, n.children[0]);
+                    this.gen(w, c);
                     w.uint8(WASM.OpCode.i32_xor);
                 }
                 else if (t == datatype_1.DataType.Long || t == datatype_1.DataType.ULong) {
                     w.uint8(WASM.OpCode.i64_const);
                     w.varintN(-1, 64);
-                    this.gen(w, n.children[0]);
+                    this.gen(w, c);
                     w.uint8(WASM.OpCode.i64_xor);
                 }
             }
             else if (n.token.type == token_1.TokenType.Not) {
-                this.gen(w, n.children[0]);
+                this.gen(w, c);
                 w.uint8(WASM.OpCode.i32_eqz);
             }
             else
@@ -388,10 +402,14 @@ class SchwaGenerator extends Generator {
         });
         this.register(ast_1.AstType.BinaryOp, (w, n) => {
             let t = n.dataType;
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return;
             if (n.token.type == token_1.TokenType.As) {
-                let t0 = n.children[0].dataType;
-                let t1 = n.children[1].token.value;
-                this.gen(w, n.children[0]);
+                let t0 = l.dataType;
+                let t1 = r.token.value;
+                this.gen(w, l);
                 if (t0 == datatype_1.DataType.Int && t1 == datatype_1.DataType.UInt) { }
                 else if (t0 == datatype_1.DataType.Int && t1 == datatype_1.DataType.Float)
                     w.uint8(WASM.OpCode.f32_reinterpret_i32);
@@ -414,9 +432,9 @@ class SchwaGenerator extends Generator {
                     w.uint8(WASM.OpCode.i64_reinterpret_f64);
             }
             else if (n.token.type == token_1.TokenType.To) {
-                let t0 = n.children[0].dataType;
-                let t1 = n.children[1].token.value;
-                this.gen(w, n.children[0]);
+                let t0 = l.dataType;
+                let t1 = r.token.value;
+                this.gen(w, l);
                 if (t0 == datatype_1.DataType.Int && t1 == datatype_1.DataType.Long)
                     w.uint8(WASM.OpCode.i64_extend_s_i32);
                 else if (t0 == datatype_1.DataType.Int && t1 == datatype_1.DataType.ULong)
@@ -471,28 +489,28 @@ class SchwaGenerator extends Generator {
                     w.uint8(WASM.OpCode.f32_demote_f64);
             }
             else if (n.token.type == token_1.TokenType.And) {
-                this.gen(w, n.children[0]);
+                this.gen(w, l);
                 w.uint8(WASM.OpCode.if);
                 w.uint8(WASM.LangType.i32);
-                this.gen(w, n.children[1]);
+                this.gen(w, r);
                 w.uint8(WASM.OpCode.else);
                 w.uint8(WASM.OpCode.i32_const);
                 w.varintN(0, 32);
                 w.uint8(WASM.OpCode.end);
             }
             else if (n.token.type == token_1.TokenType.Or) {
-                this.gen(w, n.children[0]);
+                this.gen(w, l);
                 w.uint8(WASM.OpCode.if);
                 w.uint8(WASM.LangType.i32);
                 w.uint8(WASM.OpCode.i32_const);
                 w.varintN(1, 32);
                 w.uint8(WASM.OpCode.else);
-                this.gen(w, n.children[1]);
+                this.gen(w, r);
                 w.uint8(WASM.OpCode.end);
             }
             else {
-                this.gen(w, n.children[0]);
-                this.gen(w, n.children[1]);
+                this.gen(w, l);
+                this.gen(w, r);
                 if (n.token.type == token_1.TokenType.Add) {
                     if (t == datatype_1.DataType.Int || t == datatype_1.DataType.UInt)
                         w.uint8(WASM.OpCode.i32_add);
@@ -594,7 +612,7 @@ class SchwaGenerator extends Generator {
                         w.uint8(WASM.OpCode.i64_rotr);
                 }
                 // Switch on the type of the children, not the op itself (for comparison ops, their type is always bool)
-                t = n.children[0].dataType;
+                t = l.dataType;
                 if (n.token.type == token_1.TokenType.Eq) {
                     if (t == datatype_1.DataType.Int || t == datatype_1.DataType.UInt || t == datatype_1.DataType.Bool)
                         w.uint8(WASM.OpCode.i32_eq);
@@ -674,14 +692,22 @@ class SchwaGenerator extends Generator {
             }
         });
         this.register(ast_1.AstType.VariableDef, (w, n) => {
-            if (n.children[0].generated)
+            let c = n.children[0];
+            if (!c || c.generated)
                 return;
-            this.gen(w, n.children[0]);
+            this.gen(w, c);
         });
         this.register(ast_1.AstType.FunctionCall, (w, n) => {
-            for (let i = 0; i < n.children[1].children.length; i++)
-                this.gen(w, n.children[1].children[i]);
-            let id = this.getIdentifier(n.children[0]);
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return;
+            for (let i = 0; i < r.children.length; i++) {
+                let c = r.children[i];
+                if (c)
+                    this.gen(w, c);
+            }
+            let id = this.getIdentifier(l);
             if (!id || !id.scope)
                 return;
             let func = id.scope.getFunction(id.token.value);
@@ -863,7 +889,11 @@ class SchwaGenerator extends Generator {
             }
         });
         this.register(ast_1.AstType.Assignment, (w, n) => {
-            let id = this.getIdentifier(n.children[0]);
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l || !r)
+                return;
+            let id = this.getIdentifier(l);
             if (!id || !id.scope)
                 return;
             let nvar = id.scope.getVariable(id.token.value);
@@ -875,7 +905,7 @@ class SchwaGenerator extends Generator {
                 }
                 if (nvar.mapped) {
                     let indexers = [];
-                    let node = n.children[0];
+                    let node = l;
                     while (node && node.children[0])
                         node = node.children[0];
                     while (node) {
@@ -894,7 +924,7 @@ class SchwaGenerator extends Generator {
                         w.uint8(WASM.OpCode.i32_const);
                         w.varintN(0, 32);
                     }
-                    this.gen(w, n.children[1]);
+                    this.gen(w, r);
                     if (nvar.type == datatype_1.DataType.Int || nvar.type == datatype_1.DataType.UInt || nvar.type == datatype_1.DataType.Bool) {
                         w.uint8(WASM.OpCode.i32_store);
                     }
@@ -911,7 +941,7 @@ class SchwaGenerator extends Generator {
                     w.varuintN(nvar.offset, 32);
                 }
                 else {
-                    this.gen(w, n.children[1]);
+                    this.gen(w, r);
                     if (nvar.global)
                         w.uint8(WASM.OpCode.set_global);
                     else
@@ -921,10 +951,15 @@ class SchwaGenerator extends Generator {
             }
         });
         this.register(ast_1.AstType.If, (w, n) => {
-            this.gen(w, n.children[0]);
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l)
+                return;
+            this.gen(w, l);
             w.uint8(WASM.OpCode.if);
             w.uint8(WASM.LangType.void);
-            this.gen(w, n.children[1]);
+            if (r)
+                this.gen(w, r);
             if (n.parent) {
                 let sibling = n.parent.children[n.parent.children.indexOf(n) + 1];
                 if (!sibling || (sibling.type != ast_1.AstType.Else && sibling.type != ast_1.AstType.ElseIf))
@@ -935,17 +970,24 @@ class SchwaGenerator extends Generator {
             if (n.generated)
                 return;
             w.uint8(WASM.OpCode.else);
-            this.gen(w, n.children[0]);
+            let l = n.children[0];
+            if (l)
+                this.gen(w, l);
             w.uint8(WASM.OpCode.end);
         });
         this.register(ast_1.AstType.ElseIf, (w, n) => {
             if (n.generated)
                 return;
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l)
+                return;
             w.uint8(WASM.OpCode.else);
-            this.gen(w, n.children[0]);
+            this.gen(w, l);
             w.uint8(WASM.OpCode.if);
             w.uint8(WASM.LangType.void);
-            this.gen(w, n.children[1]);
+            if (r)
+                this.gen(w, r);
             if (n.parent) {
                 let sibling = n.parent.children[n.parent.children.indexOf(n) + 1];
                 if (sibling && (sibling.type == ast_1.AstType.Else || sibling.type == ast_1.AstType.ElseIf)) {
@@ -958,13 +1000,18 @@ class SchwaGenerator extends Generator {
             w.uint8(WASM.OpCode.end);
         });
         this.register(ast_1.AstType.While, (w, n) => {
-            this.gen(w, n.children[0]);
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l)
+                return;
+            this.gen(w, l);
             w.uint8(WASM.OpCode.if);
             w.uint8(WASM.LangType.void);
             w.uint8(WASM.OpCode.loop);
             w.uint8(WASM.LangType.void);
-            this.gen(w, n.children[1]);
-            this.gen(w, n.children[0]);
+            if (r)
+                this.gen(w, r);
+            this.gen(w, l);
             w.uint8(WASM.OpCode.br_if);
             w.varuintN(0, 32);
             w.uint8(WASM.OpCode.end);
@@ -979,7 +1026,10 @@ class SchwaGenerator extends Generator {
             w.varuintN(0, 32);
         });
         this.register(ast_1.AstType.Return, (w, n) => {
-            this.gen(w, n.children[0]);
+            let l = n.children[0];
+            if (!l)
+                return;
+            this.gen(w, l);
             w.uint8(WASM.OpCode.return);
         });
         this.register(ast_1.AstType.ReturnVoid, (w, n) => {
@@ -987,19 +1037,24 @@ class SchwaGenerator extends Generator {
         });
         this.register(ast_1.AstType.Comment, (w, n) => { });
         this.register(ast_1.AstType.Block, (w, n) => {
-            for (let i = 0; i < n.children.length; i++)
-                this.gen(w, n.children[i]);
+            for (let i = 0; i < n.children.length; i++) {
+                let c = n.children[i];
+                if (c)
+                    this.gen(w, c);
+            }
         });
     }
     getIdentifier(node) {
         if (node.type == ast_1.AstType.FunctionId || node.type == ast_1.AstType.VariableId)
             return node;
-        if (node.type == ast_1.AstType.VariableDef)
-            return this.getIdentifier(node.children[0]);
-        if (node.type == ast_1.AstType.Access)
-            return this.getIdentifier(node.children[1]);
-        if (node.type == ast_1.AstType.Indexer)
-            return this.getIdentifier(node.children[0]);
+        let l = node.children[0];
+        let r = node.children[1];
+        if (l && node.type == ast_1.AstType.VariableDef)
+            return this.getIdentifier(l);
+        if (r && node.type == ast_1.AstType.Access)
+            return this.getIdentifier(r);
+        if (l && node.type == ast_1.AstType.Indexer)
+            return this.getIdentifier(l);
         return null;
     }
     stripNum(str) {
