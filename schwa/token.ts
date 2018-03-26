@@ -8,6 +8,10 @@ export enum TokenType {
 	Const = 'const',
 	Export = 'export',
 
+	From = 'from',
+	Import = 'import',
+	As = 'as',
+
 	Struct = 'struct',
 	Map = 'map',
 	At = 'at',
@@ -43,7 +47,7 @@ export enum TokenType {
 	And = '&&',
 	Or = '||',
 	Not = '!',
-	As = 'as',
+	Onto = 'onto',
 	To = 'to',
 	Assign = '=',
 
@@ -57,7 +61,7 @@ export enum TokenType {
 
 	Comment = '//',
 	InlineComment = ' //',
-	
+
 	LBracket = '[',
 	RBracket = ']',
 	LParen = '(',

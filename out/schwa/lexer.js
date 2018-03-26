@@ -142,12 +142,15 @@ class SchwaLexer extends Lexer {
         this.registerRegex(token_1.TokenType.Break, /\bbreak\b/);
         this.registerRegex(token_1.TokenType.Continue, /\bcontinue\b/);
         this.registerRegex(token_1.TokenType.Return, /\breturn\b/);
-        this.registerRegex(token_1.TokenType.As, /\bas\b/);
+        this.registerRegex(token_1.TokenType.Onto, /\bonto\b/);
         this.registerRegex(token_1.TokenType.To, /\bto\b/);
         this.registerRegex(token_1.TokenType.Bool, /\b(?:true|false)\b/);
         this.registerRegex(token_1.TokenType.Type, /\b(?:void|int|uint|long|ulong|float|double|bool)\b/);
         this.registerRegex(token_1.TokenType.Const, /\bconst\b/);
         this.registerRegex(token_1.TokenType.Export, /\bexport\b/);
+        this.registerRegex(token_1.TokenType.From, /\bfrom\b/);
+        this.registerRegex(token_1.TokenType.Import, /\bimport\b/);
+        this.registerRegex(token_1.TokenType.As, /\bas\b/);
         this.registerRegex(token_1.TokenType.Struct, /\bstruct\b/);
         this.registerRegex(token_1.TokenType.Map, /\bmap\b/);
         this.registerRegex(token_1.TokenType.At, /\bat\b/);

@@ -4,6 +4,7 @@ import { AstNode, AstType } from "./ast"
 import { DataType } from "./datatype"
 import { Scope, Struct, Function, Variable } from "./scope"
 import * as Long from "long"
+import * as utils from "./utils"
 
 const MAX_TYPE_DEPTH = 16
 
@@ -316,7 +317,7 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.StructDef, (n, p) => {
-			let l = n.children[0]
+			let l = utils.getIdentifier(n.children[0])
 			let r = n.children[1]
 			if (!l || !r) return p
 			let scope = new Scope(n, p, l.token.value)
@@ -342,7 +343,7 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.FunctionDef, (n, p) => {
-			let l = n.children[0]
+			let l = utils.getIdentifier(n.children[0])
 			let r = n.children[1]
 			if (!l || !r) return p
 			let scope = new Scope(n, p, l.token.value)
@@ -371,7 +372,7 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.VariableDef, (n, p) => {
-			let l = n.children[0]
+			let l = utils.getIdentifier(n.children[0])
 			let r = n.children[1]
 			if (!l) return p
 			let type = n.token.value
@@ -401,7 +402,7 @@ export class SchwaAnalyzer extends Analyzer {
 			return p
 		})
 		this.registerScope(AstType.Indexer, (n, p) => {
-			let l = n.children[0]
+			let l = utils.getIdentifier(n.children[0])
 			let r = n.children[1]
 			if (!l || !r) return p
 			let scope: Scope | null = p
@@ -419,8 +420,8 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.Access, (n, p) => {
-			let l = n.children[0]
-			let r = n.children[1]
+			let l = utils.getIdentifier(n.children[0])
+			let r = utils.getIdentifier(n.children[1])
 			if (!l) return p
 			let scope: Scope | null = p
 			if (l.type == AstType.VariableId || l.type == AstType.Type) {
@@ -609,7 +610,7 @@ export class SchwaAnalyzer extends Analyzer {
 			let l = n.children[0]
 			let r = n.children[1]
 			if (!l || !r) return DataType.Invalid
-			let ident = this.getIdentifier(l)
+			let ident = utils.getIdentifier(l)
 			if (ident) {
 				let nvar = this.getScope(ident).getVariable(ident.token.value)
 				if (nvar && nvar.const) {
@@ -654,7 +655,7 @@ export class SchwaAnalyzer extends Analyzer {
 			let l = n.children[0]
 			let r = n.children[1]
 			if (!l || !r) return DataType.Invalid
-			if (n.dataType || n.token.type != TokenType.As) return n.dataType
+			if (n.dataType || n.token.type != TokenType.Onto) return n.dataType
 			let t0 = this.getDataType(l)
 			let t1 = (r.type == AstType.Type) ? r.token.value : DataType.Invalid
 			if (t1 == DataType.Bool) t1 = DataType.Invalid
@@ -722,7 +723,7 @@ export class SchwaAnalyzer extends Analyzer {
 			let l = n.children[0]
 			let r = n.children[1]
 			if (!l || !r) return DataType.Invalid
-			let ident = this.getIdentifier(l)
+			let ident = utils.getIdentifier(l)
 			if (!ident) {
 				this.logError("Invalid function identifier", n)
 				return DataType.Invalid
@@ -807,14 +808,5 @@ export class SchwaAnalyzer extends Analyzer {
 			this.logError("Invalid 2nd argument to operator " + n.token.type, r)
 			return DataType.Invalid
 		})
-	}
-
-	protected getIdentifier(node: AstNode): AstNode | null {
-		if (node.type == AstType.FunctionId || node.type == AstType.VariableId) return node
-		let l = node.children[0]
-		let r = node.children[1]
-		if (r && node.type == AstType.Access) return this.getIdentifier(r)
-		if (l && node.type == AstType.Indexer) return this.getIdentifier(l)
-		return null
 	}
 }

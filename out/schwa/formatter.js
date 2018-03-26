@@ -51,7 +51,7 @@ class SchwaFormatter extends Formatter {
             [token_1.TokenType.Mul]: 9,
             [token_1.TokenType.Div]: 9,
             [token_1.TokenType.Mod]: 9,
-            [token_1.TokenType.As]: 10,
+            [token_1.TokenType.Onto]: 10,
             [token_1.TokenType.To]: 10,
             [token_1.TokenType.Neg]: 11,
             [token_1.TokenType.NOT]: 11,

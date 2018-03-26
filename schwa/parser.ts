@@ -1,6 +1,7 @@
 import { Token, TokenType } from "./token"
 import { LogType, LogMsg, Logger } from "./log"
 import { AstType, AstNode } from "./ast"
+import * as utils from "./utils"
 
 export type PrefixFunc = (token: Token) => AstNode
 export type InfixFunc = (left: AstNode | null, token: Token) => AstNode
@@ -184,7 +185,6 @@ export class SchwaParser extends Parser {
 				let n = this.parseNode()
 				if (n) children.push(n)
 			}
-			let r = this.peek()
 			if (this.match(TokenType.At)) {
 				this.consume()
 				if (!this.match(TokenType.EOL)) {
@@ -193,6 +193,31 @@ export class SchwaParser extends Parser {
 				}
 			}
 			return new AstNode(AstType.Map, t, children)
+		})
+		this.registerPrefix(TokenType.From, 2, (t) => {
+			let n
+			if (!this.match(TokenType.EOL) && this.match(TokenType.Name)) n = this.parseNode()
+			if (!n) return new AstNode(AstType.From, t, [])
+			n.type = AstType.ModuleId
+			if (this.match(TokenType.Import)) {
+				let r = this.parseNode()
+				if (r) return new AstNode(r.type, r.token, [n, ...r.children])
+			}
+			return new AstNode(AstType.From, t, [n])
+		})
+		this.registerPrefix(TokenType.Import, 2, (t) => {
+			let children = []
+			if (this.match(TokenType.Name) || this.match(TokenType.Type)) {
+				let n = this.parseNode()
+				if (n) {
+					if (n.type == AstType.VariableDef) n.type = AstType.VariableImport
+					if (n.type == AstType.FunctionDef) n.type = AstType.FunctionImport
+					if (n.type == AstType.StructDef) n.type = AstType.StructImport
+					if (n.type == AstType.VariableId) n.type = AstType.ModuleId
+					children.push(n)
+				}
+			}
+			return new AstNode(AstType.Import, t, children)
 		})
 		this.registerPrefix(TokenType.Comment, 0, (t) => new AstNode(AstType.Comment, t, []))
 		this.registerPrefix(TokenType.InlineComment, 0, (t) => new AstNode(AstType.Comment, t, []))
@@ -250,7 +275,7 @@ export class SchwaParser extends Parser {
 		this.registerInfixOp(TokenType.Mul, 9, false)
 		this.registerInfixOp(TokenType.Div, 9, false)
 		this.registerInfixOp(TokenType.Mod, 9, false)
-		this.registerInfixOp(TokenType.As, 10, false)
+		this.registerInfixOp(TokenType.Onto, 10, false)
 		this.registerInfixOp(TokenType.To, 10, false)
 		// Unary negation reinterprets prefix Sub as Neg to distinguish them in the AST
 		this.registerPrefix(TokenType.Sub, 11, (t) => {
@@ -316,15 +341,31 @@ export class SchwaParser extends Parser {
 			}
 			return new AstNode(AstType.Access, t, children)
 		})
+		// Aliasing
+		this.registerInfix(TokenType.As, 15, (l, t) => {
+			let n
+			if (!this.match(TokenType.EOL)) n = this.parseNode()
+			if (l && n) {
+				n.type = AstType.Alias
+				let id = utils.getIdentifier(l)
+				if (id) id.children.push(n)
+				return l
+			}
+			if (n) {
+				n.type = AstType.Alias
+				return n
+			}
+			else return new AstNode(AstType.Alias, t, [])
+		})
 		// Statements
-		this.registerPrefix(TokenType.BOL, 15, (t) => {
+		this.registerPrefix(TokenType.BOL, 16, (t) => {
 			let n = this.parseNode()
 			this.consumeMatch(TokenType.BOL, TokenType.EOL)
 			if (!n) return new AstNode(AstType.Unknown, t, [])
 			return n
 		})
 		// Blocks
-		this.registerInfix(TokenType.Indent, 16, (l, t) => {
+		this.registerInfix(TokenType.Indent, 17, (l, t) => {
 			let children: AstNode[] = []
 			while (!this.match(TokenType.Dedent)) {
 				let n = this.parseNode()
@@ -338,13 +379,20 @@ export class SchwaParser extends Parser {
 					return new AstNode(l.type, l.token, l.children)
 				} else if (l.type == AstType.StructDef) {
 					n.type = AstType.Fields
+				} else if (l.type == AstType.Import) {
+					n.type = AstType.Imports
+					for (let child of children) {
+						if (child.type == AstType.VariableDef) child.type = AstType.VariableImport
+						if (child.type == AstType.FunctionDef) child.type = AstType.FunctionImport
+						if (child.type == AstType.StructDef) child.type = AstType.StructImport
+					}
 				}
 				return new AstNode(l.type, l.token, l.children.concat([n]))
 			}
 			return n
 		})
 		// Program
-		this.registerPrefix(TokenType.BOF, 17, (t) => {
+		this.registerPrefix(TokenType.BOF, 18, (t) => {
 			let children: AstNode[] = []
 			while (!this.match(TokenType.EOF)) {
 				let child = this.parseNode()

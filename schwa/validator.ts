@@ -37,7 +37,7 @@ export class Validator {
 export class SchwaValidator extends Validator {
 	constructor(logger: Logger) {
 		super(logger)
-		this.registerChildrenType(AstType.Program, [AstType.FunctionDef, AstType.Global, AstType.Comment, AstType.StructDef, AstType.Map])
+		this.registerChildrenType(AstType.Program, [AstType.FunctionDef, AstType.Global, AstType.Comment, AstType.StructDef, AstType.Map, AstType.Import])
 
 		this.registerChildrenType(AstType.Block, [AstType.VariableDef, AstType.Assignment, AstType.FunctionCall, AstType.Comment, AstType.If, AstType.Else, AstType.ElseIf, AstType.While, AstType.Break, AstType.Continue, AstType.Return, AstType.ReturnVoid])
 
@@ -104,11 +104,14 @@ export class SchwaValidator extends Validator {
 		this.registerChildCount(AstType.BinaryOp, 2)
 		this.registerChildrenType(AstType.BinaryOp, [AstType.VariableId, AstType.Access, AstType.Indexer, AstType.Type, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall])
 
-		this.registerChildCount(AstType.StructId, 0)
+		this.registerChildCount(AstType.StructId, 0, 1)
+		this.registerChildrenType(AstType.VariableId, [AstType.Alias])
 
-		this.registerChildCount(AstType.VariableId, 0)
+		this.registerChildCount(AstType.VariableId, 0, 1)
+		this.registerChildrenType(AstType.VariableId, [AstType.Alias])
 
-		this.registerChildCount(AstType.FunctionId, 0)
+		this.registerChildCount(AstType.FunctionId, 0, 1)
+		this.registerChildrenType(AstType.VariableId, [AstType.Alias])
 
 		this.registerChildTypes(AstType.Map, [[AstType.VariableDef], [AstType.Literal]])
 

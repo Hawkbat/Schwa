@@ -1,17 +1,14 @@
-
 int y = 1333 // Set up y
-
 int hexExample = -0x80000000
 uint octalExample = 0o371u
 float binaryExample = 0b111.111f
-
 export const int SOME_CONST = 5
 
 void main()
 	DoSomething(true, 23uL)
 
 export void DoSomething(bool alphabet, ulong soup)
-	int z = 10 / SOME_CONST / 1f as int
+	int z = 10 / SOME_CONST / 1f onto int
 	// Initialize x
 	int x = (50.0f + -20f + 2f * float.floor(20.5f)) to int |> SOME_CONST
 	y = -y

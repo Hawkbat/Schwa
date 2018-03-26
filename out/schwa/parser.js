@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const token_1 = require("./token");
 const log_1 = require("./log");
 const ast_1 = require("./ast");
+const utils = require("./utils");
 class Parser {
     constructor(logger) {
         this.logger = logger;
@@ -182,7 +183,6 @@ class SchwaParser extends Parser {
                 if (n)
                     children.push(n);
             }
-            let r = this.peek();
             if (this.match(token_1.TokenType.At)) {
                 this.consume();
                 if (!this.match(token_1.TokenType.EOL)) {
@@ -192,6 +192,38 @@ class SchwaParser extends Parser {
                 }
             }
             return new ast_1.AstNode(ast_1.AstType.Map, t, children);
+        });
+        this.registerPrefix(token_1.TokenType.From, 2, (t) => {
+            let n;
+            if (!this.match(token_1.TokenType.EOL) && this.match(token_1.TokenType.Name))
+                n = this.parseNode();
+            if (!n)
+                return new ast_1.AstNode(ast_1.AstType.From, t, []);
+            n.type = ast_1.AstType.ModuleId;
+            if (this.match(token_1.TokenType.Import)) {
+                let r = this.parseNode();
+                if (r)
+                    return new ast_1.AstNode(r.type, r.token, [n, ...r.children]);
+            }
+            return new ast_1.AstNode(ast_1.AstType.From, t, [n]);
+        });
+        this.registerPrefix(token_1.TokenType.Import, 2, (t) => {
+            let children = [];
+            if (this.match(token_1.TokenType.Name) || this.match(token_1.TokenType.Type)) {
+                let n = this.parseNode();
+                if (n) {
+                    if (n.type == ast_1.AstType.VariableDef)
+                        n.type = ast_1.AstType.VariableImport;
+                    if (n.type == ast_1.AstType.FunctionDef)
+                        n.type = ast_1.AstType.FunctionImport;
+                    if (n.type == ast_1.AstType.StructDef)
+                        n.type = ast_1.AstType.StructImport;
+                    if (n.type == ast_1.AstType.VariableId)
+                        n.type = ast_1.AstType.ModuleId;
+                    children.push(n);
+                }
+            }
+            return new ast_1.AstNode(ast_1.AstType.Import, t, children);
         });
         this.registerPrefix(token_1.TokenType.Comment, 0, (t) => new ast_1.AstNode(ast_1.AstType.Comment, t, []));
         this.registerPrefix(token_1.TokenType.InlineComment, 0, (t) => new ast_1.AstNode(ast_1.AstType.Comment, t, []));
@@ -255,7 +287,7 @@ class SchwaParser extends Parser {
         this.registerInfixOp(token_1.TokenType.Mul, 9, false);
         this.registerInfixOp(token_1.TokenType.Div, 9, false);
         this.registerInfixOp(token_1.TokenType.Mod, 9, false);
-        this.registerInfixOp(token_1.TokenType.As, 10, false);
+        this.registerInfixOp(token_1.TokenType.Onto, 10, false);
         this.registerInfixOp(token_1.TokenType.To, 10, false);
         // Unary negation reinterprets prefix Sub as Neg to distinguish them in the AST
         this.registerPrefix(token_1.TokenType.Sub, 11, (t) => {
@@ -338,8 +370,27 @@ class SchwaParser extends Parser {
             }
             return new ast_1.AstNode(ast_1.AstType.Access, t, children);
         });
+        // Aliasing
+        this.registerInfix(token_1.TokenType.As, 15, (l, t) => {
+            let n;
+            if (!this.match(token_1.TokenType.EOL))
+                n = this.parseNode();
+            if (l && n) {
+                n.type = ast_1.AstType.Alias;
+                let id = utils.getIdentifier(l);
+                if (id)
+                    id.children.push(n);
+                return l;
+            }
+            if (n) {
+                n.type = ast_1.AstType.Alias;
+                return n;
+            }
+            else
+                return new ast_1.AstNode(ast_1.AstType.Alias, t, []);
+        });
         // Statements
-        this.registerPrefix(token_1.TokenType.BOL, 15, (t) => {
+        this.registerPrefix(token_1.TokenType.BOL, 16, (t) => {
             let n = this.parseNode();
             this.consumeMatch(token_1.TokenType.BOL, token_1.TokenType.EOL);
             if (!n)
@@ -347,7 +398,7 @@ class SchwaParser extends Parser {
             return n;
         });
         // Blocks
-        this.registerInfix(token_1.TokenType.Indent, 16, (l, t) => {
+        this.registerInfix(token_1.TokenType.Indent, 17, (l, t) => {
             let children = [];
             while (!this.match(token_1.TokenType.Dedent)) {
                 let n = this.parseNode();
@@ -364,12 +415,23 @@ class SchwaParser extends Parser {
                 else if (l.type == ast_1.AstType.StructDef) {
                     n.type = ast_1.AstType.Fields;
                 }
+                else if (l.type == ast_1.AstType.Import) {
+                    n.type = ast_1.AstType.Imports;
+                    for (let child of children) {
+                        if (child.type == ast_1.AstType.VariableDef)
+                            child.type = ast_1.AstType.VariableImport;
+                        if (child.type == ast_1.AstType.FunctionDef)
+                            child.type = ast_1.AstType.FunctionImport;
+                        if (child.type == ast_1.AstType.StructDef)
+                            child.type = ast_1.AstType.StructImport;
+                    }
+                }
                 return new ast_1.AstNode(l.type, l.token, l.children.concat([n]));
             }
             return n;
         });
         // Program
-        this.registerPrefix(token_1.TokenType.BOF, 17, (t) => {
+        this.registerPrefix(token_1.TokenType.BOF, 18, (t) => {
             let children = [];
             while (!this.match(token_1.TokenType.EOF)) {
                 let child = this.parseNode();

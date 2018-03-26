@@ -6,6 +6,7 @@ const ast_1 = require("./ast");
 const datatype_1 = require("./datatype");
 const scope_1 = require("./scope");
 const Long = require("long");
+const utils = require("./utils");
 const MAX_TYPE_DEPTH = 16;
 function formatOrdinal(n) {
     let str = n.toFixed();
@@ -305,7 +306,7 @@ class SchwaAnalyzer extends Analyzer {
             return scope;
         });
         this.registerScope(ast_1.AstType.StructDef, (n, p) => {
-            let l = n.children[0];
+            let l = utils.getIdentifier(n.children[0]);
             let r = n.children[1];
             if (!l || !r)
                 return p;
@@ -336,7 +337,7 @@ class SchwaAnalyzer extends Analyzer {
             return scope;
         });
         this.registerScope(ast_1.AstType.FunctionDef, (n, p) => {
-            let l = n.children[0];
+            let l = utils.getIdentifier(n.children[0]);
             let r = n.children[1];
             if (!l || !r)
                 return p;
@@ -370,7 +371,7 @@ class SchwaAnalyzer extends Analyzer {
             return scope;
         });
         this.registerScope(ast_1.AstType.VariableDef, (n, p) => {
-            let l = n.children[0];
+            let l = utils.getIdentifier(n.children[0]);
             let r = n.children[1];
             if (!l)
                 return p;
@@ -404,7 +405,7 @@ class SchwaAnalyzer extends Analyzer {
             return p;
         });
         this.registerScope(ast_1.AstType.Indexer, (n, p) => {
-            let l = n.children[0];
+            let l = utils.getIdentifier(n.children[0]);
             let r = n.children[1];
             if (!l || !r)
                 return p;
@@ -425,8 +426,8 @@ class SchwaAnalyzer extends Analyzer {
             return scope;
         });
         this.registerScope(ast_1.AstType.Access, (n, p) => {
-            let l = n.children[0];
-            let r = n.children[1];
+            let l = utils.getIdentifier(n.children[0]);
+            let r = utils.getIdentifier(n.children[1]);
             if (!l)
                 return p;
             let scope = p;
@@ -633,7 +634,7 @@ class SchwaAnalyzer extends Analyzer {
             let r = n.children[1];
             if (!l || !r)
                 return datatype_1.DataType.Invalid;
-            let ident = this.getIdentifier(l);
+            let ident = utils.getIdentifier(l);
             if (ident) {
                 let nvar = this.getScope(ident).getVariable(ident.token.value);
                 if (nvar && nvar.const) {
@@ -681,7 +682,7 @@ class SchwaAnalyzer extends Analyzer {
             let r = n.children[1];
             if (!l || !r)
                 return datatype_1.DataType.Invalid;
-            if (n.dataType || n.token.type != token_1.TokenType.As)
+            if (n.dataType || n.token.type != token_1.TokenType.Onto)
                 return n.dataType;
             let t0 = this.getDataType(l);
             let t1 = (r.type == ast_1.AstType.Type) ? r.token.value : datatype_1.DataType.Invalid;
@@ -791,7 +792,7 @@ class SchwaAnalyzer extends Analyzer {
             let r = n.children[1];
             if (!l || !r)
                 return datatype_1.DataType.Invalid;
-            let ident = this.getIdentifier(l);
+            let ident = utils.getIdentifier(l);
             if (!ident) {
                 this.logError("Invalid function identifier", n);
                 return datatype_1.DataType.Invalid;
@@ -887,17 +888,6 @@ class SchwaAnalyzer extends Analyzer {
             this.logError("Invalid 2nd argument to operator " + n.token.type, r);
             return datatype_1.DataType.Invalid;
         });
-    }
-    getIdentifier(node) {
-        if (node.type == ast_1.AstType.FunctionId || node.type == ast_1.AstType.VariableId)
-            return node;
-        let l = node.children[0];
-        let r = node.children[1];
-        if (r && node.type == ast_1.AstType.Access)
-            return this.getIdentifier(r);
-        if (l && node.type == ast_1.AstType.Indexer)
-            return this.getIdentifier(l);
-        return null;
     }
 }
 exports.SchwaAnalyzer = SchwaAnalyzer;

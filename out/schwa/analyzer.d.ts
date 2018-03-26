@@ -35,5 +35,4 @@ export declare class SchwaAnalyzer extends Analyzer {
     constructor(logger: Logger);
     protected registerDataTypeUnaryOp(type: TokenType, typeSets: DataType[][]): void;
     protected registerDataTypeBinaryOp(type: TokenType, typeSets: DataType[][]): void;
-    protected getIdentifier(node: AstNode): AstNode | null;
 }

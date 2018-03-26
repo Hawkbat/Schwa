@@ -3,6 +3,7 @@ import { AstNode, AstType } from "./ast"
 import { Logger, LogMsg, LogType } from "./log"
 import { DataType } from "./datatype"
 import { Scope, Function, Variable } from "./scope"
+import * as utils from "./utils"
 
 import * as WASM from "./wasm"
 import { Writer } from "./io"
@@ -389,7 +390,7 @@ export class SchwaGenerator extends Generator {
 			let r = n.children[1]
 			if (!l || !r) return
 
-			if (n.token.type == TokenType.As) {
+			if (n.token.type == TokenType.Onto) {
 				let t0 = l.dataType
 				let t1 = r.token.value
 
@@ -573,7 +574,7 @@ export class SchwaGenerator extends Generator {
 				if (c) this.gen(w, c)
 			}
 
-			let id = this.getIdentifier(l)
+			let id = utils.getIdentifier(l)
 			if (!id || !id.scope) return
 			let func = id.scope.getFunction(id.token.value)
 			if (!func) return
@@ -731,7 +732,7 @@ export class SchwaGenerator extends Generator {
 			let l = n.children[0]
 			let r = n.children[1]
 			if (!l || !r) return
-			let id = this.getIdentifier(l)
+			let id = utils.getIdentifier(l)
 			if (!id || !id.scope) return
 
 			let nvar = id.scope.getVariable(id.token.value)
@@ -876,16 +877,6 @@ export class SchwaGenerator extends Generator {
 				if (c) this.gen(w, c)
 			}
 		})
-	}
-
-	protected getIdentifier(node: AstNode): AstNode | null {
-		if (node.type == AstType.FunctionId || node.type == AstType.VariableId) return node
-		let l = node.children[0]
-		let r = node.children[1]
-		if (l && node.type == AstType.VariableDef) return this.getIdentifier(l)
-		if (r && node.type == AstType.Access) return this.getIdentifier(r)
-		if (l && node.type == AstType.Indexer) return this.getIdentifier(l)
-		return null
 	}
 
 	private stripNum(str: string): string {

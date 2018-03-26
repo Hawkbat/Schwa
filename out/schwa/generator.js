@@ -4,6 +4,7 @@ const token_1 = require("./token");
 const ast_1 = require("./ast");
 const log_1 = require("./log");
 const datatype_1 = require("./datatype");
+const utils = require("./utils");
 const WASM = require("./wasm");
 const io_1 = require("./io");
 const Long = require("long");
@@ -406,7 +407,7 @@ class SchwaGenerator extends Generator {
             let r = n.children[1];
             if (!l || !r)
                 return;
-            if (n.token.type == token_1.TokenType.As) {
+            if (n.token.type == token_1.TokenType.Onto) {
                 let t0 = l.dataType;
                 let t1 = r.token.value;
                 this.gen(w, l);
@@ -707,7 +708,7 @@ class SchwaGenerator extends Generator {
                 if (c)
                     this.gen(w, c);
             }
-            let id = this.getIdentifier(l);
+            let id = utils.getIdentifier(l);
             if (!id || !id.scope)
                 return;
             let func = id.scope.getFunction(id.token.value);
@@ -893,7 +894,7 @@ class SchwaGenerator extends Generator {
             let r = n.children[1];
             if (!l || !r)
                 return;
-            let id = this.getIdentifier(l);
+            let id = utils.getIdentifier(l);
             if (!id || !id.scope)
                 return;
             let nvar = id.scope.getVariable(id.token.value);
@@ -1043,19 +1044,6 @@ class SchwaGenerator extends Generator {
                     this.gen(w, c);
             }
         });
-    }
-    getIdentifier(node) {
-        if (node.type == ast_1.AstType.FunctionId || node.type == ast_1.AstType.VariableId)
-            return node;
-        let l = node.children[0];
-        let r = node.children[1];
-        if (l && node.type == ast_1.AstType.VariableDef)
-            return this.getIdentifier(l);
-        if (r && node.type == ast_1.AstType.Access)
-            return this.getIdentifier(r);
-        if (l && node.type == ast_1.AstType.Indexer)
-            return this.getIdentifier(l);
-        return null;
     }
     stripNum(str) {
         if (this.parseRadix(str) != 10)
