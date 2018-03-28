@@ -1,16 +1,19 @@
 import { LogType, LogMsg, Logger } from "./log"
 import { TokenType } from "./token"
 import { AstNode, AstType } from "./ast"
+import { Module } from "./compiler"
 
 export type ValidateRule = (n: AstNode) => void
 
 export class Validator {
+	protected mod: Module | undefined
 	private ruleMap: { [key: string]: ValidateRule[] } = {}
 
 	constructor(protected logger: Logger) { }
 
-	public validate(ast: AstNode) {
-		this.validateNode(ast)
+	public validate(mod: Module) {
+		this.mod = mod
+		if (mod.result.ast) this.validateNode(mod.result.ast)
 	}
 
 	private validateNode(node: AstNode) {
@@ -30,7 +33,7 @@ export class Validator {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Validator", msg, node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, "Validator", msg, this.mod ? this.mod.dir + "/" + this.mod.name : "", node.token.row, node.token.column, node.token.value.length))
 	}
 }
 
@@ -114,6 +117,16 @@ export class SchwaValidator extends Validator {
 		this.registerChildrenType(AstType.VariableId, [AstType.Alias])
 
 		this.registerChildTypes(AstType.Map, [[AstType.VariableDef], [AstType.Literal]])
+
+		this.registerAncestorType(AstType.VariableImport, [AstType.Import])
+		this.registerAncestorType(AstType.FunctionImport, [AstType.Import])
+		this.registerAncestorType(AstType.StructImport, [AstType.Import])
+
+		this.registerChildrenType(AstType.Imports, [AstType.VariableImport, AstType.FunctionImport, AstType.StructImport, AstType.UnknownImport])
+
+		this.registerChildCount(AstType.Import, 1, 2)
+		this.registerChildTypes(AstType.Import, [[AstType.ModuleId]])
+		this.registerChildrenType(AstType.Import, [AstType.VariableImport, AstType.FunctionImport, AstType.StructImport, AstType.UnknownImport, AstType.Imports], 1)
 
 		this.registerChildCount(AstType.Export, 0)
 

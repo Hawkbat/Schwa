@@ -1,25 +1,28 @@
 import { Token, TokenType } from "./token"
 import { LogType, LogMsg, Logger } from "./log"
 import { AstType, AstNode } from "./ast"
+import { Module } from "./compiler"
 import * as utils from "./utils"
 
 export type PrefixFunc = (token: Token) => AstNode
 export type InfixFunc = (left: AstNode | null, token: Token) => AstNode
 
 export class Parser {
+	protected mod: Module | undefined
 	private prefixFuncMap: { [key: string]: PrefixFunc } = {}
 	private infixFuncMap: { [key: string]: InfixFunc } = {}
 	private prefixPrecedenceMap: { [key: string]: number } = {}
 	private infixPrecedenceMap: { [key: string]: number } = {}
 
 	private index: number = 0
-	private tokens: Token[] | null = null
+	private tokens: Token[] | null | undefined = null
 
 	constructor(protected logger: Logger) { }
 
-	public parse(tokens: Token[]): AstNode | null {
+	public parse(mod: Module): AstNode | null {
+		this.mod = mod
 		this.index = 0
-		this.tokens = tokens
+		this.tokens = mod.result.tokens
 		return this.parseNode(0)
 	}
 
@@ -31,7 +34,7 @@ export class Parser {
 
 		if (!prefixFunc) {
 			if (token.type != TokenType.Unknown)
-				this.logger.log(new LogMsg(LogType.Error, "Parser", "Unable to parse token " + token.type + (token.type == token.value ? "" : " " + JSON.stringify(token.value)), token.row, token.column, token.value.length))
+				this.logger.log(new LogMsg(LogType.Error, "Parser", "Unable to parse token " + token.type + (token.type == token.value ? "" : " " + JSON.stringify(token.value)), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", token.row, token.column, token.value.length))
 			return new AstNode(AstType.Unknown, token, [])
 		}
 
@@ -70,7 +73,7 @@ export class Parser {
 	protected consumeMatch(type: TokenType, match: TokenType): Token | null {
 		let token = this.peek()
 		if (token && token.type != match) {
-			this.logger.log(new LogMsg(LogType.Warning, "Parser", type + " expected " + match + " but got " + (token.type == token.value ? token.type : token.type + " " + JSON.stringify(token.value)), token.row, token.column, token.value.length))
+			this.logger.log(new LogMsg(LogType.Warning, "Parser", type + " expected " + match + " but got " + (token.type == token.value ? token.type : token.type + " " + JSON.stringify(token.value)), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", token.row, token.column, token.value.length))
 			return token
 		}
 		return this.consume()
@@ -201,6 +204,10 @@ export class SchwaParser extends Parser {
 			n.type = AstType.ModuleId
 			if (this.match(TokenType.Import)) {
 				let r = this.parseNode()
+				if (r && r.children.length > 0) {
+					let rn = r.children[0]
+					if (rn && rn.type == AstType.ModuleId) rn.type = AstType.UnknownImport
+				}
 				if (r) return new AstNode(r.type, r.token, [n, ...r.children])
 			}
 			return new AstNode(AstType.From, t, [n])
@@ -379,12 +386,15 @@ export class SchwaParser extends Parser {
 					return new AstNode(l.type, l.token, l.children)
 				} else if (l.type == AstType.StructDef) {
 					n.type = AstType.Fields
+					l.children.splice(1, 0, n)
+					return new AstNode(l.type, l.token, l.children)
 				} else if (l.type == AstType.Import) {
 					n.type = AstType.Imports
 					for (let child of children) {
 						if (child.type == AstType.VariableDef) child.type = AstType.VariableImport
 						if (child.type == AstType.FunctionDef) child.type = AstType.FunctionImport
 						if (child.type == AstType.StructDef) child.type = AstType.StructImport
+						if (child.type == AstType.VariableId) child.type = AstType.UnknownImport
 					}
 				}
 				return new AstNode(l.type, l.token, l.children.concat([n]))

@@ -8,10 +8,11 @@ export declare class LogMsg {
     type: LogType;
     ctx: string;
     msg: string;
+    path: string;
     row: number;
     column: number;
     length: number;
-    constructor(type: LogType, ctx: string, msg: string, row: number, column: number, length?: number);
+    constructor(type: LogType, ctx: string, msg: string, path: string, row: number, column: number, length?: number);
     toString(): string;
 }
 export declare class Logger {

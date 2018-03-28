@@ -9,8 +9,9 @@ class Lexer {
         this.lines = [];
         this.tokens = [];
     }
-    lex(lines) {
-        this.lines = lines;
+    lex(mod) {
+        this.mod = mod;
+        this.lines = mod.lines;
         this.tokens = [];
         this.push(new token_1.Token(token_1.TokenType.BOF, '', 0, 0));
         let depth = 0;
@@ -59,7 +60,7 @@ class Lexer {
                         end++;
                     }
                     let val = this.lines[row].substring(col, end);
-                    this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Lexer", "Unknown token " + JSON.stringify(val), row, col, end - col));
+                    this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Lexer", "Unknown token " + JSON.stringify(val), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", row, col, end - col));
                     this.tokens.push(new token_1.Token(token_1.TokenType.Unknown, val, row, col));
                     col = end - 1;
                 }

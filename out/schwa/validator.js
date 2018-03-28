@@ -7,8 +7,10 @@ class Validator {
         this.logger = logger;
         this.ruleMap = {};
     }
-    validate(ast) {
-        this.validateNode(ast);
+    validate(mod) {
+        this.mod = mod;
+        if (mod.result.ast)
+            this.validateNode(mod.result.ast);
     }
     validateNode(node) {
         let rules = this.ruleMap[node.type];
@@ -29,7 +31,7 @@ class Validator {
         this.ruleMap[type].push(rule);
     }
     logError(msg, node) {
-        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Validator", msg, node.token.row, node.token.column, node.token.value.length));
+        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Validator", msg, this.mod ? this.mod.dir + "/" + this.mod.name : "", node.token.row, node.token.column, node.token.value.length));
     }
 }
 exports.Validator = Validator;
@@ -87,6 +89,13 @@ class SchwaValidator extends Validator {
         this.registerChildCount(ast_1.AstType.FunctionId, 0, 1);
         this.registerChildrenType(ast_1.AstType.VariableId, [ast_1.AstType.Alias]);
         this.registerChildTypes(ast_1.AstType.Map, [[ast_1.AstType.VariableDef], [ast_1.AstType.Literal]]);
+        this.registerAncestorType(ast_1.AstType.VariableImport, [ast_1.AstType.Import]);
+        this.registerAncestorType(ast_1.AstType.FunctionImport, [ast_1.AstType.Import]);
+        this.registerAncestorType(ast_1.AstType.StructImport, [ast_1.AstType.Import]);
+        this.registerChildrenType(ast_1.AstType.Imports, [ast_1.AstType.VariableImport, ast_1.AstType.FunctionImport, ast_1.AstType.StructImport, ast_1.AstType.UnknownImport]);
+        this.registerChildCount(ast_1.AstType.Import, 1, 2);
+        this.registerChildTypes(ast_1.AstType.Import, [[ast_1.AstType.ModuleId]]);
+        this.registerChildrenType(ast_1.AstType.Import, [ast_1.AstType.VariableImport, ast_1.AstType.FunctionImport, ast_1.AstType.StructImport, ast_1.AstType.UnknownImport, ast_1.AstType.Imports], 1);
         this.registerChildCount(ast_1.AstType.Export, 0);
         this.registerChildCount(ast_1.AstType.Const, 0);
         this.registerChildCount(ast_1.AstType.Type, 0);

@@ -1,0 +1,9 @@
+
+export const float PI = 3.14f
+export const float TAU = 6.28f
+
+export float addPi(float n)
+	return n + PI
+
+export struct Pi
+	float value

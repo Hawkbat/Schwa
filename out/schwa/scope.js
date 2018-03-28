@@ -9,6 +9,7 @@ class Variable {
         this.global = false;
         this.const = false;
         this.export = false;
+        this.import = false;
         this.mapped = false;
         this.offset = 0;
         this.size = 0;
@@ -29,6 +30,8 @@ class Variable {
     }
     toString() {
         let out = '';
+        if (this.import)
+            out += 'import ';
         if (this.export)
             out += 'export ';
         if (this.const)
@@ -47,6 +50,7 @@ class Function {
         this.id = id;
         this.type = type;
         this.params = params;
+        this.import = false;
         this.export = false;
     }
     getPath() {
@@ -74,6 +78,7 @@ class Struct {
         this.scope = scope;
         this.id = id;
         this.fields = fields;
+        this.import = false;
         this.export = false;
     }
     getPath() {

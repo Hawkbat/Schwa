@@ -1,11 +1,13 @@
 import { AstNode, AstType } from "./ast";
 import { Logger } from "./log";
 import { Variable } from "./scope";
+import { Module } from "./compiler";
 import * as WASM from "./wasm";
 import { Writer } from "./io";
 export declare type GenerateRule = (w: Writer, n: AstNode) => void;
 export declare class Generator {
     protected logger: Logger;
+    protected mod: Module | undefined;
     private ruleMap;
     protected ast: AstNode | null;
     protected funcTypes: WASM.FunctionType[];
@@ -28,7 +30,7 @@ export declare class Generator {
     protected localNames: WASM.LocalName[];
     protected names: WASM.NameEntry[];
     constructor(logger: Logger);
-    generate(ast: AstNode, name?: string): ArrayBuffer | null;
+    generate(mod: Module): ArrayBuffer | null;
     protected register(type: AstType, rule: GenerateRule): void;
     protected gen(w: Writer, node: AstNode): void;
     private getModule(name);

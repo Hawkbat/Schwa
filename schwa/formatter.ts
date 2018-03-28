@@ -1,16 +1,19 @@
 import { TokenType, Token } from "./token"
 import { AstNode, AstType } from "./ast"
 import { Logger, LogMsg, LogType } from "./log"
+import { Module } from "./compiler"
 
 export type FormatRule = (n: AstNode) => string
 
 export class Formatter {
+	protected mod: Module | undefined
 	private ruleMap: { [key: string]: FormatRule } = {}
 
 	constructor(protected logger: Logger) { }
 
-	public format(ast: AstNode): string {
-		return this.printNode(ast)
+	public format(mod: Module): string {
+		this.mod = mod
+		return this.printNode(this.mod.result.ast)
 	}
 
 	protected printNode(node: AstNode | undefined | null): string {
@@ -25,7 +28,7 @@ export class Formatter {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Formatter", msg, node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, "Formatter", msg, this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", node.token.row, node.token.column, node.token.value.length))
 	}
 }
 

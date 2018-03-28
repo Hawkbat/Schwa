@@ -5,8 +5,8 @@ const token_1 = require("./token");
 const ast_1 = require("./ast");
 const datatype_1 = require("./datatype");
 const scope_1 = require("./scope");
-const Long = require("long");
 const utils = require("./utils");
+const Long = require("long");
 const MAX_TYPE_DEPTH = 16;
 function formatOrdinal(n) {
     let str = n.toFixed();
@@ -22,23 +22,63 @@ function formatOrdinal(n) {
 class Analyzer {
     constructor(logger) {
         this.logger = logger;
+        this.hoistRuleMap = {};
         this.scopeRuleMap = {};
         this.dataTypeRuleMap = {};
         this.analysisRuleMap = {};
         this.rootScope = new scope_1.Scope(null, null, '');
     }
-    analyze(ast) {
-        this.hoistPass(ast);
-        this.scopePass(ast);
-        this.typePass(ast);
-        this.analysisPass(ast);
+    preAnalyze(mod) {
+        this.mod = mod;
+        if (mod.result.ast)
+            this.hoistPass(mod.result.ast);
+    }
+    analyze(mod) {
+        this.mod = mod;
+        if (mod.result.ast) {
+            this.scopePass(mod.result.ast);
+            this.typePass(mod.result.ast);
+            this.analysisPass(mod.result.ast);
+        }
+    }
+    resolveImports(mod, imports) {
+        this.mod = mod;
+        this.imports = imports;
+        if (mod.result.ast)
+            this.importPass(mod.result.ast);
     }
     hoistPass(node) {
-        node.scope = this.getScope(node);
+        node.scope = this.hoistScope(node);
         for (let child of node.children) {
-            if (!child || child.type != ast_1.AstType.StructDef)
+            if (!child)
                 continue;
-            this.hoistPass(child);
+            if (child.type == ast_1.AstType.StructDef) {
+                this.hoistPass(child);
+            }
+        }
+        for (let child of node.children) {
+            if (!child)
+                continue;
+            if (child.type == ast_1.AstType.FunctionDef) {
+                this.hoistPass(child);
+            }
+        }
+        for (let child of node.children) {
+            if (!child)
+                continue;
+            if (child.type == ast_1.AstType.Global || child.type == ast_1.AstType.Map) {
+                this.hoistPass(child);
+            }
+        }
+    }
+    importPass(node) {
+        node.scope = this.hoistScope(node);
+        for (let child of node.children) {
+            if (!child)
+                continue;
+            if (child.type == ast_1.AstType.Import) {
+                this.importPass(child);
+            }
         }
     }
     scopePass(node) {
@@ -47,6 +87,20 @@ class Analyzer {
             if (child)
                 this.scopePass(child);
         }
+    }
+    hoistScope(node, parentScope = null) {
+        if (node.scope)
+            return node.scope;
+        if (!parentScope)
+            parentScope = (node.parent) ? this.getScope(node.parent) : this.rootScope;
+        let rules = this.hoistRuleMap[node.type];
+        if (rules) {
+            for (let rule of rules)
+                node.scope = rule(node, parentScope);
+        }
+        if (!node.scope)
+            node.scope = parentScope;
+        return node.scope;
     }
     getScope(node, parentScope = null) {
         if (node.scope)
@@ -189,6 +243,11 @@ class Analyzer {
             return 0;
         }
     }
+    registerHoist(type, rule) {
+        if (!this.hoistRuleMap[type])
+            this.hoistRuleMap[type] = [];
+        this.hoistRuleMap[type].push(rule);
+    }
     registerScope(type, rule) {
         if (!this.scopeRuleMap[type])
             this.scopeRuleMap[type] = [];
@@ -221,7 +280,7 @@ class Analyzer {
             scope.funcs[id] = new scope_1.Function(null, scope, id, type, params);
     }
     logError(msg, node) {
-        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Analyzer", msg, node.token.row, node.token.column, node.token.value.length));
+        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Analyzer", msg, this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", node.token.row, node.token.column, node.token.value.length));
     }
 }
 exports.Analyzer = Analyzer;
@@ -305,7 +364,51 @@ class SchwaAnalyzer extends Analyzer {
             p.scopes[scope.id] = scope;
             return scope;
         });
-        this.registerScope(ast_1.AstType.StructDef, (n, p) => {
+        this.registerHoist(ast_1.AstType.Import, (n, p) => {
+            let l = n.children[0];
+            let r = n.children[1];
+            if (!l)
+                return p;
+            let mod;
+            if (this.imports)
+                mod = this.imports.find(m => l != null && m.name == l.token.value);
+            if (mod && mod.result.ast && mod.result.ast.scope) {
+                if (r) {
+                    let children = (r.type == ast_1.AstType.Imports) ? r.children : [r];
+                    for (let c of children) {
+                        if (!c)
+                            continue;
+                        let id = utils.getIdentifier(c);
+                        if (!id)
+                            continue;
+                        let nvar = mod.result.ast.scope.getVariable(id.token.value);
+                        if (nvar)
+                            nvar.import = true;
+                        if (nvar)
+                            p.vars[nvar.id] = nvar;
+                        let func = mod.result.ast.scope.getFunction(id.token.value);
+                        if (func)
+                            func.import = true;
+                        if (func)
+                            p.funcs[func.id] = func;
+                        let struct = mod.result.ast.scope.getStruct(id.token.value);
+                        if (struct)
+                            struct.import = true;
+                        if (struct)
+                            p.structs[struct.id] = struct;
+                    }
+                }
+                else {
+                    let scope = new scope_1.Scope(null, mod.result.ast.scope, l.token.value);
+                    p.scopes[scope.id] = scope;
+                }
+            }
+            else {
+                this.logError('Could not locate module ' + JSON.stringify(l.token.value), n);
+            }
+            return p;
+        });
+        this.registerHoist(ast_1.AstType.StructDef, (n, p) => {
             let l = utils.getIdentifier(n.children[0]);
             let r = n.children[1];
             if (!l || !r)
@@ -322,7 +425,7 @@ class SchwaAnalyzer extends Analyzer {
                 if (!fl)
                     continue;
                 let fr = fieldNode.children[1];
-                if (fr)
+                if (fr && fr.type == ast_1.AstType.Literal)
                     fieldType += '[' + this.tryEval(fr) + ']';
                 fields.push(new scope_1.Variable(fieldNode, scope, fl.token.value, fieldType));
             }
@@ -336,7 +439,7 @@ class SchwaAnalyzer extends Analyzer {
             }
             return scope;
         });
-        this.registerScope(ast_1.AstType.FunctionDef, (n, p) => {
+        this.registerHoist(ast_1.AstType.FunctionDef, (n, p) => {
             let l = utils.getIdentifier(n.children[0]);
             let r = n.children[1];
             if (!l || !r)
@@ -352,7 +455,7 @@ class SchwaAnalyzer extends Analyzer {
                 if (!pl)
                     continue;
                 let paramType = paramNode.token.value;
-                if (pr)
+                if (pr && pr.type == ast_1.AstType.Literal)
                     paramType += '[' + this.tryEval(pr) + ']';
                 if (paramType.indexOf('[') >= 0) {
                     this.logError("Arrays cannot be used as function parameters", paramNode);
@@ -370,19 +473,51 @@ class SchwaAnalyzer extends Analyzer {
             }
             return scope;
         });
+        this.registerHoist(ast_1.AstType.Global, (n, p) => {
+            let l = n.children[0];
+            if (!l)
+                return p;
+            let r = l.children[1];
+            let id = utils.getIdentifier(l);
+            if (!id)
+                return p;
+            let type = l.token.value;
+            if (r && r.type == ast_1.AstType.Literal)
+                type += '[' + this.tryEval(r) + ']';
+            let nvar = new scope_1.Variable(l, p, id.token.value, type);
+            p.vars[nvar.id] = nvar;
+            return p;
+        });
+        this.registerHoist(ast_1.AstType.Map, (n, p) => {
+            let l = n.children[0];
+            if (!l)
+                return p;
+            let r = n.children[1];
+            let id = utils.getIdentifier(l);
+            if (!id)
+                return p;
+            let type = l.token.value;
+            if (r && r.type == ast_1.AstType.Literal)
+                type += '[' + this.tryEval(r) + ']';
+            let nvar = new scope_1.Variable(n, p, id.token.value, type);
+            p.vars[nvar.id] = nvar;
+            return p;
+        });
         this.registerScope(ast_1.AstType.VariableDef, (n, p) => {
             let l = utils.getIdentifier(n.children[0]);
             let r = n.children[1];
             if (!l)
                 return p;
             let type = n.token.value;
-            if (r)
+            if (r && r.type == ast_1.AstType.Literal)
                 type += '[' + this.tryEval(r) + ']';
-            let nvar = new scope_1.Variable(n, p, l.token.value, type);
-            if (p.vars[nvar.id]) {
-                this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already found", n);
+            let nvar = p.vars[l.token.value];
+            if (p.vars[l.token.value] && (!n.parent || (n.parent.type != ast_1.AstType.Map && n.parent.type != ast_1.AstType.Global))) {
+                this.logError("A variable with the name " + JSON.stringify(l.token.value) + " already found", n);
             }
             else {
+                if (!nvar)
+                    nvar = new scope_1.Variable(n, p, l.token.value, type);
                 p.vars[nvar.id] = nvar;
                 nvar.size = this.getSize(nvar.type, p);
                 let pn = n.parent;
@@ -452,9 +587,7 @@ class SchwaAnalyzer extends Analyzer {
             return scope;
         });
         this.registerScope(ast_1.AstType.Const, (n, p) => {
-            let node = n.parent;
-            while (node && node.children)
-                node = node.children[0];
+            let node = utils.getIdentifier(n.parent);
             if (node) {
                 let nvar = p.getVariable(node.token.value);
                 if (nvar)
@@ -463,9 +596,7 @@ class SchwaAnalyzer extends Analyzer {
             return p;
         });
         this.registerScope(ast_1.AstType.Export, (n, p) => {
-            let node = n.parent;
-            while (node && node.children)
-                node = node.children[0];
+            let node = utils.getIdentifier(n.parent);
             if (node) {
                 let nvar = p.getVariable(node.token.value);
                 if (nvar)

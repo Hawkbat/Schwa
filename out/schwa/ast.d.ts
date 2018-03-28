@@ -17,6 +17,7 @@ export declare enum AstType {
     VariableImport = "variable import",
     FunctionImport = "function import",
     StructImport = "struct import",
+    UnknownImport = "unresolved import",
     Map = "map",
     Literal = "literal value",
     UnaryOp = "unary operator",

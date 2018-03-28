@@ -1,11 +1,13 @@
 import { Logger } from "./log";
 import { AstNode, AstType } from "./ast";
+import { Module } from "./compiler";
 export declare type ValidateRule = (n: AstNode) => void;
 export declare class Validator {
     protected logger: Logger;
+    protected mod: Module | undefined;
     private ruleMap;
     constructor(logger: Logger);
-    validate(ast: AstNode): void;
+    validate(mod: Module): void;
     private validateNode(node);
     protected register(type: AstType, rule: ValidateRule): void;
     protected logError(msg: string, node: AstNode): void;

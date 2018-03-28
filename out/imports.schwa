@@ -1,13 +1,9 @@
-from foo import
-	const int SOME_CONST as ANOTHER_CONST
-	void reallyLongFuncName(int x) as shortFunc
-	struct SomeStruct as StructName
+from math import
+	const float PI as MATH_PI
+	float addPi(float n) as mathAddPi
+	struct Pi as MathPi
 
-from foobar import
-	A_CONST
-	aFunc
-	AStruct
+from math import
+	TAU
 
-from bar import int addNums(int a, int b) as add
-
-import someMathLib as math
+import math as mathLib

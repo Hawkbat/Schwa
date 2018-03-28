@@ -1,11 +1,13 @@
 import { AstNode, AstType } from "./ast";
 import { Logger } from "./log";
+import { Module } from "./compiler";
 export declare type FormatRule = (n: AstNode) => string;
 export declare class Formatter {
     protected logger: Logger;
+    protected mod: Module | undefined;
     private ruleMap;
     constructor(logger: Logger);
-    format(ast: AstNode): string;
+    format(mod: Module): string;
     protected printNode(node: AstNode | undefined | null): string;
     protected register(type: AstType, rule: FormatRule): void;
     protected logError(msg: string, node: AstNode): void;

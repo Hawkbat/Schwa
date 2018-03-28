@@ -8,16 +8,17 @@ var LogType;
     LogType[LogType["Error"] = 3] = "Error";
 })(LogType = exports.LogType || (exports.LogType = {}));
 class LogMsg {
-    constructor(type, ctx, msg, row, column, length = 0) {
+    constructor(type, ctx, msg, path, row, column, length = 0) {
         this.type = type;
         this.ctx = ctx;
         this.msg = msg;
+        this.path = path;
         this.row = row;
         this.column = column;
         this.length = length;
     }
     toString() {
-        return "[" + this.ctx + "] " + LogType[this.type] + ": " + this.msg + " at " + (this.row + 1) + ":" + (this.column + 1) + (this.length > 0 ? "-" + (this.column + 1 + this.length) : "");
+        return "[" + this.ctx + "] " + LogType[this.type] + ": " + this.msg + " at " + this.path + "(" + (this.row + 1) + "," + (this.column + 1) + (this.length > 0 ? "-" + (this.column + 1 + this.length) : "") + ")";
     }
 }
 exports.LogMsg = LogMsg;

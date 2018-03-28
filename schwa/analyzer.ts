@@ -3,8 +3,9 @@ import { TokenType, Token } from "./token"
 import { AstNode, AstType } from "./ast"
 import { DataType } from "./datatype"
 import { Scope, Struct, Function, Variable } from "./scope"
-import * as Long from "long"
+import { Module, Compiler } from "./compiler"
 import * as utils from "./utils"
+import * as Long from "long"
 
 const MAX_TYPE_DEPTH = 16
 
@@ -21,26 +22,66 @@ export type DataTypeRule = (n: AstNode) => string | null
 export type AnalyzeRule = (n: AstNode) => void
 
 export class Analyzer {
+	protected mod: Module | undefined
+	private hoistRuleMap: { [key: string]: ScopeRule[] } = {}
 	private scopeRuleMap: { [key: string]: ScopeRule[] } = {}
 	private dataTypeRuleMap: { [key: string]: DataTypeRule[] } = {}
 	private analysisRuleMap: { [key: string]: AnalyzeRule[] } = {}
 
 	protected rootScope: Scope = new Scope(null, null, '')
+	protected imports: Module[] | undefined
 
 	constructor(protected logger: Logger) { }
 
-	public analyze(ast: AstNode) {
-		this.hoistPass(ast)
-		this.scopePass(ast)
-		this.typePass(ast)
-		this.analysisPass(ast)
+	public preAnalyze(mod: Module) {
+		this.mod = mod
+		if (mod.result.ast) this.hoistPass(mod.result.ast)
+	}
+
+	public analyze(mod: Module) {
+		this.mod = mod
+		if (mod.result.ast) {
+			this.scopePass(mod.result.ast)
+			this.typePass(mod.result.ast)
+			this.analysisPass(mod.result.ast)
+		}
+	}
+
+	public resolveImports(mod: Module, imports: Module[]) {
+		this.mod = mod
+		this.imports = imports
+		if (mod.result.ast) this.importPass(mod.result.ast)
 	}
 
 	protected hoistPass(node: AstNode) {
-		node.scope = this.getScope(node)
+		node.scope = this.hoistScope(node)
 		for (let child of node.children) {
-			if (!child || child.type != AstType.StructDef) continue
-			this.hoistPass(child)
+			if (!child) continue
+			if (child.type == AstType.StructDef) {
+				this.hoistPass(child)
+			}
+		}
+		for (let child of node.children) {
+			if (!child) continue
+			if (child.type == AstType.FunctionDef) {
+				this.hoistPass(child)
+			}
+		}
+		for (let child of node.children) {
+			if (!child) continue
+			if (child.type == AstType.Global || child.type == AstType.Map) {
+				this.hoistPass(child)
+			}
+		}
+	}
+
+	protected importPass(node: AstNode) {
+		node.scope = this.hoistScope(node)
+		for (let child of node.children) {
+			if (!child) continue
+			if (child.type == AstType.Import) {
+				this.importPass(child)
+			}
 		}
 	}
 
@@ -49,6 +90,19 @@ export class Analyzer {
 		for (let child of node.children) {
 			if (child) this.scopePass(child)
 		}
+	}
+
+	protected hoistScope(node: AstNode, parentScope: Scope | null = null): Scope {
+		if (node.scope) return node.scope
+		if (!parentScope) parentScope = (node.parent) ? this.getScope(node.parent) : this.rootScope
+
+		let rules = this.hoistRuleMap[node.type]
+		if (rules) {
+			for (let rule of rules) node.scope = rule(node, parentScope)
+		}
+
+		if (!node.scope) node.scope = parentScope
+		return node.scope
 	}
 
 	protected getScope(node: AstNode, parentScope: Scope | null = null): Scope {
@@ -188,6 +242,11 @@ export class Analyzer {
 		}
 	}
 
+	protected registerHoist(type: AstType, rule: ScopeRule) {
+		if (!this.hoistRuleMap[type]) this.hoistRuleMap[type] = []
+		this.hoistRuleMap[type].push(rule)
+	}
+
 	protected registerScope(type: AstType, rule: ScopeRule) {
 		if (!this.scopeRuleMap[type]) this.scopeRuleMap[type] = []
 		this.scopeRuleMap[type].push(rule)
@@ -220,7 +279,7 @@ export class Analyzer {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Analyzer", msg, node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, "Analyzer", msg, this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", node.token.row, node.token.column, node.token.value.length))
 	}
 }
 
@@ -316,7 +375,39 @@ export class SchwaAnalyzer extends Analyzer {
 			p.scopes[scope.id] = scope
 			return scope
 		})
-		this.registerScope(AstType.StructDef, (n, p) => {
+		this.registerHoist(AstType.Import, (n, p) => {
+			let l = n.children[0]
+			let r = n.children[1]
+			if (!l) return p
+			let mod: Module | undefined
+			if (this.imports) mod = this.imports.find(m => l != null && m.name == l.token.value)
+			if (mod && mod.result.ast && mod.result.ast.scope) {
+				if (r) {
+					let children = (r.type == AstType.Imports) ? r.children : [r]
+					for (let c of children) {
+						if (!c) continue
+						let id = utils.getIdentifier(c)
+						if (!id) continue
+						let nvar = mod.result.ast.scope.getVariable(id.token.value)
+						if (nvar) nvar.import = true
+						if (nvar) p.vars[nvar.id] = nvar
+						let func = mod.result.ast.scope.getFunction(id.token.value)
+						if (func) func.import = true
+						if (func) p.funcs[func.id] = func
+						let struct = mod.result.ast.scope.getStruct(id.token.value)
+						if (struct) struct.import = true
+						if (struct) p.structs[struct.id] = struct
+					}
+				} else {
+					let scope = new Scope(null, mod.result.ast.scope, l.token.value)
+					p.scopes[scope.id] = scope
+				}
+			} else {
+				this.logError('Could not locate module ' + JSON.stringify(l.token.value), n)
+			}
+			return p
+		})
+		this.registerHoist(AstType.StructDef, (n, p) => {
 			let l = utils.getIdentifier(n.children[0])
 			let r = n.children[1]
 			if (!l || !r) return p
@@ -330,7 +421,7 @@ export class SchwaAnalyzer extends Analyzer {
 				let fl = fieldNode.children[0]
 				if (!fl) continue
 				let fr = fieldNode.children[1]
-				if (fr) fieldType += '[' + this.tryEval(fr) + ']'
+				if (fr && fr.type == AstType.Literal) fieldType += '[' + this.tryEval(fr) + ']'
 				fields.push(new Variable(fieldNode, scope, fl.token.value, fieldType))
 			}
 			let struct = new Struct(n, scope, l.token.value, fields)
@@ -342,7 +433,7 @@ export class SchwaAnalyzer extends Analyzer {
 			}
 			return scope
 		})
-		this.registerScope(AstType.FunctionDef, (n, p) => {
+		this.registerHoist(AstType.FunctionDef, (n, p) => {
 			let l = utils.getIdentifier(n.children[0])
 			let r = n.children[1]
 			if (!l || !r) return p
@@ -355,7 +446,7 @@ export class SchwaAnalyzer extends Analyzer {
 				let pr = paramNode.children[1]
 				if (!pl) continue
 				let paramType = paramNode.token.value
-				if (pr) paramType += '[' + this.tryEval(pr) + ']'
+				if (pr && pr.type == AstType.Literal) paramType += '[' + this.tryEval(pr) + ']'
 				if (paramType.indexOf('[') >= 0) {
 					this.logError("Arrays cannot be used as function parameters", paramNode)
 					continue
@@ -371,16 +462,41 @@ export class SchwaAnalyzer extends Analyzer {
 			}
 			return scope
 		})
+		this.registerHoist(AstType.Global, (n, p) => {
+			let l = n.children[0]
+			if (!l) return p
+			let r = l.children[1]
+			let id = utils.getIdentifier(l)
+			if (!id) return p
+			let type = l.token.value
+			if (r && r.type == AstType.Literal) type += '[' + this.tryEval(r) + ']'
+			let nvar = new Variable(l, p, id.token.value, type)
+			p.vars[nvar.id] = nvar
+			return p
+		})
+		this.registerHoist(AstType.Map, (n, p) => {
+			let l = n.children[0]
+			if (!l) return p
+			let r = n.children[1]
+			let id = utils.getIdentifier(l)
+			if (!id) return p
+			let type = l.token.value
+			if (r && r.type == AstType.Literal) type += '[' + this.tryEval(r) + ']'
+			let nvar = new Variable(n, p, id.token.value, type)
+			p.vars[nvar.id] = nvar
+			return p
+		})
 		this.registerScope(AstType.VariableDef, (n, p) => {
 			let l = utils.getIdentifier(n.children[0])
 			let r = n.children[1]
 			if (!l) return p
 			let type = n.token.value
-			if (r) type += '[' + this.tryEval(r) + ']'
-			let nvar = new Variable(n, p, l.token.value, type)
-			if (p.vars[nvar.id]) {
-				this.logError("A variable with the name " + JSON.stringify(nvar.id) + " already found", n)
+			if (r && r.type == AstType.Literal) type += '[' + this.tryEval(r) + ']'
+			let nvar = p.vars[l.token.value]
+			if (p.vars[l.token.value] && (!n.parent || (n.parent.type != AstType.Map && n.parent.type != AstType.Global))) {
+				this.logError("A variable with the name " + JSON.stringify(l.token.value) + " already found", n)
 			} else {
+				if (!nvar) nvar = new Variable(n, p, l.token.value, type)
 				p.vars[nvar.id] = nvar
 				nvar.size = this.getSize(nvar.type, p)
 
@@ -443,8 +559,7 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.Const, (n, p) => {
-			let node: AstNode | undefined | null = n.parent
-			while (node && node.children) node = node.children[0]
+			let node: AstNode | undefined | null = utils.getIdentifier(n.parent)
 			if (node) {
 				let nvar = p.getVariable(node.token.value)
 				if (nvar) nvar.const = true
@@ -452,8 +567,7 @@ export class SchwaAnalyzer extends Analyzer {
 			return p
 		})
 		this.registerScope(AstType.Export, (n, p) => {
-			let node: AstNode | undefined | null = n.parent
-			while (node && node.children) node = node.children[0]
+			let node: AstNode | undefined | null = utils.getIdentifier(n.parent)
 			if (node) {
 				let nvar = p.getVariable(node.token.value)
 				if (nvar) nvar.export = true

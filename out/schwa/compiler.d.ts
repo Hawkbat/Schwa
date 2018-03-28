@@ -7,8 +7,24 @@ export declare class Compiler {
     analyzer: Analyzer;
     formatter: Formatter;
     generator: Generator;
-    constructor();
-    compile(lines: string[], moduleName?: string): CompilerResult;
+    debug: boolean;
+    constructor(options?: CompilerOptions);
+    compile(module: Module): Module;
+    compile(modules: Module[]): Module[];
+    protected debugOutput(mod: Module): void;
+    protected preLinkCompile(mod: Module): void;
+    protected postLinkCompile(mod: Module): void;
+    protected linkCompile(mod: Module, modules: Module[]): void;
+}
+export declare class Module {
+    name: string;
+    dir: string;
+    lines: string[];
+    result: CompilerResult;
+    constructor(name: string, dir: string, lines?: string[]);
+}
+export interface CompilerOptions {
+    debug?: boolean;
 }
 export interface CompilerResult {
     tokens?: Token[] | null;

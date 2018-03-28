@@ -7,6 +7,7 @@ export function getIdentifier(n: AstNode | null | undefined): AstNode | null | u
 		if (n.type == AstType.FunctionId) return getIdentifier(l)
 		if (n.type == AstType.VariableId) return getIdentifier(l)
 		if (n.type == AstType.StructId) return getIdentifier(l)
+		if (n.type == AstType.ModuleId) return getIdentifier(l)
 		if (n.type == AstType.Import) return getIdentifier(l)
 		if (n.type == AstType.Map) return getIdentifier(l)
 		if (n.type == AstType.VariableDef) return getIdentifier(l)

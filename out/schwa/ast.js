@@ -18,6 +18,7 @@ var AstType;
     AstType["VariableImport"] = "variable import";
     AstType["FunctionImport"] = "function import";
     AstType["StructImport"] = "struct import";
+    AstType["UnknownImport"] = "unresolved import";
     AstType["Map"] = "map";
     AstType["Literal"] = "literal value";
     AstType["UnaryOp"] = "unary operator";

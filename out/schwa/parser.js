@@ -14,9 +14,10 @@ class Parser {
         this.index = 0;
         this.tokens = null;
     }
-    parse(tokens) {
+    parse(mod) {
+        this.mod = mod;
         this.index = 0;
-        this.tokens = tokens;
+        this.tokens = mod.result.tokens;
         return this.parseNode(0);
     }
     parseNode(precedence) {
@@ -28,7 +29,7 @@ class Parser {
         let prefixFunc = this.prefixFuncMap[token.type];
         if (!prefixFunc) {
             if (token.type != token_1.TokenType.Unknown)
-                this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Parser", "Unable to parse token " + token.type + (token.type == token.value ? "" : " " + JSON.stringify(token.value)), token.row, token.column, token.value.length));
+                this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Parser", "Unable to parse token " + token.type + (token.type == token.value ? "" : " " + JSON.stringify(token.value)), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", token.row, token.column, token.value.length));
             return new ast_1.AstNode(ast_1.AstType.Unknown, token, []);
         }
         let left = prefixFunc(token);
@@ -64,7 +65,7 @@ class Parser {
     consumeMatch(type, match) {
         let token = this.peek();
         if (token && token.type != match) {
-            this.logger.log(new log_1.LogMsg(log_1.LogType.Warning, "Parser", type + " expected " + match + " but got " + (token.type == token.value ? token.type : token.type + " " + JSON.stringify(token.value)), token.row, token.column, token.value.length));
+            this.logger.log(new log_1.LogMsg(log_1.LogType.Warning, "Parser", type + " expected " + match + " but got " + (token.type == token.value ? token.type : token.type + " " + JSON.stringify(token.value)), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", token.row, token.column, token.value.length));
             return token;
         }
         return this.consume();
@@ -202,6 +203,11 @@ class SchwaParser extends Parser {
             n.type = ast_1.AstType.ModuleId;
             if (this.match(token_1.TokenType.Import)) {
                 let r = this.parseNode();
+                if (r && r.children.length > 0) {
+                    let rn = r.children[0];
+                    if (rn && rn.type == ast_1.AstType.ModuleId)
+                        rn.type = ast_1.AstType.UnknownImport;
+                }
                 if (r)
                     return new ast_1.AstNode(r.type, r.token, [n, ...r.children]);
             }
@@ -414,6 +420,8 @@ class SchwaParser extends Parser {
                 }
                 else if (l.type == ast_1.AstType.StructDef) {
                     n.type = ast_1.AstType.Fields;
+                    l.children.splice(1, 0, n);
+                    return new ast_1.AstNode(l.type, l.token, l.children);
                 }
                 else if (l.type == ast_1.AstType.Import) {
                     n.type = ast_1.AstType.Imports;
@@ -424,6 +432,8 @@ class SchwaParser extends Parser {
                             child.type = ast_1.AstType.FunctionImport;
                         if (child.type == ast_1.AstType.StructDef)
                             child.type = ast_1.AstType.StructImport;
+                        if (child.type == ast_1.AstType.VariableId)
+                            child.type = ast_1.AstType.UnknownImport;
                     }
                 }
                 return new ast_1.AstNode(l.type, l.token, l.children.concat([n]));

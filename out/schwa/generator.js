@@ -27,8 +27,10 @@ class Generator {
         this.localNames = [];
         this.names = [];
     }
-    generate(ast, name = "") {
-        this.ast = ast;
+    generate(mod) {
+        this.mod = mod;
+        if (mod.result.ast)
+            this.ast = mod.result.ast;
         this.funcTypes = [];
         this.funcTypeIndices = [];
         this.funcTypeToTypeIndex = {};
@@ -43,7 +45,7 @@ class Generator {
         this.localNames = [];
         this.names = [];
         let writer = new io_1.Writer();
-        writer.write(this.getModule(name));
+        writer.write(this.getModule(mod.name));
         if (this.logger.count(log_1.LogType.Error) > 0)
             return null;
         return writer.toArrayBuffer();
@@ -88,12 +90,16 @@ class Generator {
         return new WASM.Module(sections);
     }
     addFunction(func) {
+        if (func.import)
+            return;
         this.funcPathToIndex[func.getPath()] = this.funcIndex;
         if (func.id == "main")
             this.startFuncIndex = this.funcIndex;
         this.funcIndex++;
     }
     addFunctionBody(func) {
+        if (func.import)
+            return;
         if (!func.node)
             return;
         let funcBody = func.node.children[2];
@@ -169,7 +175,7 @@ class Generator {
         return index;
     }
     addGlobal(global) {
-        if (global.mapped)
+        if (global.mapped || global.import)
             return;
         let vars = this.getPrimitiveVars(global);
         for (let gvar of vars) {
@@ -240,7 +246,7 @@ class Generator {
         return out;
     }
     logError(msg, node) {
-        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Generator", msg, node.token.row, node.token.column, node.token.value.length));
+        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Generator", msg, this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", node.token.row, node.token.column, node.token.value.length));
     }
 }
 exports.Generator = Generator;

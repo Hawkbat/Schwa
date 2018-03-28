@@ -8,8 +8,9 @@ class Formatter {
         this.logger = logger;
         this.ruleMap = {};
     }
-    format(ast) {
-        return this.printNode(ast);
+    format(mod) {
+        this.mod = mod;
+        return this.printNode(this.mod.result.ast);
     }
     printNode(node) {
         if (!node)
@@ -23,7 +24,7 @@ class Formatter {
         this.ruleMap[type] = rule;
     }
     logError(msg, node) {
-        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Formatter", msg, node.token.row, node.token.column, node.token.value.length));
+        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Formatter", msg, this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", node.token.row, node.token.column, node.token.value.length));
     }
 }
 exports.Formatter = Formatter;

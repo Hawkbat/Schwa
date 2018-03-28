@@ -30,19 +30,17 @@ else if (program.args.length == 2) {
     dstPath = program.args[1];
 }
 if (srcPath && dstPath) {
-    if (program.debug)
-        debug(srcPath, dstPath);
-    else
-        run(srcPath, dstPath);
+    run(srcPath, dstPath, program.debug);
 }
 else {
     program.help();
 }
-function run(srcPath, dstPath) {
+function run(srcPath, dstPath, debug) {
     let lines = fs.readFileSync(srcPath, "utf8").split(/\r?\n/g);
     let filename = path.basename(dstPath, path.extname(dstPath));
-    let compiler = new schwa_1.Compiler();
-    let result = compiler.compile(lines, filename);
+    let mod = new schwa_1.Module(filename, path.dirname(srcPath), lines);
+    let compiler = new schwa_1.Compiler({ debug });
+    let result = compiler.compile(mod).result;
     if (result.success) {
         fs.writeFileSync(dstPath, Buffer.from(result.buffer));
         console.log("Compilation successful.");
@@ -54,72 +52,4 @@ function run(srcPath, dstPath) {
         console.log("Compilation failed.");
         process.exitCode = 1;
     }
-}
-function debug(srcPath, dstPath) {
-    let lines = fs.readFileSync(srcPath, "utf8").split(/\r?\n/g);
-    let filename = path.basename(dstPath, path.extname(dstPath));
-    console.time("setup");
-    let logger = new schwa_1.Logger();
-    let lexer = new schwa_1.Lexer(logger);
-    let parser = new schwa_1.Parser(logger);
-    let validator = new schwa_1.Validator(logger);
-    let analyzer = new schwa_1.Analyzer(logger);
-    let formatter = new schwa_1.Formatter(logger);
-    let generator = new schwa_1.Generator(logger);
-    let ast = null;
-    let prettyPrint = '';
-    let wasmBuffer = null;
-    console.timeEnd("setup");
-    console.time("process");
-    (() => {
-        // Converts raw text input into an array of tokens
-        console.time("lexer");
-        let tokens = lexer.lex(lines);
-        console.timeEnd("lexer");
-        if (logger.count(schwa_1.LogType.Error))
-            return;
-        // Converts an array of tokens into a syntax tree
-        console.time("parser");
-        ast = parser.parse(tokens);
-        console.timeEnd("parser");
-        if (!ast || logger.count(schwa_1.LogType.Error))
-            return;
-        // Analyzes a syntax tree for syntactic correctness
-        console.time("validator");
-        validator.validate(ast);
-        console.timeEnd("validator");
-        // Analyzes a syntax tree for semantic correctness
-        console.time("analyzer");
-        analyzer.analyze(ast);
-        console.timeEnd("analyzer");
-        if (logger.count(schwa_1.LogType.Error))
-            return;
-        // Pretty-prints a formatted version of the syntax tree
-        console.time("formatter");
-        prettyPrint = formatter.format(ast);
-        console.timeEnd("formatter");
-        if (logger.count(schwa_1.LogType.Error))
-            return;
-        // Generates WebAssembly bytecode from the syntax tree
-        console.time("generator");
-        wasmBuffer = generator.generate(ast, filename);
-        console.timeEnd("generator");
-    })();
-    console.timeEnd("process");
-    console.time("output");
-    if (ast)
-        console.log(ast.toString().replace(/\t/g, '\ \ \ \ '));
-    if (ast && ast.scope && ast.scope.parent)
-        console.log(ast.scope.parent.toString().replace(/\t/g, '\ \ \ \ '));
-    if (prettyPrint)
-        console.log(prettyPrint.replace(/\t/g, '\ \ \ \ '));
-    if (wasmBuffer)
-        fs.writeFileSync(dstPath, Buffer.from(wasmBuffer));
-    for (let log of logger.getLogs())
-        console.log(log.toString());
-    console.timeEnd("output");
-    if (logger.count(schwa_1.LogType.Error))
-        console.log("Compilation failed.");
-    else
-        console.log("Compilation successful.");
 }

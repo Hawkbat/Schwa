@@ -4,6 +4,7 @@ export class Variable {
 	public global: boolean = false
 	public const: boolean = false
 	public export: boolean = false
+	public import: boolean = false
 	public mapped: boolean = false
 	public offset: number = 0
 	public size: number = 0
@@ -24,6 +25,7 @@ export class Variable {
 
 	toString() {
 		let out = ''
+		if (this.import) out += 'import '
 		if (this.export) out += 'export '
 		if (this.const) out += 'const '
 		out += this.type + ' ' + this.id
@@ -33,6 +35,7 @@ export class Variable {
 }
 
 export class Function {
+	public import: boolean = false
 	public export: boolean = false
 
 	constructor(public node: AstNode | null, public scope: Scope, public id: string, public type: string, public params: Variable[]) { }
@@ -56,10 +59,11 @@ export class Function {
 }
 
 export class Struct {
+	public import: boolean = false
 	public export: boolean = false
 
-	constructor(public node: AstNode | null, public scope: Scope, public id: string, public fields: Variable[]) {}
-	
+	constructor(public node: AstNode | null, public scope: Scope, public id: string, public fields: Variable[]) { }
+
 	getPath(): string {
 		let path = this.id
 		let p: Scope | null = this.scope
@@ -108,7 +112,7 @@ export class Scope {
 		if (this.parent) return this.parent.getStruct(id)
 		return null
 	}
-	
+
 	getPath(): string {
 		let path = this.id
 		let p: Scope | null = this.parent

@@ -4,15 +4,16 @@ import { Logger, LogMsg, LogType } from "./log"
 import { DataType } from "./datatype"
 import { Scope, Function, Variable } from "./scope"
 import * as utils from "./utils"
+import { Module } from "./compiler"
 
 import * as WASM from "./wasm"
 import { Writer } from "./io"
 import * as Long from "long"
-import { write } from "fs";
 
 export type GenerateRule = (w: Writer, n: AstNode) => void
 
 export class Generator {
+	protected mod: Module | undefined
 	private ruleMap: { [key: string]: GenerateRule } = {}
 
 	protected ast: AstNode | null = null
@@ -32,8 +33,9 @@ export class Generator {
 
 	constructor(protected logger: Logger) { }
 
-	public generate(ast: AstNode, name: string = ""): ArrayBuffer | null {
-		this.ast = ast
+	public generate(mod: Module): ArrayBuffer | null {
+		this.mod = mod
+		if (mod.result.ast) this.ast = mod.result.ast
 		this.funcTypes = []
 		this.funcTypeIndices = []
 		this.funcTypeToTypeIndex = {}
@@ -49,7 +51,7 @@ export class Generator {
 		this.names = []
 
 		let writer = new Writer()
-		writer.write(this.getModule(name))
+		writer.write(this.getModule(mod.name))
 		if (this.logger.count(LogType.Error) > 0) return null
 		return writer.toArrayBuffer()
 	}
@@ -92,12 +94,14 @@ export class Generator {
 	}
 
 	private addFunction(func: Function): void {
+		if (func.import) return
 		this.funcPathToIndex[func.getPath()] = this.funcIndex
 		if (func.id == "main") this.startFuncIndex = this.funcIndex
 		this.funcIndex++
 	}
 
 	private addFunctionBody(func: Function): void {
+		if (func.import) return
 		if (!func.node) return
 		let funcBody = func.node.children[2]
 		if (!funcBody) return
@@ -175,7 +179,7 @@ export class Generator {
 	}
 
 	private addGlobal(global: Variable): void {
-		if (global.mapped) return
+		if (global.mapped || global.import) return
 		let vars = this.getPrimitiveVars(global)
 		for (let gvar of vars) {
 			let type = this.toWasmType(gvar.type)
@@ -237,7 +241,7 @@ export class Generator {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Generator", msg, node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, "Generator", msg, this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", node.token.row, node.token.column, node.token.value.length))
 	}
 }
 

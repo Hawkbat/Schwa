@@ -1,9 +1,11 @@
 import { Token, TokenType } from "./token"
 import { LogType, LogMsg, Logger } from "./log"
+import { Module } from "./compiler"
 
 export type LexerRule = (row: number, column: number) => Token | null
 
 export class Lexer {
+	protected mod: Module | undefined
 	private rules: LexerRule[] = []
 
 	private lines: string[] = []
@@ -11,8 +13,9 @@ export class Lexer {
 
 	constructor(protected logger: Logger) { }
 
-	public lex(lines: string[]): Token[] {
-		this.lines = lines
+	public lex(mod: Module): Token[] {
+		this.mod = mod
+		this.lines = mod.lines
 		this.tokens = []
 		this.push(new Token(TokenType.BOF, '', 0, 0))
 
@@ -55,7 +58,7 @@ export class Lexer {
 						end++
 					}
 					let val = this.lines[row].substring(col, end)
-					this.logger.log(new LogMsg(LogType.Error, "Lexer", "Unknown token " + JSON.stringify(val), row, col, end - col))
+					this.logger.log(new LogMsg(LogType.Error, "Lexer", "Unknown token " + JSON.stringify(val), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", row, col, end - col))
 					this.tokens.push(new Token(TokenType.Unknown, val, row, col))
 					col = end - 1
 				}

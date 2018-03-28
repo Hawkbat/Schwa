@@ -12,6 +12,8 @@ function getIdentifier(n) {
             return getIdentifier(l);
         if (n.type == ast_1.AstType.StructId)
             return getIdentifier(l);
+        if (n.type == ast_1.AstType.ModuleId)
+            return getIdentifier(l);
         if (n.type == ast_1.AstType.Import)
             return getIdentifier(l);
         if (n.type == ast_1.AstType.Map)

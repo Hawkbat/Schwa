@@ -7,6 +7,7 @@ export declare class Variable {
     global: boolean;
     const: boolean;
     export: boolean;
+    import: boolean;
     mapped: boolean;
     offset: number;
     size: number;
@@ -20,6 +21,7 @@ export declare class Function {
     id: string;
     type: string;
     params: Variable[];
+    import: boolean;
     export: boolean;
     constructor(node: AstNode | null, scope: Scope, id: string, type: string, params: Variable[]);
     getPath(): string;
@@ -30,6 +32,7 @@ export declare class Struct {
     scope: Scope;
     id: string;
     fields: Variable[];
+    import: boolean;
     export: boolean;
     constructor(node: AstNode | null, scope: Scope, id: string, fields: Variable[]);
     getPath(): string;

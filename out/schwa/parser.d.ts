@@ -1,10 +1,12 @@
 import { Token, TokenType } from "./token";
 import { Logger } from "./log";
 import { AstNode } from "./ast";
+import { Module } from "./compiler";
 export declare type PrefixFunc = (token: Token) => AstNode;
 export declare type InfixFunc = (left: AstNode | null, token: Token) => AstNode;
 export declare class Parser {
     protected logger: Logger;
+    protected mod: Module | undefined;
     private prefixFuncMap;
     private infixFuncMap;
     private prefixPrecedenceMap;
@@ -12,7 +14,7 @@ export declare class Parser {
     private index;
     private tokens;
     constructor(logger: Logger);
-    parse(tokens: Token[]): AstNode | null;
+    parse(mod: Module): AstNode | null;
     protected parseNode(precedence?: number): AstNode | null;
     private getPrecedence();
     protected consume(): Token | null;
