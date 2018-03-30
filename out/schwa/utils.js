@@ -6,13 +6,21 @@ function getIdentifier(n) {
         return null;
     let l = n.children[0];
     if (l) {
-        if (n.type == ast_1.AstType.FunctionId)
-            return getIdentifier(l);
         if (n.type == ast_1.AstType.VariableId)
+            return getIdentifier(l);
+        if (n.type == ast_1.AstType.FunctionId)
             return getIdentifier(l);
         if (n.type == ast_1.AstType.StructId)
             return getIdentifier(l);
         if (n.type == ast_1.AstType.ModuleId)
+            return getIdentifier(l);
+        if (n.type == ast_1.AstType.VariableImport)
+            return getIdentifier(l);
+        if (n.type == ast_1.AstType.FunctionImport)
+            return getIdentifier(l);
+        if (n.type == ast_1.AstType.StructImport)
+            return getIdentifier(l);
+        if (n.type == ast_1.AstType.UnknownImport)
             return getIdentifier(l);
         if (n.type == ast_1.AstType.Import)
             return getIdentifier(l);
@@ -38,7 +46,11 @@ function getIdentifier(n) {
         if (n.type == ast_1.AstType.Access)
             return getIdentifier(r);
     }
-    if (n.type == ast_1.AstType.FunctionId || n.type == ast_1.AstType.VariableId || n.type == ast_1.AstType.StructId || n.type == ast_1.AstType.Alias)
+    if (n.type == ast_1.AstType.FunctionId ||
+        n.type == ast_1.AstType.VariableId ||
+        n.type == ast_1.AstType.StructId ||
+        n.type == ast_1.AstType.UnknownImport ||
+        n.type == ast_1.AstType.Alias)
         return n;
     return null;
 }

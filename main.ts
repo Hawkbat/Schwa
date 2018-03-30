@@ -11,7 +11,7 @@ let pak = require('../package.json')
 program
 	.name(pak.name)
 	.version(pak.version, '-v, --version')
-	.arguments('[src] [dst]')
+	.arguments('[path]')
 	.option('-d, --debug', 'Output debug info')
 	.option('-t, --test', 'Use example source file')
 	.parse(process.argv)
@@ -23,13 +23,20 @@ if (program.test) {
 	srcPath = path.join(__dirname, "test.schwa")
 	dstPath = path.join(__dirname, "test.wasm")
 } else if (program.args.length == 1) {
-	srcPath = program.args[0]
-	let filename = path.basename(srcPath, path.extname(srcPath))
-	let dirpath = path.dirname(srcPath)
-	dstPath = path.join(dirpath, filename + '.wasm')
+	srcPath = path.relative(process.cwd(), path.resolve(program.args[0]))
+	if (!srcPath) srcPath = './'
+	if (fs.lstatSync(srcPath).isDirectory()) {
+		dstPath = srcPath
+	}else{
+		let filename = path.basename(srcPath, path.extname(srcPath))
+		let dirpath = path.dirname(srcPath)
+		dstPath = path.join(dirpath, filename + '.wasm')
+	}
 } else if (program.args.length == 2) {
-	srcPath = program.args[0]
-	dstPath = program.args[1]
+	srcPath = path.relative(process.cwd(), path.resolve(program.args[0]))
+	dstPath = path.relative(process.cwd(), path.resolve(program.args[1]))
+	if (!srcPath) srcPath = './'
+	if (!dstPath) dstPath = './'
 }
 
 if (srcPath && dstPath) {
@@ -39,20 +46,53 @@ if (srcPath && dstPath) {
 }
 
 function run(srcPath: string, dstPath: string, debug: boolean) {
-	let lines = fs.readFileSync(srcPath, "utf8").split(/\r?\n/g)
-	let filename = path.basename(dstPath, path.extname(dstPath))
-	let mod = new Module(filename, path.dirname(srcPath), lines)
-
 	let compiler = new Compiler({ debug })
-	let result = compiler.compile(mod).result
+	
+	if (fs.lstatSync(srcPath).isDirectory()) {
+		let filenames = fs.readdirSync(srcPath).filter(f => f.endsWith('.schwa')).map(f => path.basename(f, path.extname(f)))
+		let mods = filenames.map(f => new Module(f, srcPath))
 
-	if (result.success) {
-		fs.writeFileSync(dstPath, Buffer.from(result.buffer as ArrayBuffer))
-		console.log("Compilation successful.")
-	} else {
-		let msgs = compiler.logger.getLogs()
-		for (let msg of msgs) console.log(msg.toString())
-		console.log("Compilation failed.")
-		process.exitCode = 1
+		if (mods.length == 0) {
+			console.log(filenames)
+			console.log('No source files found in "' + path.resolve(srcPath) + '".')
+			process.exitCode = 1
+			return
+		}
+
+		for (let mod of mods) {
+			console.log('Compiling ' + path.join(mod.dir, mod.name))
+		}
+
+		mods = compiler.compile(mods)
+		
+		for (let mod of mods) {
+			if (mod.result.success) {
+				fs.writeFileSync(path.join(dstPath, mod.name) + '.wasm', Buffer.from(mod.result.buffer as ArrayBuffer))
+			}
+		}
+
+		if (mods.some(mod => !mod.result.success)) {
+			let msgs = compiler.logger.getLogs()
+			for (let msg of msgs) console.log(msg.toString())
+			console.log("Compilation failed.")
+			process.exitCode = 1
+		}else{
+			console.log("Compilation successful.")
+		}
+	}else{
+		let filename = path.basename(srcPath, path.extname(srcPath))
+		let mod = new Module(filename, path.dirname(srcPath))
+
+		let result = compiler.compile(mod).result
+	
+		if (result.success) {
+			fs.writeFileSync(dstPath, Buffer.from(result.buffer as ArrayBuffer))
+			console.log("Compilation successful.")
+		} else {
+			let msgs = compiler.logger.getLogs()
+			for (let msg of msgs) console.log(msg.toString())
+			console.log("Compilation failed.")
+			process.exitCode = 1
+		}
 	}
 }

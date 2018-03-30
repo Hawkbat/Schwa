@@ -52,6 +52,13 @@ class Analyzer {
         for (let child of node.children) {
             if (!child)
                 continue;
+            if (child.type == ast_1.AstType.Export || child.type == ast_1.AstType.Const) {
+                this.hoistPass(child);
+            }
+        }
+        for (let child of node.children) {
+            if (!child)
+                continue;
             if (child.type == ast_1.AstType.StructDef) {
                 this.hoistPass(child);
             }
@@ -354,7 +361,7 @@ class SchwaAnalyzer extends Analyzer {
         this.registerBuiltinFunc('double.copysign', datatype_1.DataType.Double, [datatype_1.DataType.Double, datatype_1.DataType.Double], ["a", "b"]);
         this.registerBuiltinFunc('double.min', datatype_1.DataType.Double, [datatype_1.DataType.Double, datatype_1.DataType.Double], ["a", "b"]);
         this.registerBuiltinFunc('double.max', datatype_1.DataType.Double, [datatype_1.DataType.Double, datatype_1.DataType.Double], ["a", "b"]);
-        this.registerScope(ast_1.AstType.Program, (n, p) => {
+        this.registerHoist(ast_1.AstType.Program, (n, p) => {
             let scope = new scope_1.Scope(n, p, '');
             p.scopes[scope.id] = scope;
             return scope;
@@ -378,35 +385,96 @@ class SchwaAnalyzer extends Analyzer {
                     for (let c of children) {
                         if (!c)
                             continue;
-                        let id = utils.getIdentifier(c);
+                        let id = (c.type == ast_1.AstType.UnknownImport) ? c : c.children[0];
+                        let aliasId = utils.getIdentifier(c);
                         if (!id)
                             continue;
                         let nvar = mod.result.ast.scope.getVariable(id.token.value);
-                        if (nvar)
+                        if (nvar && nvar.export) {
+                            nvar = nvar.clone(c, p, aliasId ? aliasId.token.value : id.token.value);
+                            nvar.export = c.children.some(v => !!v && v.type == ast_1.AstType.Export);
                             nvar.import = true;
-                        if (nvar)
-                            p.vars[nvar.id] = nvar;
+                            if (p.vars[nvar.id]) {
+                                this.logError('A variable named ' + JSON.stringify(nvar.id) + ' already found', c);
+                            }
+                            else {
+                                p.vars[nvar.id] = nvar;
+                            }
+                        }
                         let func = mod.result.ast.scope.getFunction(id.token.value);
-                        if (func)
+                        if (func && func.export) {
+                            func = func.clone(c, p, aliasId ? aliasId.token.value : id.token.value);
+                            func.export = c.children.some(v => !!v && v.type == ast_1.AstType.Export);
                             func.import = true;
-                        if (func)
-                            p.funcs[func.id] = func;
+                            if (p.funcs[func.id]) {
+                                this.logError('A function named ' + JSON.stringify(func.id) + ' already found', c);
+                            }
+                            else {
+                                p.funcs[func.id] = func;
+                            }
+                        }
                         let struct = mod.result.ast.scope.getStruct(id.token.value);
-                        if (struct)
+                        if (struct && struct.export) {
+                            struct = struct.clone(c, p, aliasId ? aliasId.token.value : id.token.value);
+                            struct.export = c.children.some(v => !!v && v.type == ast_1.AstType.Export);
                             struct.import = true;
-                        if (struct)
-                            p.structs[struct.id] = struct;
+                            if (p.structs[struct.id]) {
+                                this.logError('A struct named ' + JSON.stringify(struct.id) + ' already found', c);
+                            }
+                            else {
+                                p.structs[struct.id] = struct;
+                            }
+                        }
+                        if (!nvar && !func && !struct) {
+                            this.logError('No variable, function, or struct named ' + JSON.stringify(id.token.value) + ' is exported by module ' + mod.name, c);
+                        }
                     }
                 }
                 else {
-                    let scope = new scope_1.Scope(null, mod.result.ast.scope, l.token.value);
-                    p.scopes[scope.id] = scope;
+                    let id = utils.getIdentifier(l);
+                    if (id) {
+                        let src = mod.result.ast.scope;
+                        let scope = src.clone(l, p, id.token.value);
+                        scope.import = true;
+                        p.scopes[scope.id] = scope;
+                        for (let key in src.vars) {
+                            if (src.vars[key].export)
+                                scope.vars[key] = src.vars[key].clone(null, scope, key);
+                        }
+                        for (let key in src.funcs) {
+                            if (src.funcs[key].export)
+                                scope.funcs[key] = src.funcs[key].clone(null, scope, key);
+                        }
+                        for (let key in src.structs) {
+                            if (src.structs[key].export)
+                                scope.structs[key] = src.structs[key].clone(null, scope, key);
+                        }
+                        for (let key in src.scopes) {
+                            if (src.scopes[key].export)
+                                scope.scopes[key] = src.scopes[key].clone(null, scope, key);
+                        }
+                    }
                 }
             }
             else {
                 this.logError('Could not locate module ' + JSON.stringify(l.token.value), n);
             }
             return p;
+        });
+        this.registerScope(ast_1.AstType.VariableImport, (n, p) => {
+            let id = utils.getIdentifier(n);
+            let scope = new scope_1.Scope(n, p, id ? id.token.value : n.token.value);
+            return scope;
+        });
+        this.registerScope(ast_1.AstType.FunctionImport, (n, p) => {
+            let id = utils.getIdentifier(n);
+            let scope = new scope_1.Scope(n, p, id ? id.token.value : n.token.value);
+            return scope;
+        });
+        this.registerScope(ast_1.AstType.StructImport, (n, p) => {
+            let id = utils.getIdentifier(n);
+            let scope = new scope_1.Scope(n, p, id ? id.token.value : n.token.value);
+            return scope;
         });
         this.registerHoist(ast_1.AstType.StructDef, (n, p) => {
             let l = utils.getIdentifier(n.children[0]);
@@ -492,7 +560,7 @@ class SchwaAnalyzer extends Analyzer {
             let l = n.children[0];
             if (!l)
                 return p;
-            let r = n.children[1];
+            let r = l.children[1];
             let id = utils.getIdentifier(l);
             if (!id)
                 return p;
@@ -512,7 +580,7 @@ class SchwaAnalyzer extends Analyzer {
             if (r && r.type == ast_1.AstType.Literal)
                 type += '[' + this.tryEval(r) + ']';
             let nvar = p.vars[l.token.value];
-            if (p.vars[l.token.value] && (!n.parent || (n.parent.type != ast_1.AstType.Map && n.parent.type != ast_1.AstType.Global))) {
+            if (p.vars[l.token.value] && (!n.parent || (n.parent.type != ast_1.AstType.Global && n.parent.type != ast_1.AstType.Map))) {
                 this.logError("A variable with the name " + JSON.stringify(l.token.value) + " already found", n);
             }
             else {
@@ -540,7 +608,7 @@ class SchwaAnalyzer extends Analyzer {
             return p;
         });
         this.registerScope(ast_1.AstType.Indexer, (n, p) => {
-            let l = utils.getIdentifier(n.children[0]);
+            let l = n.children[0];
             let r = n.children[1];
             if (!l || !r)
                 return p;
@@ -561,7 +629,7 @@ class SchwaAnalyzer extends Analyzer {
             return scope;
         });
         this.registerScope(ast_1.AstType.Access, (n, p) => {
-            let l = utils.getIdentifier(n.children[0]);
+            let l = n.children[0];
             let r = utils.getIdentifier(n.children[1]);
             if (!l)
                 return p;
@@ -586,7 +654,7 @@ class SchwaAnalyzer extends Analyzer {
             }
             return scope;
         });
-        this.registerScope(ast_1.AstType.Const, (n, p) => {
+        this.registerHoist(ast_1.AstType.Const, (n, p) => {
             let node = utils.getIdentifier(n.parent);
             if (node) {
                 let nvar = p.getVariable(node.token.value);
@@ -595,7 +663,7 @@ class SchwaAnalyzer extends Analyzer {
             }
             return p;
         });
-        this.registerScope(ast_1.AstType.Export, (n, p) => {
+        this.registerHoist(ast_1.AstType.Export, (n, p) => {
             let node = utils.getIdentifier(n.parent);
             if (node) {
                 let nvar = p.getVariable(node.token.value);
@@ -630,32 +698,35 @@ class SchwaAnalyzer extends Analyzer {
             return datatype_1.DataType.Invalid;
         });
         this.registerDataType(ast_1.AstType.VariableId, (n) => {
-            if (this.getScope(n)) {
-                let nvar = this.getScope(n).getVariable(n.token.value);
+            let id = utils.getIdentifier(n);
+            if (id && this.getScope(n)) {
+                let nvar = this.getScope(n).getVariable(id.token.value);
                 if (nvar)
                     return nvar.type;
                 else
-                    this.logError("No variable named " + JSON.stringify(n.token.value) + " found", n);
+                    this.logError("No variable named " + JSON.stringify(id.token.value) + " found", n);
             }
             return datatype_1.DataType.Invalid;
         });
         this.registerDataType(ast_1.AstType.FunctionId, (n) => {
-            if (this.getScope(n)) {
-                let func = this.getScope(n).getFunction(n.token.value);
+            let id = utils.getIdentifier(n);
+            if (id && this.getScope(n)) {
+                let func = this.getScope(n).getFunction(id.token.value);
                 if (func)
                     return func.type;
                 else
-                    this.logError("No function named " + JSON.stringify(n.token.value) + " found", n);
+                    this.logError("No function named " + JSON.stringify(id.token.value) + " found", n);
             }
             return datatype_1.DataType.Invalid;
         });
         this.registerDataType(ast_1.AstType.StructId, (n) => {
-            if (this.getScope(n)) {
-                let struct = this.getScope(n).getStruct(n.token.value);
+            let id = utils.getIdentifier(n);
+            if (id && this.getScope(n)) {
+                let struct = this.getScope(n).getStruct(id.token.value);
                 if (struct)
                     return struct.id;
                 else
-                    this.logError("No struct named " + JSON.stringify(n.token.value) + " found", n);
+                    this.logError("No struct named " + JSON.stringify(id.token.value) + " found", n);
             }
             return datatype_1.DataType.Invalid;
         });

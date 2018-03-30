@@ -10,7 +10,7 @@ export class LogMsg {
 	constructor(public type: LogType, public ctx: string, public msg: string, public path: string, public row: number, public column: number, public length: number = 0) { }
 
 	toString() {
-		return "[" + this.ctx + "] " + LogType[this.type] + ": " + this.msg + " at " + this.path + "(" + (this.row + 1) + "," + (this.column + 1) + (this.length > 0 ? "-" + (this.column + 1 + this.length) : "") + ")"
+		return "[" + this.ctx + "] " + LogType[this.type] + ": " + this.msg + " at " + this.path + "(" + (this.row + 1) + "," + (this.column + 1)/* + (this.length > 0 ? "-" + (this.column + 1 + this.length) : "")*/ + ")"
 	}
 }
 

@@ -55,9 +55,23 @@ export class SchwaFormatter extends Formatter {
 		this.register(AstType.VariableDef, (n) => {
 			let l = n.children[0]
 			let r = n.children[1]
-			let out = n.token.value
+			let out = ''
+			out += n.token.value
 			if (l) out += ' ' + this.printNode(l)
-			if (r) out += '[' + this.printNode(r) + ']'
+			if (r && r.type == AstType.Literal) out += '[' + this.printNode(r) + ']'
+			if (l && l.children.length > 0) out += ' as ' + this.printNode(l.children[0])
+			return out
+		})
+		this.register(AstType.VariableImport, (n) => {
+			let l = n.children[0]
+			let r = n.children[1]
+			let out = ''
+			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
+			if (n.children.find(c => c != null && c.type == AstType.Export)) out += 'export '
+			out += n.token.value
+			if (l) out += ' ' + this.printNode(l)
+			if (r && r.type == AstType.Literal) out += '[' + this.printNode(r) + ']'
+			if (l && l.children.length > 0) out += ' as ' + this.printNode(l.children[0])
 			return out
 		})
 		this.register(AstType.FunctionDef, (n) => {
@@ -74,6 +88,24 @@ export class SchwaFormatter extends Formatter {
 			if (c0) out += this.printNode(c0)
 			if (c1) out += this.printNode(c1)
 			if (c2) out += this.printNode(c2)
+			if (c0 && c0.children.length > 0) out += ' as ' + this.printNode(c0.children[0])
+			return out
+		})
+		this.register(AstType.FunctionImport, (n) => {
+			let c0 = n.children[0]
+			let c1 = n.children[1]
+			let c2 = n.children[2]
+			let out = ''
+			if (n.children.length > 3) {
+				out += n.children.slice(3).reverse().map((c) => this.printNode(c)).join(' ')
+				out += ' '
+			}
+			out += n.token.value
+			if (c0 || c1 || c2) out += ' '
+			if (c0) out += this.printNode(c0)
+			if (c1) out += this.printNode(c1)
+			if (c2) out += this.printNode(c2)
+			if (c0 && c0.children.length > 0) out += ' as ' + this.printNode(c0.children[0])
 			return out
 		})
 		this.register(AstType.StructDef, (n) => {
@@ -87,7 +119,25 @@ export class SchwaFormatter extends Formatter {
 			out += n.token.value
 			if (c0 || c1) out += ' '
 			if (c0) out += this.printNode(c0)
+			if (c0 && c0.children.length > 0) out += ' as ' + this.printNode(c0.children[0])
 			if (c1) out += this.printNode(c1)
+			return out
+		})
+		this.register(AstType.StructImport, (n) => {
+			let c0 = n.children[0]
+			let c1 = n.children[1]
+			let c2 = n.children[2]
+			let out = ''
+			if (n.children.length > 3) {
+				out += n.children.slice(3).reverse().map((c) => this.printNode(c)).join(' ')
+				out += ' '
+			}
+			out += n.token.value
+			if (c0 || c1 || c2) out += ' '
+			if (c0) out += this.printNode(c0)
+			if (c0 && c0.children.length > 0) out += ' as ' + this.printNode(c0.children[0])
+			if (c1) out += this.printNode(c1)
+			if (c2) out += this.printNode(c2)
 			return out
 		})
 		this.register(AstType.Fields, (n) => {
@@ -177,6 +227,41 @@ export class SchwaFormatter extends Formatter {
 			if (l) out += ' ' + this.printNode(l)
 			out += ' at '
 			if (r) out += this.printNode(r)
+			return out
+		})
+		this.register(AstType.Import, (n) => {
+			let l = n.children[0]
+			let r = n.children[1]
+			let out = ''
+			if (l && r) out += 'from ' + this.printNode(l) + ' import'
+			else if (l) out += 'import ' + this.printNode(l)
+			else out += 'import'
+			if (r && r.type != AstType.Imports) out += ' '
+			if (r) out += this.printNode(r)
+			return out
+		})
+		this.register(AstType.Imports, (n) => {
+			let out = '\n'
+			for (let i = 0; i < n.children.length; i++) {
+				let c = n.children[i]
+				if (!c) continue
+				if (c.token.type == TokenType.InlineComment && i + 1 < n.children.length) {
+					let cn = n.children[i + 1]
+					if (cn) {
+						let lines = ('\t'.repeat(this.getDepth(cn)) + this.printNode(cn)).split('\n')
+						out += lines[0]
+						out += this.printNode(c)
+						if (lines.length > 1) out += '\n'
+						if (lines.length > 0) out += lines.slice(1).join('\n')
+					}
+					i++
+				} else if (c.token.type == TokenType.Comment) {
+					out += this.printNode(c)
+				} else {
+					out += '\t'.repeat(this.getDepth(c)) + this.printNode(c)
+				}
+				if (i != n.children.length - 1) out += '\n'
+			}
 			return out
 		})
 		this.register(AstType.If, (n) => {
@@ -311,7 +396,9 @@ export class SchwaFormatter extends Formatter {
 
 	protected getDepth(node: AstNode): number {
 		if (!node.parent) return 0
-		if (node.parent.type == AstType.Block || node.parent.type == AstType.Fields) return this.getDepth(node.parent) + 1
+		if (node.parent.type == AstType.Block ||
+			node.parent.type == AstType.Fields ||
+			node.parent.type == AstType.Imports) return this.getDepth(node.parent) + 1
 		else return this.getDepth(node.parent)
 	}
 }

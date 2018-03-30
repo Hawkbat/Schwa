@@ -23,6 +23,18 @@ export class Variable {
 		return path
 	}
 
+	clone(node?: AstNode | null, scope?: Scope, id?: string): Variable {
+		let nvar = new Variable(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.type)
+		nvar.global = this.global
+		nvar.const = this.const
+		nvar.export = this.export
+		nvar.import = this.import
+		nvar.mapped = this.mapped
+		nvar.offset = this.offset
+		nvar.size = this.size
+		return nvar
+	}
+
 	toString() {
 		let out = ''
 		if (this.import) out += 'import '
@@ -50,8 +62,16 @@ export class Function {
 		return path
 	}
 
+	clone(node?: AstNode | null, scope?: Scope, id?: string): Function {
+		let func = new Function(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.type, this.params.map(v => v.clone()))
+		func.import = this.import
+		func.export = this.export
+		return func
+	}
+
 	toString() {
 		let out = ''
+		if (this.import) out += 'import '
 		if (this.export) out += 'export '
 		out += this.type + ' ' + this.id + '(' + this.params.join(', ') + ')'
 		return out
@@ -74,8 +94,16 @@ export class Struct {
 		return path
 	}
 
+	clone(node?: AstNode | null, scope?: Scope, id?: string): Struct {
+		let struct = new Struct(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.fields.map(v => v.clone()))
+		struct.import = this.import
+		struct.export = this.export
+		return struct
+	}
+
 	toString() {
 		let out = ''
+		if (this.import) out += 'import '
 		if (this.export) out += 'export '
 		out += 'struct ' + this.id + '(' + this.fields.join(', ') + ')'
 		return out
@@ -83,6 +111,9 @@ export class Struct {
 }
 
 export class Scope {
+	import: boolean = false
+	export: boolean = false
+
 	scopes: { [key: string]: Scope } = {}
 	vars: { [key: string]: Variable } = {}
 	funcs: { [key: string]: Function } = {}
@@ -123,6 +154,13 @@ export class Scope {
 		return path
 	}
 
+	clone(node?: AstNode | null, parent?: Scope | null, id?: string): Scope {
+		let scope = new Scope(node !== undefined ? node : this.node, parent !== undefined ? parent : this.parent, id !== undefined ? id : this.id)
+		scope.import = this.import
+		scope.export = this.export
+		return scope
+	}
+
 	toString() {
 		return this.print(0, false)
 	}
@@ -131,12 +169,17 @@ export class Scope {
 		let indent = '\t'.repeat(depth)
 		let out = ''
 		if (!skipLabel) {
+			out += indent
+			
+			if (this.import) out += 'import '
+			if (this.export) out += 'export '
+
 			let type = 'scope'
 			if (!this.parent) type = 'root'
 			else if (!this.parent.parent && !this.id) type = 'program'
 			else if (!this.id) type = 'block'
 			else if (this.id) type = 'scope ' + this.id
-			out += indent + type + '\n'
+			out += type + '\n'
 		}
 		for (let key in this.vars) {
 			out += indent + '\t' + this.vars[key] + '\n'

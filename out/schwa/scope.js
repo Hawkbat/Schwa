@@ -28,6 +28,17 @@ class Variable {
         }
         return path;
     }
+    clone(node, scope, id) {
+        let nvar = new Variable(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.type);
+        nvar.global = this.global;
+        nvar.const = this.const;
+        nvar.export = this.export;
+        nvar.import = this.import;
+        nvar.mapped = this.mapped;
+        nvar.offset = this.offset;
+        nvar.size = this.size;
+        return nvar;
+    }
     toString() {
         let out = '';
         if (this.import)
@@ -63,8 +74,16 @@ class Function {
         }
         return path;
     }
+    clone(node, scope, id) {
+        let func = new Function(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.type, this.params.map(v => v.clone()));
+        func.import = this.import;
+        func.export = this.export;
+        return func;
+    }
     toString() {
         let out = '';
+        if (this.import)
+            out += 'import ';
         if (this.export)
             out += 'export ';
         out += this.type + ' ' + this.id + '(' + this.params.join(', ') + ')';
@@ -91,8 +110,16 @@ class Struct {
         }
         return path;
     }
+    clone(node, scope, id) {
+        let struct = new Struct(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.fields.map(v => v.clone()));
+        struct.import = this.import;
+        struct.export = this.export;
+        return struct;
+    }
     toString() {
         let out = '';
+        if (this.import)
+            out += 'import ';
         if (this.export)
             out += 'export ';
         out += 'struct ' + this.id + '(' + this.fields.join(', ') + ')';
@@ -105,6 +132,8 @@ class Scope {
         this.node = node;
         this.parent = parent;
         this.id = id;
+        this.import = false;
+        this.export = false;
         this.scopes = {};
         this.vars = {};
         this.funcs = {};
@@ -148,6 +177,12 @@ class Scope {
         }
         return path;
     }
+    clone(node, parent, id) {
+        let scope = new Scope(node !== undefined ? node : this.node, parent !== undefined ? parent : this.parent, id !== undefined ? id : this.id);
+        scope.import = this.import;
+        scope.export = this.export;
+        return scope;
+    }
     toString() {
         return this.print(0, false);
     }
@@ -155,6 +190,11 @@ class Scope {
         let indent = '\t'.repeat(depth);
         let out = '';
         if (!skipLabel) {
+            out += indent;
+            if (this.import)
+                out += 'import ';
+            if (this.export)
+                out += 'export ';
             let type = 'scope';
             if (!this.parent)
                 type = 'root';
@@ -164,7 +204,7 @@ class Scope {
                 type = 'block';
             else if (this.id)
                 type = 'scope ' + this.id;
-            out += indent + type + '\n';
+            out += type + '\n';
         }
         for (let key in this.vars) {
             out += indent + '\t' + this.vars[key] + '\n';

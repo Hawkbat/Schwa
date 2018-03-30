@@ -2,8 +2,9 @@ from math import
 	const float PI as MATH_PI
 	float addPi(float n) as mathAddPi
 	struct Pi as MathPi
-
-from math import
-	TAU
-
+		float value
+from math import TAU
 import math as mathLib
+
+float CalculatePi()
+	return TAU / 2f

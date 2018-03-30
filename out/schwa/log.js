@@ -18,7 +18,7 @@ class LogMsg {
         this.length = length;
     }
     toString() {
-        return "[" + this.ctx + "] " + LogType[this.type] + ": " + this.msg + " at " + this.path + "(" + (this.row + 1) + "," + (this.column + 1) + (this.length > 0 ? "-" + (this.column + 1 + this.length) : "") + ")";
+        return "[" + this.ctx + "] " + LogType[this.type] + ": " + this.msg + " at " + this.path + "(" + (this.row + 1) + "," + (this.column + 1) /* + (this.length > 0 ? "-" + (this.column + 1 + this.length) : "")*/ + ")";
     }
 }
 exports.LogMsg = LogMsg;

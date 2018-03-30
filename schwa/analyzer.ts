@@ -57,6 +57,12 @@ export class Analyzer {
 		node.scope = this.hoistScope(node)
 		for (let child of node.children) {
 			if (!child) continue
+			if (child.type == AstType.Export || child.type == AstType.Const) {
+				this.hoistPass(child)
+			}
+		}
+		for (let child of node.children) {
+			if (!child) continue
 			if (child.type == AstType.StructDef) {
 				this.hoistPass(child)
 			}
@@ -365,7 +371,7 @@ export class SchwaAnalyzer extends Analyzer {
 		this.registerBuiltinFunc('double.min', DataType.Double, [DataType.Double, DataType.Double], ["a", "b"])
 		this.registerBuiltinFunc('double.max', DataType.Double, [DataType.Double, DataType.Double], ["a", "b"])
 
-		this.registerScope(AstType.Program, (n, p) => {
+		this.registerHoist(AstType.Program, (n, p) => {
 			let scope = new Scope(n, p, '')
 			p.scopes[scope.id] = scope
 			return scope
@@ -386,26 +392,93 @@ export class SchwaAnalyzer extends Analyzer {
 					let children = (r.type == AstType.Imports) ? r.children : [r]
 					for (let c of children) {
 						if (!c) continue
-						let id = utils.getIdentifier(c)
+						let id = (c.type == AstType.UnknownImport) ? c : c.children[0]
+						let aliasId = utils.getIdentifier(c)
 						if (!id) continue
+						
 						let nvar = mod.result.ast.scope.getVariable(id.token.value)
-						if (nvar) nvar.import = true
-						if (nvar) p.vars[nvar.id] = nvar
+						if (nvar && nvar.export) {
+							nvar = nvar.clone(c, p, aliasId ? aliasId.token.value : id.token.value)
+							nvar.export = c.children.some(v => !!v && v.type == AstType.Export)
+							nvar.import = true
+							
+							if (p.vars[nvar.id]) {
+								this.logError('A variable named ' + JSON.stringify(nvar.id) + ' already found', c)
+							}else{
+								p.vars[nvar.id] = nvar
+							}
+						}
+						
 						let func = mod.result.ast.scope.getFunction(id.token.value)
-						if (func) func.import = true
-						if (func) p.funcs[func.id] = func
+						if (func && func.export) {
+							func = func.clone(c, p, aliasId ? aliasId.token.value : id.token.value)
+							func.export = c.children.some(v => !!v && v.type == AstType.Export)
+							func.import = true
+							
+							if (p.funcs[func.id]) {
+								this.logError('A function named ' + JSON.stringify(func.id) + ' already found', c)
+							} else {
+								p.funcs[func.id] = func
+							}
+						}
+
 						let struct = mod.result.ast.scope.getStruct(id.token.value)
-						if (struct) struct.import = true
-						if (struct) p.structs[struct.id] = struct
+						if (struct && struct.export) {
+							struct = struct.clone(c, p, aliasId ? aliasId.token.value : id.token.value)
+							struct.export = c.children.some(v => !!v && v.type == AstType.Export)
+							struct.import = true
+							
+							if (p.structs[struct.id]) {
+								this.logError('A struct named ' + JSON.stringify(struct.id) + ' already found', c)
+							} else {
+								p.structs[struct.id] = struct
+							}
+						}
+
+						if (!nvar && !func && !struct) {
+							this.logError('No variable, function, or struct named ' + JSON.stringify(id.token.value) + ' is exported by module ' + mod.name, c)
+						}
 					}
 				} else {
-					let scope = new Scope(null, mod.result.ast.scope, l.token.value)
-					p.scopes[scope.id] = scope
+					let id = utils.getIdentifier(l)
+					if (id) {
+						let src = mod.result.ast.scope
+						let scope = src.clone(l, p, id.token.value)
+						scope.import = true
+						p.scopes[scope.id] = scope
+						for (let key in src.vars) {
+							if (src.vars[key].export) scope.vars[key] = src.vars[key].clone(null, scope, key)
+						}
+						for (let key in src.funcs) {
+							if (src.funcs[key].export) scope.funcs[key] = src.funcs[key].clone(null, scope, key)
+						}
+						for (let key in src.structs) {
+							if (src.structs[key].export) scope.structs[key] = src.structs[key].clone(null, scope, key)
+						}
+						for (let key in src.scopes) {
+							if (src.scopes[key].export) scope.scopes[key] = src.scopes[key].clone(null, scope, key)
+						}
+					}
 				}
 			} else {
 				this.logError('Could not locate module ' + JSON.stringify(l.token.value), n)
 			}
 			return p
+		})
+		this.registerScope(AstType.VariableImport, (n, p) => {
+			let id = utils.getIdentifier(n)
+			let scope = new Scope(n, p, id ? id.token.value : n.token.value)
+			return scope
+		})
+		this.registerScope(AstType.FunctionImport, (n, p) => {
+			let id = utils.getIdentifier(n)
+			let scope = new Scope(n, p, id ? id.token.value : n.token.value)
+			return scope
+		})
+		this.registerScope(AstType.StructImport, (n, p) => {
+			let id = utils.getIdentifier(n)
+			let scope = new Scope(n, p, id ? id.token.value : n.token.value)
+			return scope
 		})
 		this.registerHoist(AstType.StructDef, (n, p) => {
 			let l = utils.getIdentifier(n.children[0])
@@ -477,7 +550,7 @@ export class SchwaAnalyzer extends Analyzer {
 		this.registerHoist(AstType.Map, (n, p) => {
 			let l = n.children[0]
 			if (!l) return p
-			let r = n.children[1]
+			let r = l.children[1]
 			let id = utils.getIdentifier(l)
 			if (!id) return p
 			let type = l.token.value
@@ -493,7 +566,7 @@ export class SchwaAnalyzer extends Analyzer {
 			let type = n.token.value
 			if (r && r.type == AstType.Literal) type += '[' + this.tryEval(r) + ']'
 			let nvar = p.vars[l.token.value]
-			if (p.vars[l.token.value] && (!n.parent || (n.parent.type != AstType.Map && n.parent.type != AstType.Global))) {
+			if (p.vars[l.token.value] && (!n.parent || (n.parent.type != AstType.Global && n.parent.type != AstType.Map))) {
 				this.logError("A variable with the name " + JSON.stringify(l.token.value) + " already found", n)
 			} else {
 				if (!nvar) nvar = new Variable(n, p, l.token.value, type)
@@ -518,7 +591,7 @@ export class SchwaAnalyzer extends Analyzer {
 			return p
 		})
 		this.registerScope(AstType.Indexer, (n, p) => {
-			let l = utils.getIdentifier(n.children[0])
+			let l = n.children[0]
 			let r = n.children[1]
 			if (!l || !r) return p
 			let scope: Scope | null = p
@@ -536,10 +609,11 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerScope(AstType.Access, (n, p) => {
-			let l = utils.getIdentifier(n.children[0])
+			let l = n.children[0]
 			let r = utils.getIdentifier(n.children[1])
 			if (!l) return p
 			let scope: Scope | null = p
+			
 			if (l.type == AstType.VariableId || l.type == AstType.Type) {
 				scope = p.getScope(l.token.value)
 			} else {
@@ -558,7 +632,7 @@ export class SchwaAnalyzer extends Analyzer {
 			}
 			return scope
 		})
-		this.registerScope(AstType.Const, (n, p) => {
+		this.registerHoist(AstType.Const, (n, p) => {
 			let node: AstNode | undefined | null = utils.getIdentifier(n.parent)
 			if (node) {
 				let nvar = p.getVariable(node.token.value)
@@ -566,7 +640,7 @@ export class SchwaAnalyzer extends Analyzer {
 			}
 			return p
 		})
-		this.registerScope(AstType.Export, (n, p) => {
+		this.registerHoist(AstType.Export, (n, p) => {
 			let node: AstNode | undefined | null = utils.getIdentifier(n.parent)
 			if (node) {
 				let nvar = p.getVariable(node.token.value)
@@ -598,26 +672,29 @@ export class SchwaAnalyzer extends Analyzer {
 			return DataType.Invalid
 		})
 		this.registerDataType(AstType.VariableId, (n) => {
-			if (this.getScope(n)) {
-				let nvar = this.getScope(n).getVariable(n.token.value)
+			let id = utils.getIdentifier(n)
+			if (id && this.getScope(n)) {
+				let nvar = this.getScope(n).getVariable(id.token.value)
 				if (nvar) return nvar.type
-				else this.logError("No variable named " + JSON.stringify(n.token.value) + " found", n)
+				else this.logError("No variable named " + JSON.stringify(id.token.value) + " found", n)
 			}
 			return DataType.Invalid
 		})
 		this.registerDataType(AstType.FunctionId, (n) => {
-			if (this.getScope(n)) {
-				let func = this.getScope(n).getFunction(n.token.value)
+			let id = utils.getIdentifier(n)
+			if (id && this.getScope(n)) {
+				let func = this.getScope(n).getFunction(id.token.value)
 				if (func) return func.type
-				else this.logError("No function named " + JSON.stringify(n.token.value) + " found", n)
+				else this.logError("No function named " + JSON.stringify(id.token.value) + " found", n)
 			}
 			return DataType.Invalid
 		})
 		this.registerDataType(AstType.StructId, (n) => {
-			if (this.getScope(n)) {
-				let struct = this.getScope(n).getStruct(n.token.value)
+			let id = utils.getIdentifier(n)
+			if (id && this.getScope(n)) {
+				let struct = this.getScope(n).getStruct(id.token.value)
 				if (struct) return struct.id
-				else this.logError("No struct named " + JSON.stringify(n.token.value) + " found", n)
+				else this.logError("No struct named " + JSON.stringify(id.token.value) + " found", n)
 			}
 			return DataType.Invalid
 		})

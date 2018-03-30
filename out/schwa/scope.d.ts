@@ -13,6 +13,7 @@ export declare class Variable {
     size: number;
     constructor(node: AstNode | null, scope: Scope, id: string, type: string);
     getPath(untilNode?: boolean): string;
+    clone(node?: AstNode | null, scope?: Scope, id?: string): Variable;
     toString(): string;
 }
 export declare class Function {
@@ -25,6 +26,7 @@ export declare class Function {
     export: boolean;
     constructor(node: AstNode | null, scope: Scope, id: string, type: string, params: Variable[]);
     getPath(): string;
+    clone(node?: AstNode | null, scope?: Scope, id?: string): Function;
     toString(): string;
 }
 export declare class Struct {
@@ -36,12 +38,15 @@ export declare class Struct {
     export: boolean;
     constructor(node: AstNode | null, scope: Scope, id: string, fields: Variable[]);
     getPath(): string;
+    clone(node?: AstNode | null, scope?: Scope, id?: string): Struct;
     toString(): string;
 }
 export declare class Scope {
     node: AstNode | null;
     parent: Scope | null;
     id: string;
+    import: boolean;
+    export: boolean;
     scopes: {
         [key: string]: Scope;
     };
@@ -60,6 +65,7 @@ export declare class Scope {
     getFunction(id: string): Function | null;
     getStruct(id: string): Struct | null;
     getPath(): string;
+    clone(node?: AstNode | null, parent?: Scope | null, id?: string): Scope;
     toString(): string;
     print(depth: number, skipLabel: boolean): string;
 }

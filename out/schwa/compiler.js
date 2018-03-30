@@ -74,8 +74,8 @@ class Compiler {
             console.time("output");
             if (mod.result.ast)
                 console.log(mod.result.ast.toString().replace(/\t/g, '\ \ \ \ '));
-            if (mod.result.ast && mod.result.ast.scope && mod.result.ast.scope.parent)
-                console.log(mod.result.ast.scope.parent.toString().replace(/\t/g, '\ \ \ \ '));
+            if (mod.result.ast && mod.result.ast.scope)
+                console.log(mod.result.ast.scope.toString().replace(/\t/g, '\ \ \ \ '));
             if (mod.result.formatted)
                 console.log(mod.result.formatted.replace(/\t/g, '\ \ \ \ '));
             console.timeEnd("output");
@@ -153,7 +153,7 @@ class Module {
         if (lines)
             this.lines = lines;
         else
-            this.lines = fs.readFileSync(dir, 'utf8').split(/\r?\n/g);
+            this.lines = fs.readFileSync(path.join(dir, name + '.schwa'), 'utf8').split(/\r?\n/g);
         this.result = { success: false };
     }
 }
