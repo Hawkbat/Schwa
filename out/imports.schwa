@@ -6,5 +6,6 @@ from math import
 from math import TAU
 import math as mathLib
 
-float CalculatePi()
-	return TAU / 2f
+float CalculatePi(MathPi pi)
+	mathLib.MAPPED_GLOBAL = TAU / pi.value * MATH_PI
+	return mathLib.MAPPED_GLOBAL

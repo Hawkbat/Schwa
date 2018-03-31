@@ -52,7 +52,6 @@ function run(srcPath, dstPath, debug) {
         let filenames = fs.readdirSync(srcPath).filter(f => f.endsWith('.schwa')).map(f => path.basename(f, path.extname(f)));
         let mods = filenames.map(f => new schwa_1.Module(f, srcPath));
         if (mods.length == 0) {
-            console.log(filenames);
             console.log('No source files found in "' + path.resolve(srcPath) + '".');
             process.exitCode = 1;
             return;

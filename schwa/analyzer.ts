@@ -177,6 +177,7 @@ export class Analyzer {
 		for (let field of struct.fields) {
 			let nvar = new Variable(null, scope, field.id, field.type)
 			scope.vars[nvar.id] = nvar
+			nvar.import = v.import
 			nvar.const = v.const
 			nvar.export = v.export
 			nvar.mapped = v.mapped
@@ -197,6 +198,7 @@ export class Analyzer {
 		for (let i = 0; i < length; i++) {
 			let nvar = new Variable(null, scope, '' + i, baseType)
 			scope.vars[nvar.id] = nvar
+			nvar.import = v.import
 			nvar.const = v.const
 			nvar.export = v.export
 			nvar.mapped = v.mapped
@@ -285,7 +287,7 @@ export class Analyzer {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Analyzer", msg, this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, "Analyzer", msg, utils.getModulePath(this.mod), node.token.row, node.token.column, node.token.value.length))
 	}
 }
 
@@ -395,30 +397,38 @@ export class SchwaAnalyzer extends Analyzer {
 						let id = (c.type == AstType.UnknownImport) ? c : c.children[0]
 						let aliasId = utils.getIdentifier(c)
 						if (!id) continue
-						
+
 						let nvar = mod.result.ast.scope.getVariable(id.token.value)
 						if (nvar && nvar.export) {
 							nvar = nvar.clone(c, p, aliasId ? aliasId.token.value : id.token.value)
 							nvar.export = c.children.some(v => !!v && v.type == AstType.Export)
-							nvar.import = true
-							
+							nvar.import = mod.name
+
 							if (p.vars[nvar.id]) {
 								this.logError('A variable named ' + JSON.stringify(nvar.id) + ' already found', c)
-							}else{
+							} else {
 								p.vars[nvar.id] = nvar
+								if (aliasId != id) {
+									nvar.alias = nvar.id
+									nvar.id = id.token.value
+								}
 							}
 						}
-						
+
 						let func = mod.result.ast.scope.getFunction(id.token.value)
 						if (func && func.export) {
 							func = func.clone(c, p, aliasId ? aliasId.token.value : id.token.value)
 							func.export = c.children.some(v => !!v && v.type == AstType.Export)
-							func.import = true
-							
+							func.import = mod.name
+
 							if (p.funcs[func.id]) {
 								this.logError('A function named ' + JSON.stringify(func.id) + ' already found', c)
 							} else {
 								p.funcs[func.id] = func
+								if (aliasId != id) {
+									func.alias = func.id
+									func.id = id.token.value
+								}
 							}
 						}
 
@@ -426,12 +436,16 @@ export class SchwaAnalyzer extends Analyzer {
 						if (struct && struct.export) {
 							struct = struct.clone(c, p, aliasId ? aliasId.token.value : id.token.value)
 							struct.export = c.children.some(v => !!v && v.type == AstType.Export)
-							struct.import = true
-							
+							struct.import = mod.name
+
 							if (p.structs[struct.id]) {
 								this.logError('A struct named ' + JSON.stringify(struct.id) + ' already found', c)
 							} else {
 								p.structs[struct.id] = struct
+								if (aliasId != id) {
+									struct.alias = struct.id
+									struct.id = id.token.value
+								}
 							}
 						}
 
@@ -440,24 +454,41 @@ export class SchwaAnalyzer extends Analyzer {
 						}
 					}
 				} else {
-					let id = utils.getIdentifier(l)
+					let id = l
+					let aliasId = utils.getIdentifier(l)
 					if (id) {
 						let src = mod.result.ast.scope
-						let scope = src.clone(l, p, id.token.value)
-						scope.import = true
+						let scope = src.clone(l, p, aliasId ? aliasId.token.value : id.token.value)
+						scope.import = mod.name
 						p.scopes[scope.id] = scope
+
 						for (let key in src.vars) {
-							if (src.vars[key].export) scope.vars[key] = src.vars[key].clone(null, scope, key)
+							if (src.vars[key].export) {
+								scope.vars[key] = src.vars[key].clone(null, scope, key)
+								scope.vars[key].import = mod.name
+								scope.vars[key].export = false
+							}
 						}
 						for (let key in src.funcs) {
-							if (src.funcs[key].export) scope.funcs[key] = src.funcs[key].clone(null, scope, key)
+							if (src.funcs[key].export) {
+								scope.funcs[key] = src.funcs[key].clone(null, scope, key)
+								scope.funcs[key].import = mod.name
+								scope.funcs[key].export = false
+							}
 						}
 						for (let key in src.structs) {
-							if (src.structs[key].export) scope.structs[key] = src.structs[key].clone(null, scope, key)
+							if (src.structs[key].export) {
+								scope.structs[key] = src.structs[key].clone(null, scope, key)
+								scope.structs[key].import = mod.name
+								scope.structs[key].export = false
+							}
 						}
-						for (let key in src.scopes) {
-							if (src.scopes[key].export) scope.scopes[key] = src.scopes[key].clone(null, scope, key)
+
+						if (aliasId != id) {
+							scope.alias = scope.id
+							scope.id = id.token.value
 						}
+						// To-do: nested scopes (i.e. namespaces)
 					}
 				}
 			} else {
@@ -481,10 +512,11 @@ export class SchwaAnalyzer extends Analyzer {
 			return scope
 		})
 		this.registerHoist(AstType.StructDef, (n, p) => {
-			let l = utils.getIdentifier(n.children[0])
+			let l = n.children[0]
+			let id = utils.getIdentifier(l)
 			let r = n.children[1]
-			if (!l || !r) return p
-			let scope = new Scope(n, p, l.token.value)
+			if (!id || !l || !r) return p
+			let scope = new Scope(n, p, id.token.value)
 			let fields: Variable[] = []
 			let fieldNodes = r.children
 			for (let i = 0; i < r.children.length; i++) {
@@ -497,20 +529,27 @@ export class SchwaAnalyzer extends Analyzer {
 				if (fr && fr.type == AstType.Literal) fieldType += '[' + this.tryEval(fr) + ']'
 				fields.push(new Variable(fieldNode, scope, fl.token.value, fieldType))
 			}
-			let struct = new Struct(n, scope, l.token.value, fields)
+			let struct = new Struct(n, scope, id.token.value, fields)
 			if (p.structs[struct.id]) {
 				this.logError("A struct with the name " + JSON.stringify(struct.id) + " already found", n)
 			} else {
 				p.structs[struct.id] = struct
 				p.scopes[scope.id] = scope
+				if (id != l) {
+					struct.alias = struct.id
+					scope.alias = scope.id
+					struct.id = l.token.value
+					scope.id = l.token.value
+				}
 			}
 			return scope
 		})
 		this.registerHoist(AstType.FunctionDef, (n, p) => {
-			let l = utils.getIdentifier(n.children[0])
+			let l = n.children[0]
+			let id = utils.getIdentifier(l)
 			let r = n.children[1]
-			if (!l || !r) return p
-			let scope = new Scope(n, p, l.token.value)
+			if (!id || !l || !r) return p
+			let scope = new Scope(n, p, id.token.value)
 			let params: Variable[] = []
 			for (let i = 0; i < r.children.length; i++) {
 				let paramNode = r.children[i]
@@ -526,12 +565,18 @@ export class SchwaAnalyzer extends Analyzer {
 				}
 				params.push(new Variable(paramNode, scope, pl.token.value, paramType))
 			}
-			let func = new Function(n, scope, l.token.value, n.token.value, params)
+			let func = new Function(n, scope, id.token.value, n.token.value, params)
 			if (p.funcs[func.id]) {
 				this.logError("A function with the name " + JSON.stringify(func.id) + " already found", n)
 			} else {
 				p.funcs[func.id] = func
 				p.scopes[scope.id] = scope
+				if (id != l) {
+					func.alias = func.id
+					scope.alias = scope.id
+					func.id = l.token.value
+					scope.id = l.token.value
+				}
 			}
 			return scope
 		})
@@ -544,6 +589,7 @@ export class SchwaAnalyzer extends Analyzer {
 			let type = l.token.value
 			if (r && r.type == AstType.Literal) type += '[' + this.tryEval(r) + ']'
 			let nvar = new Variable(l, p, id.token.value, type)
+			nvar.global = true
 			p.vars[nvar.id] = nvar
 			return p
 		})
@@ -556,21 +602,30 @@ export class SchwaAnalyzer extends Analyzer {
 			let type = l.token.value
 			if (r && r.type == AstType.Literal) type += '[' + this.tryEval(r) + ']'
 			let nvar = new Variable(n, p, id.token.value, type)
+			nvar.global = true
+			nvar.mapped = true
+			let pr = n.children[1]
+			if (pr) nvar.offset = this.tryEval(pr)
 			p.vars[nvar.id] = nvar
 			return p
 		})
 		this.registerScope(AstType.VariableDef, (n, p) => {
-			let l = utils.getIdentifier(n.children[0])
+			let l = n.children[0]
+			let id = utils.getIdentifier(l)
 			let r = n.children[1]
-			if (!l) return p
+			if (!l || !id) return p
 			let type = n.token.value
 			if (r && r.type == AstType.Literal) type += '[' + this.tryEval(r) + ']'
-			let nvar = p.vars[l.token.value]
-			if (p.vars[l.token.value] && (!n.parent || (n.parent.type != AstType.Global && n.parent.type != AstType.Map))) {
-				this.logError("A variable with the name " + JSON.stringify(l.token.value) + " already found", n)
+			let nvar = p.vars[id.token.value]
+			if (p.vars[id.token.value] && (!n.parent || (n.parent.type != AstType.Global && n.parent.type != AstType.Map))) {
+				this.logError("A variable with the name " + JSON.stringify(id.token.value) + " already found", n)
 			} else {
-				if (!nvar) nvar = new Variable(n, p, l.token.value, type)
+				if (!nvar) nvar = new Variable(n, p, id.token.value, type)
 				p.vars[nvar.id] = nvar
+				if (id != l) {
+					nvar.alias = nvar.id
+					nvar.id = l.token.value
+				}
 				nvar.size = this.getSize(nvar.type, p)
 
 				let pn = n.parent
@@ -613,8 +668,9 @@ export class SchwaAnalyzer extends Analyzer {
 			let r = utils.getIdentifier(n.children[1])
 			if (!l) return p
 			let scope: Scope | null = p
-			
-			if (l.type == AstType.VariableId || l.type == AstType.Type) {
+
+			if (l.type == AstType.VariableId || l.type == AstType.ScopeId) {
+				l.type = AstType.ScopeId
 				scope = p.getScope(l.token.value)
 			} else {
 				scope = this.getScope(l, p)

@@ -15,6 +15,7 @@ export declare class Generator {
     protected funcTypeToTypeIndex: {
         [key: string]: number;
     };
+    protected varIndex: number;
     protected varPathToIndex: {
         [key: string]: number;
     };
@@ -24,6 +25,7 @@ export declare class Generator {
     };
     protected funcBodies: WASM.FunctionBody[];
     protected startFuncIndex: number;
+    protected imports: WASM.ImportEntry[];
     protected globals: WASM.GlobalEntry[];
     protected exports: WASM.ExportEntry[];
     protected funcNames: WASM.Naming[];
@@ -34,6 +36,8 @@ export declare class Generator {
     protected register(type: AstType, rule: GenerateRule): void;
     protected gen(w: Writer, node: AstNode): void;
     private getModule(name);
+    private addFunctionImport(func);
+    private addGlobalImport(global);
     private addFunction(func);
     private addFunctionBody(func);
     private addLocals(locals, localNamings, node, index);

@@ -20,11 +20,13 @@ export class Generator {
 	protected funcTypes: WASM.FunctionType[] = []
 	protected funcTypeIndices: number[] = []
 	protected funcTypeToTypeIndex: { [key: string]: number } = {}
+	protected varIndex: number = 0
 	protected varPathToIndex: { [key: string]: number } = {}
 	protected funcIndex: number = 0
 	protected funcPathToIndex: { [key: string]: number } = {}
 	protected funcBodies: WASM.FunctionBody[] = []
 	protected startFuncIndex: number = -1
+	protected imports: WASM.ImportEntry[] = []
 	protected globals: WASM.GlobalEntry[] = []
 	protected exports: WASM.ExportEntry[] = []
 	protected funcNames: WASM.Naming[] = []
@@ -39,11 +41,13 @@ export class Generator {
 		this.funcTypes = []
 		this.funcTypeIndices = []
 		this.funcTypeToTypeIndex = {}
+		this.varIndex = 0
 		this.varPathToIndex = {}
 		this.funcIndex = 0
 		this.funcPathToIndex = {}
 		this.funcBodies = []
 		this.startFuncIndex = -1
+		this.imports = []
 		this.globals = []
 		this.exports = []
 		this.funcNames = []
@@ -70,10 +74,15 @@ export class Generator {
 
 	private getModule(name: string): WASM.Module {
 		if (this.ast && this.ast.scope) {
+			for (let id in this.ast.scope.funcs) this.addFunctionImport(this.ast.scope.funcs[id])
+			for (let id in this.ast.scope.vars) this.addGlobalImport(this.ast.scope.vars[id])
 			for (let id in this.ast.scope.funcs) this.addFunction(this.ast.scope.funcs[id])
 			for (let id in this.ast.scope.vars) this.addGlobal(this.ast.scope.vars[id])
 			for (let id in this.ast.scope.funcs) this.addFunctionBody(this.ast.scope.funcs[id])
 		}
+
+		// Importing memory needs its own syntax
+		//this.imports.push(new WASM.ImportEntry("memory", "memory", WASM.ExternalKind.Memory, new WASM.MemoryType(new WASM.ResizableLimits(1))))
 
 		this.exports.push(new WASM.ExportEntry("memory", WASM.ExternalKind.Memory, 0))
 
@@ -83,6 +92,7 @@ export class Generator {
 
 		let sections: WASM.Section[] = []
 		sections.push(new WASM.TypeSection(this.funcTypes))
+		sections.push(new WASM.ImportSection(this.imports))
 		sections.push(new WASM.FunctionSection(this.funcTypeIndices))
 		sections.push(new WASM.MemorySection([new WASM.MemoryType(new WASM.ResizableLimits(1))]))
 		sections.push(new WASM.GlobalSection(this.globals))
@@ -91,6 +101,62 @@ export class Generator {
 		sections.push(new WASM.CodeSection(this.funcBodies))
 		sections.push(new WASM.NameSection(this.names))
 		return new WASM.Module(sections)
+	}
+
+	private addFunctionImport(func: Function): void {
+		if (!func.import || !func.node) return
+		this.funcPathToIndex[func.getPath()] = this.funcIndex
+
+		let localNamings: WASM.Naming[] = []
+		let params: WASM.LangType[] = []
+		let paramIndex = 0
+		for (let i = 0; i < func.params.length; i++) {
+			let vars = this.getPrimitiveVars(func.params[i])
+			for (let param of vars) {
+				let type = this.toWasmType(param.type)
+				if (!type) continue
+				params.push(type)
+				localNamings.push(new WASM.Naming(paramIndex, param.getPath(true)))
+				this.varPathToIndex[param.getPath()] = paramIndex++
+			}
+		}
+		let returns: WASM.LangType[] = []
+
+		if (func.type != DataType.None) {
+			let returnType = this.toWasmType(func.type)
+			if (!returnType) {
+				this.logError('Functions can only return primitive types', func.node)
+				return
+			}
+			returns.push(returnType)
+		}
+
+		let typeStr = params.join() + ":" + returns.join()
+		let sigIndex
+		if (this.funcTypeToTypeIndex[typeStr]) {
+			sigIndex = this.funcTypeToTypeIndex[typeStr]
+		} else {
+			this.funcTypes.push(new WASM.FunctionType(params, returns))
+			sigIndex = this.funcTypes.length - 1
+			this.funcTypeToTypeIndex[typeStr] = sigIndex
+		}
+
+		this.funcNames.push(new WASM.Naming(this.funcPathToIndex[func.getPath()], func.id))
+		this.localNames.push(new WASM.LocalName(this.funcPathToIndex[func.getPath()], new WASM.NameMap(localNamings)))
+
+		this.imports.push(new WASM.ImportEntry(func.import, func.getPath(), WASM.ExternalKind.Function, sigIndex))
+		this.funcIndex++
+	}
+
+	private addGlobalImport(global: Variable): void {
+		if (!global.import || global.mapped) return
+		let vars = this.getPrimitiveVars(global)
+		for (let gvar of vars) {
+			let type = this.toWasmType(gvar.type)
+			if (!type) continue
+			this.varPathToIndex[gvar.getPath()] = this.varIndex++
+			this.imports.push(new WASM.ImportEntry(global.import, global.getPath(), WASM.ExternalKind.Global, new WASM.GlobalType(type, !global.const)))
+		}
 	}
 
 	private addFunction(func: Function): void {
@@ -189,14 +255,15 @@ export class Generator {
 				let initBody = gvar.node.parent.children[1]
 				if (initBody) {
 					let writer = new Writer()
-					this.varPathToIndex[gvar.getPath()] = this.globals.length
+					this.varPathToIndex[gvar.getPath()] = this.varIndex
 					this.gen(writer, initBody)
 					initExpr = writer.toTypedArray()
 				}
 			}
 			if (!initExpr) initExpr = this.getDefaultInitializer(gvar.type)
-			if (gvar.export) this.exports.push(new WASM.ExportEntry(gvar.getPath(true), WASM.ExternalKind.Global, this.globals.length))
+			if (gvar.export) this.exports.push(new WASM.ExportEntry(gvar.getPath(true), WASM.ExternalKind.Global, this.varIndex))
 			this.globals.push(new WASM.GlobalEntry(new WASM.GlobalType(type, !gvar.const), new WASM.InitializerExpression(initExpr)))
+			this.varIndex++
 		}
 	}
 
@@ -241,7 +308,7 @@ export class Generator {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Generator", msg, this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, "Generator", msg, utils.getModulePath(this.mod), node.token.row, node.token.column, node.token.value.length))
 	}
 }
 
@@ -305,7 +372,7 @@ export class SchwaGenerator extends Generator {
 						w.varuintN(2, 32)
 						w.varuintN(nvar.offset, 32)
 					} else {
-						if (nvar.global) w.uint8(WASM.OpCode.get_global)
+						if (nvar.global || nvar.import) w.uint8(WASM.OpCode.get_global)
 						else w.uint8(WASM.OpCode.get_local)
 						w.varuintN(this.varPathToIndex[nvar.getPath()], 32)
 					}

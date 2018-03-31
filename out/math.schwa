@@ -7,3 +7,5 @@ export float addPi(float n)
 
 export struct Pi
 	float value
+
+export map float MAPPED_GLOBAL at 4

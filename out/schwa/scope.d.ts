@@ -4,10 +4,11 @@ export declare class Variable {
     scope: Scope;
     id: string;
     type: string;
+    alias: string;
     global: boolean;
     const: boolean;
     export: boolean;
-    import: boolean;
+    import: string;
     mapped: boolean;
     offset: number;
     size: number;
@@ -22,7 +23,8 @@ export declare class Function {
     id: string;
     type: string;
     params: Variable[];
-    import: boolean;
+    alias: string;
+    import: string;
     export: boolean;
     constructor(node: AstNode | null, scope: Scope, id: string, type: string, params: Variable[]);
     getPath(): string;
@@ -34,7 +36,8 @@ export declare class Struct {
     scope: Scope;
     id: string;
     fields: Variable[];
-    import: boolean;
+    alias: string;
+    import: string;
     export: boolean;
     constructor(node: AstNode | null, scope: Scope, id: string, fields: Variable[]);
     getPath(): string;
@@ -45,7 +48,8 @@ export declare class Scope {
     node: AstNode | null;
     parent: Scope | null;
     id: string;
-    import: boolean;
+    alias: string;
+    import: string;
     export: boolean;
     scopes: {
         [key: string]: Scope;

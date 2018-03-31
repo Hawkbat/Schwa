@@ -1,10 +1,11 @@
 import { AstNode } from "./ast"
 
 export class Variable {
+	public alias: string = ''
 	public global: boolean = false
 	public const: boolean = false
 	public export: boolean = false
-	public import: boolean = false
+	public import: string = ''
 	public mapped: boolean = false
 	public offset: number = 0
 	public size: number = 0
@@ -25,6 +26,7 @@ export class Variable {
 
 	clone(node?: AstNode | null, scope?: Scope, id?: string): Variable {
 		let nvar = new Variable(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.type)
+		nvar.alias = this.alias
 		nvar.global = this.global
 		nvar.const = this.const
 		nvar.export = this.export
@@ -37,17 +39,19 @@ export class Variable {
 
 	toString() {
 		let out = ''
-		if (this.import) out += 'import '
+		if (this.import) out += 'from ' + this.import + ' import '
 		if (this.export) out += 'export '
 		if (this.const) out += 'const '
 		out += this.type + ' ' + this.id
+		if (this.alias) out += ' as ' + this.alias
 		if (this.mapped) out += ' mapped at ' + this.offset
 		return out
 	}
 }
 
 export class Function {
-	public import: boolean = false
+	public alias: string = ''
+	public import: string = ''
 	public export: boolean = false
 
 	constructor(public node: AstNode | null, public scope: Scope, public id: string, public type: string, public params: Variable[]) { }
@@ -64,6 +68,7 @@ export class Function {
 
 	clone(node?: AstNode | null, scope?: Scope, id?: string): Function {
 		let func = new Function(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.type, this.params.map(v => v.clone()))
+		func.alias = this.alias
 		func.import = this.import
 		func.export = this.export
 		return func
@@ -71,15 +76,17 @@ export class Function {
 
 	toString() {
 		let out = ''
-		if (this.import) out += 'import '
+		if (this.import) out += 'from ' + this.import + ' import '
 		if (this.export) out += 'export '
 		out += this.type + ' ' + this.id + '(' + this.params.join(', ') + ')'
+		if (this.alias) out += ' as ' + this.alias
 		return out
 	}
 }
 
 export class Struct {
-	public import: boolean = false
+	public alias: string = ''
+	public import: string = ''
 	public export: boolean = false
 
 	constructor(public node: AstNode | null, public scope: Scope, public id: string, public fields: Variable[]) { }
@@ -96,6 +103,7 @@ export class Struct {
 
 	clone(node?: AstNode | null, scope?: Scope, id?: string): Struct {
 		let struct = new Struct(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.fields.map(v => v.clone()))
+		struct.alias = this.alias
 		struct.import = this.import
 		struct.export = this.export
 		return struct
@@ -103,15 +111,17 @@ export class Struct {
 
 	toString() {
 		let out = ''
-		if (this.import) out += 'import '
+		if (this.import) out += 'from ' + this.import + ' import '
 		if (this.export) out += 'export '
 		out += 'struct ' + this.id + '(' + this.fields.join(', ') + ')'
+		if (this.alias) out += ' as ' + this.alias
 		return out
 	}
 }
 
 export class Scope {
-	import: boolean = false
+	public alias: string = ''
+	import: string = ''
 	export: boolean = false
 
 	scopes: { [key: string]: Scope } = {}
@@ -156,6 +166,7 @@ export class Scope {
 
 	clone(node?: AstNode | null, parent?: Scope | null, id?: string): Scope {
 		let scope = new Scope(node !== undefined ? node : this.node, parent !== undefined ? parent : this.parent, id !== undefined ? id : this.id)
+		scope.alias = this.alias
 		scope.import = this.import
 		scope.export = this.export
 		return scope
@@ -170,7 +181,7 @@ export class Scope {
 		let out = ''
 		if (!skipLabel) {
 			out += indent
-			
+
 			if (this.import) out += 'import '
 			if (this.export) out += 'export '
 
@@ -179,7 +190,9 @@ export class Scope {
 			else if (!this.parent.parent && !this.id) type = 'program'
 			else if (!this.id) type = 'block'
 			else if (this.id) type = 'scope ' + this.id
-			out += type + '\n'
+			out += type
+			if (this.alias) out += ' as ' + this.alias
+			out += '\n'
 		}
 		for (let key in this.vars) {
 			out += indent + '\t' + this.vars[key] + '\n'

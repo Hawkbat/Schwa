@@ -9,6 +9,7 @@ export enum AstType {
 	VariableId = "variable identifier",
 	FunctionId = "function identifier",
 	StructId = "struct identifier",
+	ScopeId = "scope identifier",
 	Alias = "alias",
 	Type = "type",
 	Const = "const",

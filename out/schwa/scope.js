@@ -6,10 +6,11 @@ class Variable {
         this.scope = scope;
         this.id = id;
         this.type = type;
+        this.alias = '';
         this.global = false;
         this.const = false;
         this.export = false;
-        this.import = false;
+        this.import = '';
         this.mapped = false;
         this.offset = 0;
         this.size = 0;
@@ -30,6 +31,7 @@ class Variable {
     }
     clone(node, scope, id) {
         let nvar = new Variable(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.type);
+        nvar.alias = this.alias;
         nvar.global = this.global;
         nvar.const = this.const;
         nvar.export = this.export;
@@ -42,12 +44,14 @@ class Variable {
     toString() {
         let out = '';
         if (this.import)
-            out += 'import ';
+            out += 'from ' + this.import + ' import ';
         if (this.export)
             out += 'export ';
         if (this.const)
             out += 'const ';
         out += this.type + ' ' + this.id;
+        if (this.alias)
+            out += ' as ' + this.alias;
         if (this.mapped)
             out += ' mapped at ' + this.offset;
         return out;
@@ -61,7 +65,8 @@ class Function {
         this.id = id;
         this.type = type;
         this.params = params;
-        this.import = false;
+        this.alias = '';
+        this.import = '';
         this.export = false;
     }
     getPath() {
@@ -76,6 +81,7 @@ class Function {
     }
     clone(node, scope, id) {
         let func = new Function(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.type, this.params.map(v => v.clone()));
+        func.alias = this.alias;
         func.import = this.import;
         func.export = this.export;
         return func;
@@ -83,10 +89,12 @@ class Function {
     toString() {
         let out = '';
         if (this.import)
-            out += 'import ';
+            out += 'from ' + this.import + ' import ';
         if (this.export)
             out += 'export ';
         out += this.type + ' ' + this.id + '(' + this.params.join(', ') + ')';
+        if (this.alias)
+            out += ' as ' + this.alias;
         return out;
     }
 }
@@ -97,7 +105,8 @@ class Struct {
         this.scope = scope;
         this.id = id;
         this.fields = fields;
-        this.import = false;
+        this.alias = '';
+        this.import = '';
         this.export = false;
     }
     getPath() {
@@ -112,6 +121,7 @@ class Struct {
     }
     clone(node, scope, id) {
         let struct = new Struct(node !== undefined ? node : this.node, scope !== undefined ? scope : this.scope, id !== undefined ? id : this.id, this.fields.map(v => v.clone()));
+        struct.alias = this.alias;
         struct.import = this.import;
         struct.export = this.export;
         return struct;
@@ -119,10 +129,12 @@ class Struct {
     toString() {
         let out = '';
         if (this.import)
-            out += 'import ';
+            out += 'from ' + this.import + ' import ';
         if (this.export)
             out += 'export ';
         out += 'struct ' + this.id + '(' + this.fields.join(', ') + ')';
+        if (this.alias)
+            out += ' as ' + this.alias;
         return out;
     }
 }
@@ -132,7 +144,8 @@ class Scope {
         this.node = node;
         this.parent = parent;
         this.id = id;
-        this.import = false;
+        this.alias = '';
+        this.import = '';
         this.export = false;
         this.scopes = {};
         this.vars = {};
@@ -179,6 +192,7 @@ class Scope {
     }
     clone(node, parent, id) {
         let scope = new Scope(node !== undefined ? node : this.node, parent !== undefined ? parent : this.parent, id !== undefined ? id : this.id);
+        scope.alias = this.alias;
         scope.import = this.import;
         scope.export = this.export;
         return scope;
@@ -204,7 +218,10 @@ class Scope {
                 type = 'block';
             else if (this.id)
                 type = 'scope ' + this.id;
-            out += type + '\n';
+            out += type;
+            if (this.alias)
+                out += ' as ' + this.alias;
+            out += '\n';
         }
         for (let key in this.vars) {
             out += indent + '\t' + this.vars[key] + '\n';

@@ -26,6 +26,8 @@ export declare class Parser {
     protected registerInfix(type: TokenType, precedence: number, func: InfixFunc): void;
     protected registerInfixOp(type: TokenType, precedence: number, rightAssociative: boolean): void;
     protected registerPostfixOp(type: TokenType, precedence: number): void;
+    protected logError(msg: string, token: Token): void;
+    protected logWarning(msg: string, token: Token): void;
 }
 export declare class SchwaParser extends Parser {
     constructor(logger: Logger);

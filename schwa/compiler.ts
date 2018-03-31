@@ -77,7 +77,7 @@ export class Compiler {
 
     protected debugOutput(mod: Module) {
         if (this.debug) {
-			console.time("output")
+            console.time("output")
             if (mod.result.ast) console.log(mod.result.ast.toString().replace(/\t/g, '\ \ \ \ '))
 
             if (mod.result.ast && mod.result.ast.scope) console.log(mod.result.ast.scope.toString().replace(/\t/g, '\ \ \ \ '))

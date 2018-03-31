@@ -1,18 +1,21 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const ast_1 = require("./ast");
+const path = require("path");
 function getIdentifier(n) {
     if (!n)
         return null;
     let l = n.children[0];
     if (l) {
+        if (n.type == ast_1.AstType.ModuleId)
+            return getIdentifier(l);
         if (n.type == ast_1.AstType.VariableId)
             return getIdentifier(l);
         if (n.type == ast_1.AstType.FunctionId)
             return getIdentifier(l);
         if (n.type == ast_1.AstType.StructId)
             return getIdentifier(l);
-        if (n.type == ast_1.AstType.ModuleId)
+        if (n.type == ast_1.AstType.ScopeId)
             return getIdentifier(l);
         if (n.type == ast_1.AstType.VariableImport)
             return getIdentifier(l);
@@ -46,12 +49,22 @@ function getIdentifier(n) {
         if (n.type == ast_1.AstType.Access)
             return getIdentifier(r);
     }
-    if (n.type == ast_1.AstType.FunctionId ||
+    if (n.type == ast_1.AstType.ModuleId ||
+        n.type == ast_1.AstType.FunctionId ||
         n.type == ast_1.AstType.VariableId ||
         n.type == ast_1.AstType.StructId ||
+        n.type == ast_1.AstType.ScopeId ||
         n.type == ast_1.AstType.UnknownImport ||
         n.type == ast_1.AstType.Alias)
         return n;
     return null;
 }
 exports.getIdentifier = getIdentifier;
+function getModulePath(mod) {
+    let out = '';
+    if (mod) {
+        out += path.join(mod.dir, mod.name + '.schwa');
+    }
+    return out;
+}
+exports.getModulePath = getModulePath;

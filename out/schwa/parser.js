@@ -29,7 +29,7 @@ class Parser {
         let prefixFunc = this.prefixFuncMap[token.type];
         if (!prefixFunc) {
             if (token.type != token_1.TokenType.Unknown)
-                this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Parser", "Unable to parse token " + token.type + (token.type == token.value ? "" : " " + JSON.stringify(token.value)), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", token.row, token.column, token.value.length));
+                this.logError("Unable to parse token " + token.type + (token.type == token.value ? "" : " " + JSON.stringify(token.value)), token);
             return new ast_1.AstNode(ast_1.AstType.Unknown, token, []);
         }
         let left = prefixFunc(token);
@@ -65,7 +65,7 @@ class Parser {
     consumeMatch(type, match) {
         let token = this.peek();
         if (token && token.type != match) {
-            this.logger.log(new log_1.LogMsg(log_1.LogType.Warning, "Parser", type + " expected " + match + " but got " + (token.type == token.value ? token.type : token.type + " " + JSON.stringify(token.value)), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", token.row, token.column, token.value.length));
+            this.logWarning(type + " expected " + match + " but got " + (token.type == token.value ? token.type : token.type + " " + JSON.stringify(token.value)), token);
             return token;
         }
         return this.consume();
@@ -106,6 +106,12 @@ class Parser {
     }
     registerPostfixOp(type, precedence) {
         this.registerInfix(type, precedence, (left, token) => new ast_1.AstNode(ast_1.AstType.UnaryOp, token, left ? [left] : []));
+    }
+    logError(msg, token) {
+        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Parser", msg, utils.getModulePath(this.mod), token.row, token.column, token.value.length));
+    }
+    logWarning(msg, token) {
+        this.logger.log(new log_1.LogMsg(log_1.LogType.Warning, "Parser", msg, utils.getModulePath(this.mod), token.row, token.column, token.value.length));
     }
 }
 exports.Parser = Parser;
@@ -149,6 +155,9 @@ class SchwaParser extends Parser {
                         params.type = ast_1.AstType.Parameters;
                     return new ast_1.AstNode(ast_1.AstType.FunctionDef, t, [r.children[0], params]);
                 }
+            }
+            if (this.match(token_1.TokenType.Period)) {
+                return new ast_1.AstNode(ast_1.AstType.ScopeId, t, []);
             }
             return new ast_1.AstNode(ast_1.AstType.Type, t, []);
         });
@@ -384,8 +393,10 @@ class SchwaParser extends Parser {
             if (l && n) {
                 n.type = ast_1.AstType.Alias;
                 let id = utils.getIdentifier(l);
-                if (id)
+                if (id) {
+                    n.parent = id;
                     id.children.push(n);
+                }
                 return l;
             }
             if (n) {

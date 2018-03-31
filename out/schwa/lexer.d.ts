@@ -15,6 +15,7 @@ export declare class Lexer {
     protected register(rule: LexerRule): void;
     protected registerMatch(type: TokenType, pattern: string): void;
     protected registerRegex(type: TokenType, pattern: RegExp): void;
+    protected logError(msg: string, row: number, col: number, len: number): void;
 }
 export declare class SchwaLexer extends Lexer {
     constructor(logger: Logger);

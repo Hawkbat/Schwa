@@ -34,7 +34,7 @@ export class Parser {
 
 		if (!prefixFunc) {
 			if (token.type != TokenType.Unknown)
-				this.logger.log(new LogMsg(LogType.Error, "Parser", "Unable to parse token " + token.type + (token.type == token.value ? "" : " " + JSON.stringify(token.value)), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", token.row, token.column, token.value.length))
+				this.logError("Unable to parse token " + token.type + (token.type == token.value ? "" : " " + JSON.stringify(token.value)), token)
 			return new AstNode(AstType.Unknown, token, [])
 		}
 
@@ -73,7 +73,7 @@ export class Parser {
 	protected consumeMatch(type: TokenType, match: TokenType): Token | null {
 		let token = this.peek()
 		if (token && token.type != match) {
-			this.logger.log(new LogMsg(LogType.Warning, "Parser", type + " expected " + match + " but got " + (token.type == token.value ? token.type : token.type + " " + JSON.stringify(token.value)), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", token.row, token.column, token.value.length))
+			this.logWarning(type + " expected " + match + " but got " + (token.type == token.value ? token.type : token.type + " " + JSON.stringify(token.value)), token)
 			return token
 		}
 		return this.consume()
@@ -119,6 +119,14 @@ export class Parser {
 	protected registerPostfixOp(type: TokenType, precedence: number): void {
 		this.registerInfix(type, precedence, (left, token) => new AstNode(AstType.UnaryOp, token, left ? [left] : []))
 	}
+
+	protected logError(msg: string, token: Token) {
+		this.logger.log(new LogMsg(LogType.Error, "Parser", msg, utils.getModulePath(this.mod), token.row, token.column, token.value.length))
+	}
+
+	protected logWarning(msg: string, token: Token) {
+		this.logger.log(new LogMsg(LogType.Warning, "Parser", msg, utils.getModulePath(this.mod), token.row, token.column, token.value.length))
+	}
 }
 
 export class SchwaParser extends Parser {
@@ -159,6 +167,9 @@ export class SchwaParser extends Parser {
 					if (params) params.type = AstType.Parameters
 					return new AstNode(AstType.FunctionDef, t, [r.children[0], params])
 				}
+			}
+			if (this.match(TokenType.Period)) {
+				return new AstNode(AstType.ScopeId, t, [])
 			}
 			return new AstNode(AstType.Type, t, [])
 		})
@@ -355,7 +366,10 @@ export class SchwaParser extends Parser {
 			if (l && n) {
 				n.type = AstType.Alias
 				let id = utils.getIdentifier(l)
-				if (id) id.children.push(n)
+				if (id) {
+					n.parent = id
+					id.children.push(n)
+				}
 				return l
 			}
 			if (n) {

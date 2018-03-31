@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const token_1 = require("./token");
 const ast_1 = require("./ast");
 const log_1 = require("./log");
+const utils = require("./utils");
 class Formatter {
     constructor(logger) {
         this.logger = logger;
@@ -24,7 +25,7 @@ class Formatter {
         this.ruleMap[type] = rule;
     }
     logError(msg, node) {
-        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Formatter", msg, this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", node.token.row, node.token.column, node.token.value.length));
+        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Formatter", msg, utils.getModulePath(this.mod), node.token.row, node.token.column, node.token.value.length));
     }
 }
 exports.Formatter = Formatter;
@@ -78,6 +79,14 @@ class SchwaFormatter extends Formatter {
                 out += ' ' + this.printNode(r);
             if (this.needsParens(n))
                 out = '(' + out + ')';
+            return out;
+        });
+        this.register(ast_1.AstType.ModuleId, (n) => {
+            let id = n.children[0];
+            let out = '';
+            out += n.token.value;
+            if (id)
+                out += ' as ' + this.printNode(id);
             return out;
         });
         this.register(ast_1.AstType.VariableDef, (n) => {

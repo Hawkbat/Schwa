@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const token_1 = require("./token");
 const log_1 = require("./log");
+const utils = require("./utils");
 class Lexer {
     constructor(logger) {
         this.logger = logger;
@@ -60,7 +61,7 @@ class Lexer {
                         end++;
                     }
                     let val = this.lines[row].substring(col, end);
-                    this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Lexer", "Unknown token " + JSON.stringify(val), this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", row, col, end - col));
+                    this.logError("Unknown token " + JSON.stringify(val), row, col, end - col);
                     this.tokens.push(new token_1.Token(token_1.TokenType.Unknown, val, row, col));
                     col = end - 1;
                 }
@@ -99,6 +100,9 @@ class Lexer {
                 return new token_1.Token(type, res[0], r, c);
             return null;
         });
+    }
+    logError(msg, row, col, len) {
+        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Lexer", msg, utils.getModulePath(this.mod), row, col, len));
     }
 }
 exports.Lexer = Lexer;

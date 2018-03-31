@@ -2,6 +2,7 @@ import { TokenType, Token } from "./token"
 import { AstNode, AstType } from "./ast"
 import { Logger, LogMsg, LogType } from "./log"
 import { Module } from "./compiler"
+import * as utils from "./utils"
 
 export type FormatRule = (n: AstNode) => string
 
@@ -28,7 +29,7 @@ export class Formatter {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Formatter", msg, this.mod ? this.mod.dir + "/" + this.mod.name + ".schwa" : "", node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, "Formatter", msg, utils.getModulePath(this.mod), node.token.row, node.token.column, node.token.value.length))
 	}
 }
 
@@ -50,6 +51,13 @@ export class SchwaFormatter extends Formatter {
 			out += n.token.value
 			if (r) out += ' ' + this.printNode(r)
 			if (this.needsParens(n)) out = '(' + out + ')'
+			return out
+		})
+		this.register(AstType.ModuleId, (n) => {
+			let id = n.children[0]
+			let out = ''
+			out += n.token.value
+			if (id) out += ' as ' + this.printNode(id)
 			return out
 		})
 		this.register(AstType.VariableDef, (n) => {

@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const log_1 = require("./log");
 const ast_1 = require("./ast");
+const utils = require("./utils");
 class Validator {
     constructor(logger) {
         this.logger = logger;
@@ -31,7 +32,7 @@ class Validator {
         this.ruleMap[type].push(rule);
     }
     logError(msg, node) {
-        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Validator", msg, this.mod ? this.mod.dir + "/" + this.mod.name : "", node.token.row, node.token.column, node.token.value.length));
+        this.logger.log(new log_1.LogMsg(log_1.LogType.Error, "Validator", msg, utils.getModulePath(this.mod), node.token.row, node.token.column, node.token.value.length));
     }
 }
 exports.Validator = Validator;
@@ -41,7 +42,7 @@ class SchwaValidator extends Validator {
         this.registerChildrenType(ast_1.AstType.Program, [ast_1.AstType.FunctionDef, ast_1.AstType.Global, ast_1.AstType.Comment, ast_1.AstType.StructDef, ast_1.AstType.Map, ast_1.AstType.Import]);
         this.registerChildrenType(ast_1.AstType.Block, [ast_1.AstType.VariableDef, ast_1.AstType.Assignment, ast_1.AstType.FunctionCall, ast_1.AstType.Comment, ast_1.AstType.If, ast_1.AstType.Else, ast_1.AstType.ElseIf, ast_1.AstType.While, ast_1.AstType.Break, ast_1.AstType.Continue, ast_1.AstType.Return, ast_1.AstType.ReturnVoid]);
         this.registerChildCount(ast_1.AstType.Access, 2);
-        this.registerChildTypes(ast_1.AstType.Access, [[ast_1.AstType.VariableId, ast_1.AstType.Type, ast_1.AstType.Indexer, ast_1.AstType.Access], [ast_1.AstType.FunctionId, ast_1.AstType.VariableId]]);
+        this.registerChildTypes(ast_1.AstType.Access, [[ast_1.AstType.ScopeId, ast_1.AstType.VariableId, ast_1.AstType.Indexer, ast_1.AstType.Access], [ast_1.AstType.FunctionId, ast_1.AstType.VariableId]]);
         this.registerChildCount(ast_1.AstType.If, 2);
         this.registerChildTypes(ast_1.AstType.If, [[ast_1.AstType.VariableId, ast_1.AstType.Access, ast_1.AstType.Indexer, ast_1.AstType.Literal, ast_1.AstType.UnaryOp, ast_1.AstType.BinaryOp, ast_1.AstType.FunctionCall], [ast_1.AstType.Block]]);
         this.registerChildCount(ast_1.AstType.Else, 1);
@@ -82,12 +83,18 @@ class SchwaValidator extends Validator {
         this.registerChildrenType(ast_1.AstType.UnaryOp, [ast_1.AstType.VariableId, ast_1.AstType.Access, ast_1.AstType.Indexer, ast_1.AstType.Type, ast_1.AstType.Literal, ast_1.AstType.UnaryOp, ast_1.AstType.BinaryOp, ast_1.AstType.FunctionCall]);
         this.registerChildCount(ast_1.AstType.BinaryOp, 2);
         this.registerChildrenType(ast_1.AstType.BinaryOp, [ast_1.AstType.VariableId, ast_1.AstType.Access, ast_1.AstType.Indexer, ast_1.AstType.Type, ast_1.AstType.Literal, ast_1.AstType.UnaryOp, ast_1.AstType.BinaryOp, ast_1.AstType.FunctionCall]);
-        this.registerChildCount(ast_1.AstType.StructId, 0, 1);
-        this.registerChildrenType(ast_1.AstType.VariableId, [ast_1.AstType.Alias]);
+        this.registerChildCount(ast_1.AstType.ModuleId, 0, 1);
+        this.registerChildrenType(ast_1.AstType.ModuleId, [ast_1.AstType.Alias]);
         this.registerChildCount(ast_1.AstType.VariableId, 0, 1);
         this.registerChildrenType(ast_1.AstType.VariableId, [ast_1.AstType.Alias]);
         this.registerChildCount(ast_1.AstType.FunctionId, 0, 1);
         this.registerChildrenType(ast_1.AstType.VariableId, [ast_1.AstType.Alias]);
+        this.registerChildCount(ast_1.AstType.StructId, 0, 1);
+        this.registerChildrenType(ast_1.AstType.VariableId, [ast_1.AstType.Alias]);
+        this.registerChildCount(ast_1.AstType.ScopeId, 0, 1);
+        this.registerChildrenType(ast_1.AstType.ScopeId, [ast_1.AstType.Alias]);
+        this.registerParentType(ast_1.AstType.Alias, [ast_1.AstType.ModuleId, ast_1.AstType.VariableId, ast_1.AstType.FunctionId, ast_1.AstType.StructId, ast_1.AstType.ScopeId]);
+        this.registerAncestorType(ast_1.AstType.Alias, [ast_1.AstType.Import]);
         this.registerChildTypes(ast_1.AstType.Map, [[ast_1.AstType.VariableDef], [ast_1.AstType.Literal]]);
         this.registerAncestorType(ast_1.AstType.VariableImport, [ast_1.AstType.Import]);
         this.registerAncestorType(ast_1.AstType.FunctionImport, [ast_1.AstType.Import]);

@@ -2,6 +2,7 @@ import { LogType, LogMsg, Logger } from "./log"
 import { TokenType } from "./token"
 import { AstNode, AstType } from "./ast"
 import { Module } from "./compiler"
+import * as utils from "./utils"
 
 export type ValidateRule = (n: AstNode) => void
 
@@ -33,7 +34,7 @@ export class Validator {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Validator", msg, this.mod ? this.mod.dir + "/" + this.mod.name : "", node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, "Validator", msg, utils.getModulePath(this.mod), node.token.row, node.token.column, node.token.value.length))
 	}
 }
 
@@ -45,7 +46,7 @@ export class SchwaValidator extends Validator {
 		this.registerChildrenType(AstType.Block, [AstType.VariableDef, AstType.Assignment, AstType.FunctionCall, AstType.Comment, AstType.If, AstType.Else, AstType.ElseIf, AstType.While, AstType.Break, AstType.Continue, AstType.Return, AstType.ReturnVoid])
 
 		this.registerChildCount(AstType.Access, 2)
-		this.registerChildTypes(AstType.Access, [[AstType.VariableId, AstType.Type, AstType.Indexer, AstType.Access], [AstType.FunctionId, AstType.VariableId]])
+		this.registerChildTypes(AstType.Access, [[AstType.ScopeId, AstType.VariableId, AstType.Indexer, AstType.Access], [AstType.FunctionId, AstType.VariableId]])
 
 		this.registerChildCount(AstType.If, 2)
 		this.registerChildTypes(AstType.If, [[AstType.VariableId, AstType.Access, AstType.Indexer, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall], [AstType.Block]])
@@ -107,14 +108,23 @@ export class SchwaValidator extends Validator {
 		this.registerChildCount(AstType.BinaryOp, 2)
 		this.registerChildrenType(AstType.BinaryOp, [AstType.VariableId, AstType.Access, AstType.Indexer, AstType.Type, AstType.Literal, AstType.UnaryOp, AstType.BinaryOp, AstType.FunctionCall])
 
-		this.registerChildCount(AstType.StructId, 0, 1)
-		this.registerChildrenType(AstType.VariableId, [AstType.Alias])
+		this.registerChildCount(AstType.ModuleId, 0, 1)
+		this.registerChildrenType(AstType.ModuleId, [AstType.Alias])
 
 		this.registerChildCount(AstType.VariableId, 0, 1)
 		this.registerChildrenType(AstType.VariableId, [AstType.Alias])
 
 		this.registerChildCount(AstType.FunctionId, 0, 1)
 		this.registerChildrenType(AstType.VariableId, [AstType.Alias])
+
+		this.registerChildCount(AstType.StructId, 0, 1)
+		this.registerChildrenType(AstType.VariableId, [AstType.Alias])
+
+		this.registerChildCount(AstType.ScopeId, 0, 1)
+		this.registerChildrenType(AstType.ScopeId, [AstType.Alias])
+
+		this.registerParentType(AstType.Alias, [AstType.ModuleId, AstType.VariableId, AstType.FunctionId, AstType.StructId, AstType.ScopeId])
+		this.registerAncestorType(AstType.Alias, [AstType.Import])
 
 		this.registerChildTypes(AstType.Map, [[AstType.VariableDef], [AstType.Literal]])
 

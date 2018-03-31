@@ -8,6 +8,7 @@ var AstType;
     AstType["VariableId"] = "variable identifier";
     AstType["FunctionId"] = "function identifier";
     AstType["StructId"] = "struct identifier";
+    AstType["ScopeId"] = "scope identifier";
     AstType["Alias"] = "alias";
     AstType["Type"] = "type";
     AstType["Const"] = "const";

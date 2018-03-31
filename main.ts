@@ -27,7 +27,7 @@ if (program.test) {
 	if (!srcPath) srcPath = './'
 	if (fs.lstatSync(srcPath).isDirectory()) {
 		dstPath = srcPath
-	}else{
+	} else {
 		let filename = path.basename(srcPath, path.extname(srcPath))
 		let dirpath = path.dirname(srcPath)
 		dstPath = path.join(dirpath, filename + '.wasm')
@@ -47,13 +47,12 @@ if (srcPath && dstPath) {
 
 function run(srcPath: string, dstPath: string, debug: boolean) {
 	let compiler = new Compiler({ debug })
-	
+
 	if (fs.lstatSync(srcPath).isDirectory()) {
 		let filenames = fs.readdirSync(srcPath).filter(f => f.endsWith('.schwa')).map(f => path.basename(f, path.extname(f)))
 		let mods = filenames.map(f => new Module(f, srcPath))
 
 		if (mods.length == 0) {
-			console.log(filenames)
 			console.log('No source files found in "' + path.resolve(srcPath) + '".')
 			process.exitCode = 1
 			return
@@ -64,7 +63,7 @@ function run(srcPath: string, dstPath: string, debug: boolean) {
 		}
 
 		mods = compiler.compile(mods)
-		
+
 		for (let mod of mods) {
 			if (mod.result.success) {
 				fs.writeFileSync(path.join(dstPath, mod.name) + '.wasm', Buffer.from(mod.result.buffer as ArrayBuffer))
@@ -76,15 +75,15 @@ function run(srcPath: string, dstPath: string, debug: boolean) {
 			for (let msg of msgs) console.log(msg.toString())
 			console.log("Compilation failed.")
 			process.exitCode = 1
-		}else{
+		} else {
 			console.log("Compilation successful.")
 		}
-	}else{
+	} else {
 		let filename = path.basename(srcPath, path.extname(srcPath))
 		let mod = new Module(filename, path.dirname(srcPath))
 
 		let result = compiler.compile(mod).result
-	
+
 		if (result.success) {
 			fs.writeFileSync(dstPath, Buffer.from(result.buffer as ArrayBuffer))
 			console.log("Compilation successful.")
