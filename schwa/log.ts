@@ -19,7 +19,11 @@ export class LogMsg {
 export class Logger {
 	private logs: LogMsg[] = []
 
-	public getLogs(): LogMsg[] {
+	public get(mod: Module): LogMsg[] {
+		return this.logs.filter(v => v.mod == mod)
+	}
+
+	public getAll(): LogMsg[] {
 		return this.logs.slice(0)
 	}
 
@@ -27,12 +31,12 @@ export class Logger {
 		this.logs.length = 0
 	}
 
-	public count(type: LogType) {
-		let cnt = 0
-		for (let log of this.logs) {
-			if (log.type == type) cnt++
-		}
-		return cnt
+	public count(mod: Module, type: LogType) {
+		return this.logs.filter(v => v.mod == mod && v.type == type).length
+	}
+
+	public countAll(type: LogType) {
+		return this.logs.filter(v => v.type == type).length
 	}
 
 	public log(msg: LogMsg) {

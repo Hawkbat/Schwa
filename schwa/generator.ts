@@ -56,7 +56,7 @@ export class Generator {
 
 		let writer = new Writer()
 		writer.write(this.getModule(mod.name))
-		if (this.logger.count(LogType.Error) > 0) return null
+		if (this.logger.count(mod, LogType.Error) > 0) return null
 		return writer.toArrayBuffer()
 	}
 

@@ -94,62 +94,67 @@ export class Compiler {
         mod.result.tokens = this.lexer.lex(mod)
         if (this.debug) console.timeEnd('lexer')
 
-        mod.result.msgs = this.logger.getLogs()
-        if (this.logger.count(LogType.Error)) return
+		mod.result.msgs = this.logger.get(mod)
+		
+        if (this.logger.count(mod, LogType.Error)) return
 
         if (this.debug) console.time('parser')
         mod.result.ast = this.parser.parse(mod)
         if (this.debug) console.timeEnd('parser')
 
-        mod.result.msgs = this.logger.getLogs()
+        mod.result.msgs = this.logger.get(mod)
 
-        if (!mod.result.ast || this.logger.count(LogType.Error)) return
+        if (!mod.result.ast || this.logger.count(mod, LogType.Error)) return
 
         if (this.debug) console.time('validator')
         this.validator.validate(mod)
         if (this.debug) console.timeEnd('validator')
 
-        mod.result.msgs = this.logger.getLogs()
+        mod.result.msgs = this.logger.get(mod)
 
         if (this.debug) console.time('preAnalyzer')
         this.analyzer.preAnalyze(mod)
         if (this.debug) console.timeEnd('preAnalyzer')
 
-        mod.result.msgs = this.logger.getLogs()
+        mod.result.msgs = this.logger.get(mod)
     }
 
     protected postLinkCompile(mod: Module) {
-        if (!mod.result.ast || this.logger.count(LogType.Error)) return
+        if (!mod.result.ast || this.logger.count(mod, LogType.Error)) return
 
         if (this.debug) console.time('analyzer')
         this.analyzer.analyze(mod)
         if (this.debug) console.timeEnd('analyzer')
 
-        mod.result.msgs = this.logger.getLogs()
+        mod.result.msgs = this.logger.get(mod)
 
-        if (this.logger.count(LogType.Error)) return
+        if (this.logger.count(mod, LogType.Error)) return
 
         if (this.debug) console.time('formatter')
         mod.result.formatted = this.formatter.format(mod)
         if (this.debug) console.timeEnd('formatter')
 
-        mod.result.msgs = this.logger.getLogs()
+        mod.result.msgs = this.logger.get(mod)
 
-        if (this.logger.count(LogType.Error)) return
+        if (this.logger.count(mod, LogType.Error)) return
 
         if (this.debug) console.time('generator')
         mod.result.buffer = this.generator.generate(mod)
         if (this.debug) console.timeEnd('generator')
 
-        mod.result.msgs = this.logger.getLogs()
+        mod.result.msgs = this.logger.get(mod)
 
-        if (!mod.result.buffer || this.logger.count(LogType.Error)) return
+        if (!mod.result.buffer || this.logger.count(mod, LogType.Error)) return
 
         mod.result.success = true
     }
 
     protected linkCompile(mod: Module, modules: Module[]) {
-        this.analyzer.resolveImports(mod, modules.filter(m => m != mod))
+        if (this.debug) console.time('linker')
+        this.analyzer.resolveImports(mod, modules.filter(m => this.logger.count(m, LogType.Error) == 0 && m != mod))
+        if (this.debug) console.timeEnd('linker')
+
+        mod.result.msgs = this.logger.get(mod)
     }
 }
 

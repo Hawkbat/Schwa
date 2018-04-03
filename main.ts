@@ -71,7 +71,7 @@ function run(srcPath: string, dstPath: string, debug: boolean) {
 		}
 
 		if (mods.some(mod => !mod.result.success)) {
-			let msgs = compiler.logger.getLogs()
+			let msgs = compiler.logger.getAll()
 			for (let msg of msgs) console.log(msg.toString())
 			console.log('Compilation failed.')
 			process.exitCode = 1
@@ -88,7 +88,7 @@ function run(srcPath: string, dstPath: string, debug: boolean) {
 			fs.writeFileSync(dstPath, Buffer.from(result.buffer as ArrayBuffer))
 			console.log('Compilation successful.')
 		} else {
-			let msgs = compiler.logger.getLogs()
+			let msgs = compiler.logger.getAll()
 			for (let msg of msgs) console.log(msg.toString())
 			console.log('Compilation failed.')
 			process.exitCode = 1
