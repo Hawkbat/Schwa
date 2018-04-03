@@ -1,5 +1,5 @@
 
-declare module "leb" {
+declare module 'leb' {
 	export function decodeInt32(buffer: Buffer, index?: number): { value: number, nextIndex: number }
 	export function decodeInt64(buffer: Buffer, index?: number): { value: number, nextIndex: number, lossy: boolean }
 	export function decodeIntBuffer(buffer: Buffer, index?: number): { value: Buffer, nextIndex: number }

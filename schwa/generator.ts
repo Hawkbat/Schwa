@@ -1,14 +1,14 @@
-import { TokenType } from "./token"
-import { AstNode, AstType } from "./ast"
-import { Logger, LogMsg, LogType } from "./log"
-import { DataType } from "./datatype"
-import { Scope, Function, Variable } from "./scope"
-import * as utils from "./utils"
-import { Module } from "./compiler"
+import { TokenType } from './token'
+import { AstNode, AstType } from './ast'
+import { Logger, LogMsg, LogType } from './log'
+import { DataType } from './datatype'
+import { Scope, Function, Variable } from './scope'
+import * as utils from './utils'
+import { Module } from './compiler'
 
-import * as WASM from "./wasm"
-import { Writer } from "./io"
-import * as Long from "long"
+import * as WASM from './wasm'
+import { Writer } from './io'
+import * as Long from 'long'
 
 export type GenerateRule = (w: Writer, n: AstNode) => void
 
@@ -68,7 +68,7 @@ export class Generator {
 		if (!node) return
 		let rule = this.ruleMap[node.type]
 		if (rule) rule(w, node)
-		else this.logError("No generation rule exists for " + node.type, node)
+		else this.logError('No generation rule exists for ' + node.type, node)
 		node.generated = true
 	}
 
@@ -82,9 +82,9 @@ export class Generator {
 		}
 
 		// Importing memory needs its own syntax
-		//this.imports.push(new WASM.ImportEntry("memory", "memory", WASM.ExternalKind.Memory, new WASM.MemoryType(new WASM.ResizableLimits(1))))
+		//this.imports.push(new WASM.ImportEntry('memory', 'memory', WASM.ExternalKind.Memory, new WASM.MemoryType(new WASM.ResizableLimits(1))))
 
-		this.exports.push(new WASM.ExportEntry("memory", WASM.ExternalKind.Memory, 0))
+		this.exports.push(new WASM.ExportEntry('memory', WASM.ExternalKind.Memory, 0))
 
 		if (name) this.names.push(new WASM.NameEntry(WASM.NameType.Module, name))
 		this.names.push(new WASM.NameEntry(WASM.NameType.Function, new WASM.NameMap(this.funcNames)))
@@ -131,7 +131,7 @@ export class Generator {
 			returns.push(returnType)
 		}
 
-		let typeStr = params.join() + ":" + returns.join()
+		let typeStr = params.join() + ':' + returns.join()
 		let sigIndex
 		if (this.funcTypeToTypeIndex[typeStr]) {
 			sigIndex = this.funcTypeToTypeIndex[typeStr]
@@ -162,7 +162,7 @@ export class Generator {
 	private addFunction(func: Function): void {
 		if (func.import) return
 		this.funcPathToIndex[func.getPath()] = this.funcIndex
-		if (func.id == "main") this.startFuncIndex = this.funcIndex
+		if (func.id == 'main') this.startFuncIndex = this.funcIndex
 		this.funcIndex++
 	}
 
@@ -196,7 +196,7 @@ export class Generator {
 			returns.push(returnType)
 		}
 
-		let typeStr = params.join() + ":" + returns.join()
+		let typeStr = params.join() + ':' + returns.join()
 		let index
 		if (this.funcTypeToTypeIndex[typeStr]) {
 			index = this.funcTypeToTypeIndex[typeStr]
@@ -308,7 +308,7 @@ export class Generator {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Generator", msg, utils.getModulePath(this.mod), node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, 'Generator', msg, this.mod, node.token.row, node.token.column, node.token.value.length))
 	}
 }
 
@@ -383,7 +383,7 @@ export class SchwaGenerator extends Generator {
 		this.register(AstType.Literal, (w, n) => {
 			if (n.dataType == DataType.Bool) {
 				w.uint8(WASM.OpCode.i32_const)
-				w.varintN(n.token.value == "true" ? 1 : 0, 32)
+				w.varintN(n.token.value == 'true' ? 1 : 0, 32)
 			} else if (n.dataType == DataType.Int) {
 				w.uint8(WASM.OpCode.i32_const)
 				w.varintN(parseInt(this.stripNum(n.token.value)), 32)
@@ -452,7 +452,7 @@ export class SchwaGenerator extends Generator {
 				this.gen(w, c)
 				w.uint8(WASM.OpCode.i32_eqz)
 			}
-			else this.logError("Unknown unary op " + n.token.type, n)
+			else this.logError('Unknown unary op ' + n.token.type, n)
 		})
 
 		this.register(AstType.BinaryOp, (w, n) => {
@@ -651,148 +651,148 @@ export class SchwaGenerator extends Generator {
 			if (!func) return
 			let path = func.getPath()
 
-			if (path == "nop") w.uint8(WASM.OpCode.nop)
-			else if (path == "int.loadSByte") {
+			if (path == 'nop') w.uint8(WASM.OpCode.nop)
+			else if (path == 'int.loadSByte') {
 				w.uint8(WASM.OpCode.i32_load8_s)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "uint.loadByte") {
+			else if (path == 'uint.loadByte') {
 				w.uint8(WASM.OpCode.i32_load8_u)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "int.loadShort") {
+			else if (path == 'int.loadShort') {
 				w.uint8(WASM.OpCode.i32_load16_s)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "uint.loadUShort") {
+			else if (path == 'uint.loadUShort') {
 				w.uint8(WASM.OpCode.i32_load16_u)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "int.load" || path == "uint.load") {
+			else if (path == 'int.load' || path == 'uint.load') {
 				w.uint8(WASM.OpCode.i32_load)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "int.storeSByte" || path == "uint.storeByte") {
+			else if (path == 'int.storeSByte' || path == 'uint.storeByte') {
 				w.uint8(WASM.OpCode.i32_store8)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "int.storeShort" || path == "uint.storeUShort") {
+			else if (path == 'int.storeShort' || path == 'uint.storeUShort') {
 				w.uint8(WASM.OpCode.i32_store16)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "int.store" || path == "uint.store") {
+			else if (path == 'int.store' || path == 'uint.store') {
 				w.uint8(WASM.OpCode.i32_store)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "long.loadSByte") {
+			else if (path == 'long.loadSByte') {
 				w.uint8(WASM.OpCode.i64_load8_s)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "ulong.loadByte") {
+			else if (path == 'ulong.loadByte') {
 				w.uint8(WASM.OpCode.i64_load8_u)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "long.loadShort") {
+			else if (path == 'long.loadShort') {
 				w.uint8(WASM.OpCode.i64_load16_s)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "ulong.loadUShort") {
+			else if (path == 'ulong.loadUShort') {
 				w.uint8(WASM.OpCode.i64_load16_u)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "long.loadInt") {
+			else if (path == 'long.loadInt') {
 				w.uint8(WASM.OpCode.i64_load32_s)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "ulong.loadUInt") {
+			else if (path == 'ulong.loadUInt') {
 				w.uint8(WASM.OpCode.i64_load32_u)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "long.load" || path == "ulong.load") {
+			else if (path == 'long.load' || path == 'ulong.load') {
 				w.uint8(WASM.OpCode.i64_load)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "long.storeSByte" || path == "ulong.storeByte") {
+			else if (path == 'long.storeSByte' || path == 'ulong.storeByte') {
 				w.uint8(WASM.OpCode.i64_store8)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "long.storeShort" || path == "ulong.storeUShort") {
+			else if (path == 'long.storeShort' || path == 'ulong.storeUShort') {
 				w.uint8(WASM.OpCode.i64_store16)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "long.storeInt" || path == "ulong.storeUInt") {
+			else if (path == 'long.storeInt' || path == 'ulong.storeUInt') {
 				w.uint8(WASM.OpCode.i64_store32)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "long.store" || path == "ulong.store") {
+			else if (path == 'long.store' || path == 'ulong.store') {
 				w.uint8(WASM.OpCode.i64_store)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "float.load") {
+			else if (path == 'float.load') {
 				w.uint8(WASM.OpCode.f32_load)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "float.store") {
+			else if (path == 'float.store') {
 				w.uint8(WASM.OpCode.f32_store)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "double.load") {
+			else if (path == 'double.load') {
 				w.uint8(WASM.OpCode.f64_load)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "double.store") {
+			else if (path == 'double.store') {
 				w.uint8(WASM.OpCode.f64_store)
 				w.varuintN(2, 32)
 				w.varuintN(0, 32)
 			}
-			else if (path == "int.clz" || path == "uint.clz") w.uint8(WASM.OpCode.i32_clz)
-			else if (path == "int.ctz" || path == "uint.ctz") w.uint8(WASM.OpCode.i32_ctz)
-			else if (path == "int.popcnt" || path == "uint.popcnt") w.uint8(WASM.OpCode.i32_popcnt)
-			else if (path == "int.eqz" || path == "uint.eqz") w.uint8(WASM.OpCode.i32_eqz)
-			else if (path == "long.clz" || path == "ulong.clz") w.uint8(WASM.OpCode.i64_clz)
-			else if (path == "long.ctz" || path == "ulong.ctz") w.uint8(WASM.OpCode.i64_ctz)
-			else if (path == "long.popcnt" || path == "ulong.popcnt") w.uint8(WASM.OpCode.i64_popcnt)
-			else if (path == "long.eqz" || path == "ulong.eqz") w.uint8(WASM.OpCode.i64_eqz)
-			else if (path == "float.abs") w.uint8(WASM.OpCode.f32_abs)
-			else if (path == "float.copysign") w.uint8(WASM.OpCode.f32_copysign)
-			else if (path == "float.ceil") w.uint8(WASM.OpCode.f32_ceil)
-			else if (path == "float.floor") w.uint8(WASM.OpCode.f32_floor)
-			else if (path == "float.truncate") w.uint8(WASM.OpCode.f32_trunc)
-			else if (path == "float.round") w.uint8(WASM.OpCode.f32_nearest)
-			else if (path == "float.sqrt") w.uint8(WASM.OpCode.f32_sqrt)
-			else if (path == "float.min") w.uint8(WASM.OpCode.f32_min)
-			else if (path == "float.max") w.uint8(WASM.OpCode.f32_max)
-			else if (path == "double.abs") w.uint8(WASM.OpCode.f64_abs)
-			else if (path == "double.copysign") w.uint8(WASM.OpCode.f64_copysign)
-			else if (path == "double.ceil") w.uint8(WASM.OpCode.f64_ceil)
-			else if (path == "double.floor") w.uint8(WASM.OpCode.f64_floor)
-			else if (path == "double.truncate") w.uint8(WASM.OpCode.f64_trunc)
-			else if (path == "double.round") w.uint8(WASM.OpCode.f64_nearest)
-			else if (path == "double.sqrt") w.uint8(WASM.OpCode.f64_sqrt)
-			else if (path == "double.min") w.uint8(WASM.OpCode.f64_min)
-			else if (path == "double.max") w.uint8(WASM.OpCode.f64_max)
+			else if (path == 'int.clz' || path == 'uint.clz') w.uint8(WASM.OpCode.i32_clz)
+			else if (path == 'int.ctz' || path == 'uint.ctz') w.uint8(WASM.OpCode.i32_ctz)
+			else if (path == 'int.popcnt' || path == 'uint.popcnt') w.uint8(WASM.OpCode.i32_popcnt)
+			else if (path == 'int.eqz' || path == 'uint.eqz') w.uint8(WASM.OpCode.i32_eqz)
+			else if (path == 'long.clz' || path == 'ulong.clz') w.uint8(WASM.OpCode.i64_clz)
+			else if (path == 'long.ctz' || path == 'ulong.ctz') w.uint8(WASM.OpCode.i64_ctz)
+			else if (path == 'long.popcnt' || path == 'ulong.popcnt') w.uint8(WASM.OpCode.i64_popcnt)
+			else if (path == 'long.eqz' || path == 'ulong.eqz') w.uint8(WASM.OpCode.i64_eqz)
+			else if (path == 'float.abs') w.uint8(WASM.OpCode.f32_abs)
+			else if (path == 'float.copysign') w.uint8(WASM.OpCode.f32_copysign)
+			else if (path == 'float.ceil') w.uint8(WASM.OpCode.f32_ceil)
+			else if (path == 'float.floor') w.uint8(WASM.OpCode.f32_floor)
+			else if (path == 'float.truncate') w.uint8(WASM.OpCode.f32_trunc)
+			else if (path == 'float.round') w.uint8(WASM.OpCode.f32_nearest)
+			else if (path == 'float.sqrt') w.uint8(WASM.OpCode.f32_sqrt)
+			else if (path == 'float.min') w.uint8(WASM.OpCode.f32_min)
+			else if (path == 'float.max') w.uint8(WASM.OpCode.f32_max)
+			else if (path == 'double.abs') w.uint8(WASM.OpCode.f64_abs)
+			else if (path == 'double.copysign') w.uint8(WASM.OpCode.f64_copysign)
+			else if (path == 'double.ceil') w.uint8(WASM.OpCode.f64_ceil)
+			else if (path == 'double.floor') w.uint8(WASM.OpCode.f64_floor)
+			else if (path == 'double.truncate') w.uint8(WASM.OpCode.f64_trunc)
+			else if (path == 'double.round') w.uint8(WASM.OpCode.f64_nearest)
+			else if (path == 'double.sqrt') w.uint8(WASM.OpCode.f64_sqrt)
+			else if (path == 'double.min') w.uint8(WASM.OpCode.f64_min)
+			else if (path == 'double.max') w.uint8(WASM.OpCode.f64_max)
 			else {
 				w.uint8(WASM.OpCode.call)
 				w.varuintN(this.funcPathToIndex[path], 32)
@@ -952,9 +952,9 @@ export class SchwaGenerator extends Generator {
 
 	private stripNum(str: string): string {
 		if (this.parseRadix(str) != 10) str = str.substring(2)
-		if (str.endsWith("L")) str = str.substring(0, str.length - 1)
-		if (str.endsWith("u")) str = str.substring(0, str.length - 1)
-		if (str.endsWith("f")) str = str.substring(0, str.length - 1)
+		if (str.endsWith('L')) str = str.substring(0, str.length - 1)
+		if (str.endsWith('u')) str = str.substring(0, str.length - 1)
+		if (str.endsWith('f')) str = str.substring(0, str.length - 1)
 		return str
 	}
 

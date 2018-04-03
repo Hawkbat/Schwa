@@ -1,20 +1,20 @@
-import { LogType, LogMsg, Logger } from "./log"
-import { TokenType, Token } from "./token"
-import { AstNode, AstType } from "./ast"
-import { DataType } from "./datatype"
-import { Scope, Struct, Function, Variable } from "./scope"
-import { Module, Compiler } from "./compiler"
-import * as utils from "./utils"
-import * as Long from "long"
+import { LogType, LogMsg, Logger } from './log'
+import { TokenType, Token } from './token'
+import { AstNode, AstType } from './ast'
+import { DataType } from './datatype'
+import { Scope, Struct, Function, Variable } from './scope'
+import { Module, Compiler } from './compiler'
+import * as utils from './utils'
+import * as Long from 'long'
 
 const MAX_TYPE_DEPTH = 16
 
 function formatOrdinal(n: number): string {
 	let str = n.toFixed()
-	if (str != "11" && str.endsWith('1')) return str + "st"
-	else if (str != "12" && str.endsWith('2')) return str + "nd"
-	else if (str != "13" && str.endsWith('3')) return str + "rd"
-	else return str + "th"
+	if (str != '11' && str.endsWith('1')) return str + 'st'
+	else if (str != '12' && str.endsWith('2')) return str + 'nd'
+	else if (str != '13' && str.endsWith('3')) return str + 'rd'
+	else return str + 'th'
 }
 
 export type ScopeRule = (n: AstNode, p: Scope) => Scope
@@ -238,14 +238,14 @@ export class Analyzer {
 
 	protected tryEval(node: AstNode) {
 		if (node.token.type != TokenType.Int && node.token.type != TokenType.UInt) {
-			this.logError("Invalid constant expression " + JSON.stringify(node.token.value), node)
+			this.logError('Invalid constant expression ' + JSON.stringify(node.token.value), node)
 			return 0
 		}
 		try {
 			let result = eval(node.token.value)
 			return result
 		} catch (e) {
-			this.logError("Invalid constant expression " + JSON.stringify(node.token.value), node)
+			this.logError('Invalid constant expression ' + JSON.stringify(node.token.value), node)
 			return 0
 		}
 	}
@@ -287,7 +287,7 @@ export class Analyzer {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Analyzer", msg, utils.getModulePath(this.mod), node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, 'Analyzer', msg, this.mod, node.token.row, node.token.column, node.token.value.length))
 	}
 }
 
@@ -296,82 +296,82 @@ export class SchwaAnalyzer extends Analyzer {
 		super(logger)
 		this.registerBuiltinFunc('nop', DataType.None, [], [])
 
-		this.registerBuiltinFunc('int.loadSByte', DataType.Int, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('int.loadShort', DataType.Int, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('int.load', DataType.Int, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('int.storeSByte', DataType.None, [DataType.UInt, DataType.Int], ["addr", "val"])
-		this.registerBuiltinFunc('int.storeShort', DataType.None, [DataType.UInt, DataType.Int], ["addr", "val"])
-		this.registerBuiltinFunc('int.store', DataType.None, [DataType.UInt, DataType.Int], ["addr", "val"])
+		this.registerBuiltinFunc('int.loadSByte', DataType.Int, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('int.loadShort', DataType.Int, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('int.load', DataType.Int, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('int.storeSByte', DataType.None, [DataType.UInt, DataType.Int], ['addr', 'val'])
+		this.registerBuiltinFunc('int.storeShort', DataType.None, [DataType.UInt, DataType.Int], ['addr', 'val'])
+		this.registerBuiltinFunc('int.store', DataType.None, [DataType.UInt, DataType.Int], ['addr', 'val'])
 
-		this.registerBuiltinFunc('uint.loadByte', DataType.UInt, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('uint.loadUShort', DataType.UInt, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('uint.load', DataType.UInt, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('uint.storeByte', DataType.None, [DataType.UInt, DataType.UInt], ["addr", "val"])
-		this.registerBuiltinFunc('uint.storeUShort', DataType.None, [DataType.UInt, DataType.UInt], ["addr", "val"])
-		this.registerBuiltinFunc('uint.store', DataType.None, [DataType.UInt, DataType.UInt], ["addr", "val"])
+		this.registerBuiltinFunc('uint.loadByte', DataType.UInt, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('uint.loadUShort', DataType.UInt, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('uint.load', DataType.UInt, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('uint.storeByte', DataType.None, [DataType.UInt, DataType.UInt], ['addr', 'val'])
+		this.registerBuiltinFunc('uint.storeUShort', DataType.None, [DataType.UInt, DataType.UInt], ['addr', 'val'])
+		this.registerBuiltinFunc('uint.store', DataType.None, [DataType.UInt, DataType.UInt], ['addr', 'val'])
 
-		this.registerBuiltinFunc('long.loadSByte', DataType.Long, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('long.loadShort', DataType.Long, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('long.loadInt', DataType.Long, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('long.load', DataType.Long, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('long.storeSByte', DataType.None, [DataType.UInt, DataType.Long], ["addr", "val"])
-		this.registerBuiltinFunc('long.storeShort', DataType.None, [DataType.UInt, DataType.Long], ["addr", "val"])
-		this.registerBuiltinFunc('long.storeInt', DataType.None, [DataType.UInt, DataType.Long], ["addr", "val"])
-		this.registerBuiltinFunc('long.store', DataType.None, [DataType.UInt, DataType.Long], ["addr", "val"])
+		this.registerBuiltinFunc('long.loadSByte', DataType.Long, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('long.loadShort', DataType.Long, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('long.loadInt', DataType.Long, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('long.load', DataType.Long, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('long.storeSByte', DataType.None, [DataType.UInt, DataType.Long], ['addr', 'val'])
+		this.registerBuiltinFunc('long.storeShort', DataType.None, [DataType.UInt, DataType.Long], ['addr', 'val'])
+		this.registerBuiltinFunc('long.storeInt', DataType.None, [DataType.UInt, DataType.Long], ['addr', 'val'])
+		this.registerBuiltinFunc('long.store', DataType.None, [DataType.UInt, DataType.Long], ['addr', 'val'])
 
-		this.registerBuiltinFunc('ulong.loadByte', DataType.ULong, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('ulong.loadUShort', DataType.ULong, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('ulong.loadUInt', DataType.ULong, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('ulong.load', DataType.ULong, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('ulong.storeByte', DataType.None, [DataType.UInt, DataType.ULong], ["addr", "val"])
-		this.registerBuiltinFunc('ulong.storeUShort', DataType.None, [DataType.UInt, DataType.ULong], ["addr", "val"])
-		this.registerBuiltinFunc('ulong.storeUInt', DataType.None, [DataType.UInt, DataType.ULong], ["addr", "val"])
-		this.registerBuiltinFunc('ulong.store', DataType.None, [DataType.UInt, DataType.ULong], ["addr", "val"])
+		this.registerBuiltinFunc('ulong.loadByte', DataType.ULong, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('ulong.loadUShort', DataType.ULong, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('ulong.loadUInt', DataType.ULong, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('ulong.load', DataType.ULong, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('ulong.storeByte', DataType.None, [DataType.UInt, DataType.ULong], ['addr', 'val'])
+		this.registerBuiltinFunc('ulong.storeUShort', DataType.None, [DataType.UInt, DataType.ULong], ['addr', 'val'])
+		this.registerBuiltinFunc('ulong.storeUInt', DataType.None, [DataType.UInt, DataType.ULong], ['addr', 'val'])
+		this.registerBuiltinFunc('ulong.store', DataType.None, [DataType.UInt, DataType.ULong], ['addr', 'val'])
 
-		this.registerBuiltinFunc('float.load', DataType.Float, [DataType.UInt], ["addr"])
-		this.registerBuiltinFunc('float.store', DataType.None, [DataType.UInt, DataType.Float], ["addr", "val"])
-		this.registerBuiltinFunc('double.load', DataType.Double, [DataType.UInt], ["addr", "val"])
-		this.registerBuiltinFunc('double.store', DataType.None, [DataType.UInt, DataType.Double], ["addr", "val"])
+		this.registerBuiltinFunc('float.load', DataType.Float, [DataType.UInt], ['addr'])
+		this.registerBuiltinFunc('float.store', DataType.None, [DataType.UInt, DataType.Float], ['addr', 'val'])
+		this.registerBuiltinFunc('double.load', DataType.Double, [DataType.UInt], ['addr', 'val'])
+		this.registerBuiltinFunc('double.store', DataType.None, [DataType.UInt, DataType.Double], ['addr', 'val'])
 
-		this.registerBuiltinFunc('int.clz', DataType.Int, [DataType.Int], ["n"])
-		this.registerBuiltinFunc('int.ctz', DataType.Int, [DataType.Int], ["n"])
-		this.registerBuiltinFunc('int.popcnt', DataType.Int, [DataType.Int], ["n"])
-		this.registerBuiltinFunc('int.eqz', DataType.Int, [DataType.Int], ["n"])
+		this.registerBuiltinFunc('int.clz', DataType.Int, [DataType.Int], ['n'])
+		this.registerBuiltinFunc('int.ctz', DataType.Int, [DataType.Int], ['n'])
+		this.registerBuiltinFunc('int.popcnt', DataType.Int, [DataType.Int], ['n'])
+		this.registerBuiltinFunc('int.eqz', DataType.Int, [DataType.Int], ['n'])
 
-		this.registerBuiltinFunc('uint.clz', DataType.UInt, [DataType.UInt], ["n"])
-		this.registerBuiltinFunc('uint.ctz', DataType.UInt, [DataType.UInt], ["n"])
-		this.registerBuiltinFunc('uint.popcnt', DataType.UInt, [DataType.UInt], ["n"])
-		this.registerBuiltinFunc('uint.eqz', DataType.UInt, [DataType.UInt], ["n"])
+		this.registerBuiltinFunc('uint.clz', DataType.UInt, [DataType.UInt], ['n'])
+		this.registerBuiltinFunc('uint.ctz', DataType.UInt, [DataType.UInt], ['n'])
+		this.registerBuiltinFunc('uint.popcnt', DataType.UInt, [DataType.UInt], ['n'])
+		this.registerBuiltinFunc('uint.eqz', DataType.UInt, [DataType.UInt], ['n'])
 
-		this.registerBuiltinFunc('long.clz', DataType.Long, [DataType.Long], ["n"])
-		this.registerBuiltinFunc('long.ctz', DataType.Long, [DataType.Long], ["n"])
-		this.registerBuiltinFunc('long.popcnt', DataType.Long, [DataType.Long], ["n"])
-		this.registerBuiltinFunc('long.eqz', DataType.Long, [DataType.Long], ["n"])
+		this.registerBuiltinFunc('long.clz', DataType.Long, [DataType.Long], ['n'])
+		this.registerBuiltinFunc('long.ctz', DataType.Long, [DataType.Long], ['n'])
+		this.registerBuiltinFunc('long.popcnt', DataType.Long, [DataType.Long], ['n'])
+		this.registerBuiltinFunc('long.eqz', DataType.Long, [DataType.Long], ['n'])
 
-		this.registerBuiltinFunc('ulong.clz', DataType.ULong, [DataType.ULong], ["n"])
-		this.registerBuiltinFunc('ulong.ctz', DataType.ULong, [DataType.ULong], ["n"])
-		this.registerBuiltinFunc('ulong.popcnt', DataType.ULong, [DataType.ULong], ["n"])
-		this.registerBuiltinFunc('ulong.eqz', DataType.ULong, [DataType.ULong], ["n"])
+		this.registerBuiltinFunc('ulong.clz', DataType.ULong, [DataType.ULong], ['n'])
+		this.registerBuiltinFunc('ulong.ctz', DataType.ULong, [DataType.ULong], ['n'])
+		this.registerBuiltinFunc('ulong.popcnt', DataType.ULong, [DataType.ULong], ['n'])
+		this.registerBuiltinFunc('ulong.eqz', DataType.ULong, [DataType.ULong], ['n'])
 
-		this.registerBuiltinFunc('float.abs', DataType.Float, [DataType.Float], ["n"])
-		this.registerBuiltinFunc('float.ceil', DataType.Float, [DataType.Float], ["n"])
-		this.registerBuiltinFunc('float.floor', DataType.Float, [DataType.Float], ["n"])
-		this.registerBuiltinFunc('float.truncate', DataType.Float, [DataType.Float], ["n"])
-		this.registerBuiltinFunc('float.round', DataType.Float, [DataType.Float], ["n"])
-		this.registerBuiltinFunc('float.sqrt', DataType.Float, [DataType.Float], ["n"])
-		this.registerBuiltinFunc('float.copysign', DataType.Float, [DataType.Float, DataType.Float], ["a", "b"])
-		this.registerBuiltinFunc('float.min', DataType.Float, [DataType.Float, DataType.Float], ["a", "b"])
-		this.registerBuiltinFunc('float.max', DataType.Float, [DataType.Float, DataType.Float], ["a", "b"])
+		this.registerBuiltinFunc('float.abs', DataType.Float, [DataType.Float], ['n'])
+		this.registerBuiltinFunc('float.ceil', DataType.Float, [DataType.Float], ['n'])
+		this.registerBuiltinFunc('float.floor', DataType.Float, [DataType.Float], ['n'])
+		this.registerBuiltinFunc('float.truncate', DataType.Float, [DataType.Float], ['n'])
+		this.registerBuiltinFunc('float.round', DataType.Float, [DataType.Float], ['n'])
+		this.registerBuiltinFunc('float.sqrt', DataType.Float, [DataType.Float], ['n'])
+		this.registerBuiltinFunc('float.copysign', DataType.Float, [DataType.Float, DataType.Float], ['a', 'b'])
+		this.registerBuiltinFunc('float.min', DataType.Float, [DataType.Float, DataType.Float], ['a', 'b'])
+		this.registerBuiltinFunc('float.max', DataType.Float, [DataType.Float, DataType.Float], ['a', 'b'])
 
-		this.registerBuiltinFunc('double.abs', DataType.Double, [DataType.Double], ["n"])
-		this.registerBuiltinFunc('double.ceil', DataType.Double, [DataType.Double], ["n"])
-		this.registerBuiltinFunc('double.floor', DataType.Double, [DataType.Double], ["n"])
-		this.registerBuiltinFunc('double.truncate', DataType.Double, [DataType.Double], ["n"])
-		this.registerBuiltinFunc('double.round', DataType.Double, [DataType.Double], ["n"])
-		this.registerBuiltinFunc('double.sqrt', DataType.Double, [DataType.Double], ["n"])
-		this.registerBuiltinFunc('double.copysign', DataType.Double, [DataType.Double, DataType.Double], ["a", "b"])
-		this.registerBuiltinFunc('double.min', DataType.Double, [DataType.Double, DataType.Double], ["a", "b"])
-		this.registerBuiltinFunc('double.max', DataType.Double, [DataType.Double, DataType.Double], ["a", "b"])
+		this.registerBuiltinFunc('double.abs', DataType.Double, [DataType.Double], ['n'])
+		this.registerBuiltinFunc('double.ceil', DataType.Double, [DataType.Double], ['n'])
+		this.registerBuiltinFunc('double.floor', DataType.Double, [DataType.Double], ['n'])
+		this.registerBuiltinFunc('double.truncate', DataType.Double, [DataType.Double], ['n'])
+		this.registerBuiltinFunc('double.round', DataType.Double, [DataType.Double], ['n'])
+		this.registerBuiltinFunc('double.sqrt', DataType.Double, [DataType.Double], ['n'])
+		this.registerBuiltinFunc('double.copysign', DataType.Double, [DataType.Double, DataType.Double], ['a', 'b'])
+		this.registerBuiltinFunc('double.min', DataType.Double, [DataType.Double, DataType.Double], ['a', 'b'])
+		this.registerBuiltinFunc('double.max', DataType.Double, [DataType.Double, DataType.Double], ['a', 'b'])
 
 		this.registerHoist(AstType.Program, (n, p) => {
 			let scope = new Scope(n, p, '')
@@ -531,7 +531,7 @@ export class SchwaAnalyzer extends Analyzer {
 			}
 			let struct = new Struct(n, scope, id.token.value, fields)
 			if (p.structs[struct.id]) {
-				this.logError("A struct with the name " + JSON.stringify(struct.id) + " already found", n)
+				this.logError('A struct with the name ' + JSON.stringify(struct.id) + ' already found', n)
 			} else {
 				p.structs[struct.id] = struct
 				p.scopes[scope.id] = scope
@@ -560,14 +560,14 @@ export class SchwaAnalyzer extends Analyzer {
 				let paramType = paramNode.token.value
 				if (pr && pr.type == AstType.Literal) paramType += '[' + this.tryEval(pr) + ']'
 				if (paramType.indexOf('[') >= 0) {
-					this.logError("Arrays cannot be used as function parameters", paramNode)
+					this.logError('Arrays cannot be used as function parameters', paramNode)
 					continue
 				}
 				params.push(new Variable(paramNode, scope, pl.token.value, paramType))
 			}
 			let func = new Function(n, scope, id.token.value, n.token.value, params)
 			if (p.funcs[func.id]) {
-				this.logError("A function with the name " + JSON.stringify(func.id) + " already found", n)
+				this.logError('A function with the name ' + JSON.stringify(func.id) + ' already found', n)
 			} else {
 				p.funcs[func.id] = func
 				p.scopes[scope.id] = scope
@@ -618,7 +618,7 @@ export class SchwaAnalyzer extends Analyzer {
 			if (r && r.type == AstType.Literal) type += '[' + this.tryEval(r) + ']'
 			let nvar = p.vars[id.token.value]
 			if (p.vars[id.token.value] && (!n.parent || (n.parent.type != AstType.Global && n.parent.type != AstType.Map))) {
-				this.logError("A variable with the name " + JSON.stringify(id.token.value) + " already found", n)
+				this.logError('A variable with the name ' + JSON.stringify(id.token.value) + ' already found', n)
 			} else {
 				if (!nvar) nvar = new Variable(n, p, id.token.value, type)
 				p.vars[nvar.id] = nvar
@@ -658,7 +658,7 @@ export class SchwaAnalyzer extends Analyzer {
 			}
 			if (scope) scope = scope.getScope('0')
 			if (!scope) {
-				this.logError("No scope named " + JSON.stringify(l.token.value) + " found", n)
+				this.logError('No scope named ' + JSON.stringify(l.token.value) + ' found', n)
 				return p
 			}
 			return scope
@@ -676,7 +676,7 @@ export class SchwaAnalyzer extends Analyzer {
 				scope = this.getScope(l, p)
 			}
 			if (!scope) {
-				this.logError("Invalid left-hand side of property access", n)
+				this.logError('Invalid left-hand side of property access', n)
 				return p
 			}
 			if (r) {
@@ -732,7 +732,7 @@ export class SchwaAnalyzer extends Analyzer {
 			if (id && this.getScope(n)) {
 				let nvar = this.getScope(n).getVariable(id.token.value)
 				if (nvar) return nvar.type
-				else this.logError("No variable named " + JSON.stringify(id.token.value) + " found", n)
+				else this.logError('No variable named ' + JSON.stringify(id.token.value) + ' found', n)
 			}
 			return DataType.Invalid
 		})
@@ -741,7 +741,7 @@ export class SchwaAnalyzer extends Analyzer {
 			if (id && this.getScope(n)) {
 				let func = this.getScope(n).getFunction(id.token.value)
 				if (func) return func.type
-				else this.logError("No function named " + JSON.stringify(id.token.value) + " found", n)
+				else this.logError('No function named ' + JSON.stringify(id.token.value) + ' found', n)
 			}
 			return DataType.Invalid
 		})
@@ -750,7 +750,7 @@ export class SchwaAnalyzer extends Analyzer {
 			if (id && this.getScope(n)) {
 				let struct = this.getScope(n).getStruct(id.token.value)
 				if (struct) return struct.id
-				else this.logError("No struct named " + JSON.stringify(id.token.value) + " found", n)
+				else this.logError('No struct named ' + JSON.stringify(id.token.value) + ' found', n)
 			}
 			return DataType.Invalid
 		})
@@ -800,15 +800,15 @@ export class SchwaAnalyzer extends Analyzer {
 				let isValid = true
 
 				let long = Long.fromString(val, unsigned, radix)
-				if (!isLong && long.gt(Long.fromString(unsigned ? "FFFFFFFF" : "7FFFFFFF", unsigned, 16))) isValid = false
-				if (!isLong && long.lt(Long.fromString(unsigned ? "0" : "-80000000", unsigned, 16))) isValid = false
+				if (!isLong && long.gt(Long.fromString(unsigned ? 'FFFFFFFF' : '7FFFFFFF', unsigned, 16))) isValid = false
+				if (!isLong && long.lt(Long.fromString(unsigned ? '0' : '-80000000', unsigned, 16))) isValid = false
 				if (long.toString(radix).toUpperCase() != val) isValid = false
 				if (!isValid) console.log(val, long.toString(radix).toUpperCase())
 				if (isValid) return type
 			} else {
 				return type
 			}
-			this.logError("The value " + JSON.stringify(n.token.value) + " is out of range", n)
+			this.logError('The value ' + JSON.stringify(n.token.value) + ' is out of range', n)
 			return DataType.Invalid
 		})
 
@@ -861,7 +861,7 @@ export class SchwaAnalyzer extends Analyzer {
 			if (ident) {
 				let nvar = this.getScope(ident).getVariable(ident.token.value)
 				if (nvar && nvar.const) {
-					this.logError("Constant globals cannot be assigned to", n)
+					this.logError('Constant globals cannot be assigned to', n)
 					return DataType.Invalid
 				}
 			}
@@ -869,12 +869,12 @@ export class SchwaAnalyzer extends Analyzer {
 			let t0 = this.getDataType(l)
 			let t1 = this.getDataType(r)
 			if (t0 == DataType.Invalid || t1 == DataType.Invalid) {
-				if (t0 == DataType.Invalid) this.logError("Invalid left-hand side of assignment", l)
-				if (t1 == DataType.Invalid) this.logError("Invalid right-hand side of assignment", r)
+				if (t0 == DataType.Invalid) this.logError('Invalid left-hand side of assignment', l)
+				if (t1 == DataType.Invalid) this.logError('Invalid right-hand side of assignment', r)
 				return DataType.Invalid
 			}
 			if (t0 != t1) {
-				this.logError("Both sides of an assignment must be of the same type", n)
+				this.logError('Both sides of an assignment must be of the same type', n)
 				return DataType.Invalid
 			}
 			return t0
@@ -887,12 +887,12 @@ export class SchwaAnalyzer extends Analyzer {
 			let t0 = this.getDataType(l)
 			let t1 = this.getDataType(r)
 			if (t0 == DataType.Invalid || t1 == DataType.Invalid) {
-				if (t0 == DataType.Invalid) this.logError("Invalid left-hand side of assignment", l)
-				if (t1 == DataType.Invalid) this.logError("Invalid right-hand side of assignment", r)
+				if (t0 == DataType.Invalid) this.logError('Invalid left-hand side of assignment', l)
+				if (t1 == DataType.Invalid) this.logError('Invalid right-hand side of assignment', r)
 				return DataType.Invalid
 			}
 			if (t0 != t1) {
-				this.logError("Both sides of an assignment must be of the same type", n)
+				this.logError('Both sides of an assignment must be of the same type', n)
 				return DataType.Invalid
 			}
 			return t0
@@ -920,8 +920,8 @@ export class SchwaAnalyzer extends Analyzer {
 			if (t0 == DataType.Double && t1 == DataType.Long) return DataType.Long
 			if (t0 == DataType.Double && t1 == DataType.ULong) return DataType.ULong
 
-			if (t0 == DataType.Invalid) this.logError("Invalid value argument to operator " + n.token.type, l)
-			if (t1 == DataType.Invalid) this.logError("Invalid type argument to operator " + n.token.type, r)
+			if (t0 == DataType.Invalid) this.logError('Invalid value argument to operator ' + n.token.type, l)
+			if (t1 == DataType.Invalid) this.logError('Invalid type argument to operator ' + n.token.type, r)
 			return DataType.Invalid
 		})
 
@@ -961,8 +961,8 @@ export class SchwaAnalyzer extends Analyzer {
 			if (t0 == DataType.Double && t1 == DataType.ULong) return DataType.ULong
 			if (t0 == DataType.Double && t1 == DataType.Float) return DataType.Float
 
-			if (t0 == DataType.Invalid) this.logError("Invalid value argument to operator " + n.token.type, l)
-			if (t1 == DataType.Invalid) this.logError("Invalid type argument to operator " + n.token.type, r)
+			if (t0 == DataType.Invalid) this.logError('Invalid value argument to operator ' + n.token.type, l)
+			if (t1 == DataType.Invalid) this.logError('Invalid type argument to operator ' + n.token.type, r)
 			return DataType.Invalid
 		})
 
@@ -972,16 +972,16 @@ export class SchwaAnalyzer extends Analyzer {
 			if (!l || !r) return DataType.Invalid
 			let ident = utils.getIdentifier(l)
 			if (!ident) {
-				this.logError("Invalid function identifier", n)
+				this.logError('Invalid function identifier', n)
 				return DataType.Invalid
 			}
 			let func = this.getScope(ident).getFunction(ident.token.value)
 			if (!func) {
-				this.logError("No function named " + JSON.stringify(ident.token.value) + " found", n)
+				this.logError('No function named ' + JSON.stringify(ident.token.value) + ' found', n)
 				return DataType.Invalid
 			}
 			if (func.params.length != r.children.length) {
-				this.logError("Function " + JSON.stringify(func.id) + " takes " + func.params.length + " arguments, not " + r.children.length, n)
+				this.logError('Function ' + JSON.stringify(func.id) + ' takes ' + func.params.length + ' arguments, not ' + r.children.length, n)
 				return DataType.Invalid
 			}
 			let valid = true
@@ -990,7 +990,7 @@ export class SchwaAnalyzer extends Analyzer {
 				if (!param) continue
 				let type = this.getDataType(param)
 				if (type != func.params[i].type) {
-					this.logError("The " + formatOrdinal(i + 1) + " parameter (" + JSON.stringify(func.params[i].id) + ") of function " + JSON.stringify(func.id) + " is type " + func.params[i].type + ", not " + type, param)
+					this.logError('The ' + formatOrdinal(i + 1) + ' parameter (' + JSON.stringify(func.params[i].id) + ') of function ' + JSON.stringify(func.id) + ' is type ' + func.params[i].type + ', not ' + type, param)
 					valid = false
 				}
 			}
@@ -1006,7 +1006,7 @@ export class SchwaAnalyzer extends Analyzer {
 			while (p && p.type != AstType.FunctionDef) p = p.parent
 			if (p && (t != p.token.value || p.token.value == DataType.None)) {
 				let pn = p.children[0]
-				if (pn) this.logError("Type of return value (" + t + ") does not match function " + pn.token.value + "'s return type (" + p.token.value + ")", l)
+				if (pn) this.logError('Type of return value (' + t + ') does not match function ' + pn.token.value + '\'s return type (' + p.token.value + ')', l)
 				return DataType.Invalid
 			}
 			return t
@@ -1019,7 +1019,7 @@ export class SchwaAnalyzer extends Analyzer {
 			while (p && p.type != AstType.FunctionDef) p = p.parent
 			if (p && p.token.value != DataType.None) {
 				let pn = p.children[0]
-				if (pn) this.logError("Type of return value (" + DataType.None + ") does not match function " + pn.token.value + "'s return type (" + p.token.value + ")", l)
+				if (pn) this.logError('Type of return value (' + DataType.None + ') does not match function ' + pn.token.value + '\'s return type (' + p.token.value + ')', l)
 				return DataType.Invalid
 			}
 			return DataType.None
@@ -1035,7 +1035,7 @@ export class SchwaAnalyzer extends Analyzer {
 			for (let i = 0; i < typeSets.length; i++) {
 				if (t == typeSets[i][0]) return typeSets[i][1]
 			}
-			this.logError("Invalid argument to operator " + n.token.type, l)
+			this.logError('Invalid argument to operator ' + n.token.type, l)
 			return DataType.Invalid
 		})
 	}
@@ -1051,8 +1051,8 @@ export class SchwaAnalyzer extends Analyzer {
 			for (let i = 0; i < typeSets.length; i++) {
 				if (t0 == typeSets[i][0] && t1 == typeSets[i][1]) return typeSets[i][2]
 			}
-			this.logError("Invalid 1st argument to operator " + n.token.type, l)
-			this.logError("Invalid 2nd argument to operator " + n.token.type, r)
+			this.logError('Invalid 1st argument to operator ' + n.token.type, l)
+			this.logError('Invalid 2nd argument to operator ' + n.token.type, r)
 			return DataType.Invalid
 		})
 	}

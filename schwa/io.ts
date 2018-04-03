@@ -1,4 +1,4 @@
-import * as LEB from "leb"
+import * as LEB from 'leb'
 
 export class Writer {
 	private buf: number[] = []

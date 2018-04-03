@@ -1,8 +1,8 @@
-import { Token, TokenType } from "./token"
-import { LogType, LogMsg, Logger } from "./log"
-import { AstType, AstNode } from "./ast"
-import { Module } from "./compiler"
-import * as utils from "./utils"
+import { Token, TokenType } from './token'
+import { LogType, LogMsg, Logger } from './log'
+import { AstType, AstNode } from './ast'
+import { Module } from './compiler'
+import * as utils from './utils'
 
 export type PrefixFunc = (token: Token) => AstNode
 export type InfixFunc = (left: AstNode | null, token: Token) => AstNode
@@ -34,7 +34,7 @@ export class Parser {
 
 		if (!prefixFunc) {
 			if (token.type != TokenType.Unknown)
-				this.logError("Unable to parse token " + token.type + (token.type == token.value ? "" : " " + JSON.stringify(token.value)), token)
+				this.logError('Unable to parse token ' + token.type + (token.type == token.value ? '' : ' ' + JSON.stringify(token.value)), token)
 			return new AstNode(AstType.Unknown, token, [])
 		}
 
@@ -73,7 +73,7 @@ export class Parser {
 	protected consumeMatch(type: TokenType, match: TokenType): Token | null {
 		let token = this.peek()
 		if (token && token.type != match) {
-			this.logWarning(type + " expected " + match + " but got " + (token.type == token.value ? token.type : token.type + " " + JSON.stringify(token.value)), token)
+			this.logWarning(type + ' expected ' + match + ' but got ' + (token.type == token.value ? token.type : token.type + ' ' + JSON.stringify(token.value)), token)
 			return token
 		}
 		return this.consume()
@@ -121,11 +121,11 @@ export class Parser {
 	}
 
 	protected logError(msg: string, token: Token) {
-		this.logger.log(new LogMsg(LogType.Error, "Parser", msg, utils.getModulePath(this.mod), token.row, token.column, token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, 'Parser', msg, this.mod, token.row, token.column, token.value.length))
 	}
 
 	protected logWarning(msg: string, token: Token) {
-		this.logger.log(new LogMsg(LogType.Warning, "Parser", msg, utils.getModulePath(this.mod), token.row, token.column, token.value.length))
+		this.logger.log(new LogMsg(LogType.Warning, 'Parser', msg, this.mod, token.row, token.column, token.value.length))
 	}
 }
 

@@ -1,4 +1,4 @@
-import { Reader, Writer, Readable, Writable } from "./io"
+import { Reader, Writer, Readable, Writable } from './io'
 
 export enum OpCode {
 	unreachable = 0x00,
@@ -381,7 +381,7 @@ export class NameEntry implements Writable {
 		w.uint8(this.nameType)
 
 		var subWriter = new Writer()
-		if (typeof this.payload == "string") {
+		if (typeof this.payload == 'string') {
 			subWriter.utf8(this.payload)
 		} else {
 			subWriter.write(this.payload)
@@ -654,7 +654,7 @@ export class CustomSection extends Section {
 
 export class NameSection extends CustomSection {
 
-	constructor(public entries: NameEntry[]) { super("name") }
+	constructor(public entries: NameEntry[]) { super('name') }
 
 	write(w: Writer): void {
 		w.varuintN(this.id, 7)

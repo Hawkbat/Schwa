@@ -83,6 +83,6 @@ export class Token {
 	constructor(public type: TokenType, public value: string, public row: number, public column: number) { }
 
 	toString(): string {
-		return "(" + (this.type != this.value ? this.type : '') + ((this.value) ? ":" + this.value + ")" : ")") + ":" + this.row + ":" + this.column
+		return '(' + (this.type != this.value ? this.type : '') + ((this.value) ? ':' + this.value + ')' : ')') + ':' + this.row + ':' + this.column
 	}
 }

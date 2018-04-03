@@ -1,4 +1,3 @@
-
 export const float PI = 3.14f
 export const float TAU = 6.28f
 
@@ -8,4 +7,4 @@ export float addPi(float n)
 export struct Pi
 	float value
 
-export map float MAPPED_GLOBAL at 4
+map float MAPPED_GLOBAL at 4

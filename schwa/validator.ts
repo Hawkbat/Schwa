@@ -1,8 +1,8 @@
-import { LogType, LogMsg, Logger } from "./log"
-import { TokenType } from "./token"
-import { AstNode, AstType } from "./ast"
-import { Module } from "./compiler"
-import * as utils from "./utils"
+import { LogType, LogMsg, Logger } from './log'
+import { TokenType } from './token'
+import { AstNode, AstType } from './ast'
+import { Module } from './compiler'
+import * as utils from './utils'
 
 export type ValidateRule = (n: AstNode) => void
 
@@ -34,7 +34,7 @@ export class Validator {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Validator", msg, utils.getModulePath(this.mod), node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, 'Validator', msg, this.mod, node.token.row, node.token.column, node.token.value.length))
 	}
 }
 
@@ -150,7 +150,7 @@ export class SchwaValidator extends Validator {
 	protected registerParentType(type: AstType, parentTypes: AstType[]) {
 		this.register(type, (n) => {
 			if (!n.parent) {
-				this.logError("Expected parent of " + type + " to be " + parentTypes.join(" or ") + " but node has no parent", n)
+				this.logError('Expected parent of ' + type + ' to be ' + parentTypes.join(' or ') + ' but node has no parent', n)
 				n.valid = false
 			} else {
 				let validType = false
@@ -161,7 +161,7 @@ export class SchwaValidator extends Validator {
 					}
 				}
 				if (!validType) {
-					this.logError("Expected parent of " + type + " to be " + parentTypes.join(" or ") + " but found " + n.parent.type + " instead", n.parent)
+					this.logError('Expected parent of ' + type + ' to be ' + parentTypes.join(' or ') + ' but found ' + n.parent.type + ' instead', n.parent)
 					n.valid = false
 				}
 			}
@@ -177,7 +177,7 @@ export class SchwaValidator extends Validator {
 				}
 				p = p.parent
 			}
-			this.logError("Expected ancestor of " + type + " to be " + ancestorTypes.join(" or ") + " but no suitable node found", n.parent ? n.parent : n)
+			this.logError('Expected ancestor of ' + type + ' to be ' + ancestorTypes.join(' or ') + ' but no suitable node found', n.parent ? n.parent : n)
 			n.valid = false
 		})
 	}
@@ -185,7 +185,7 @@ export class SchwaValidator extends Validator {
 	protected registerChildCount(type: AstType, min: number, max: number = min) {
 		this.register(type, (n) => {
 			if (n.children.length < min || n.children.length > max) {
-				this.logError("Expected " + type + " to have " + (min == max ? min : min + '-' + max) + ((min == max && min == 1) ? " child" : " children") + " but " + ((!n.children || n.children.length == 0) ? "none" : "" + n.children.length) + " found", n)
+				this.logError('Expected ' + type + ' to have ' + (min == max ? min : min + '-' + max) + ((min == max && min == 1) ? ' child' : ' children') + ' but ' + ((!n.children || n.children.length == 0) ? 'none' : '' + n.children.length) + ' found', n)
 				n.valid = false
 			}
 		})
@@ -193,17 +193,17 @@ export class SchwaValidator extends Validator {
 
 	protected formatOrdinal(n: number): string {
 		let str = n.toFixed()
-		if (str != "11" && str.endsWith('1')) return str + "st"
-		else if (str != "12" && str.endsWith('2')) return str + "nd"
-		else if (str != "13" && str.endsWith('3')) return str + "rd"
-		else return str + "th"
+		if (str != '11' && str.endsWith('1')) return str + 'st'
+		else if (str != '12' && str.endsWith('2')) return str + 'nd'
+		else if (str != '13' && str.endsWith('3')) return str + 'rd'
+		else return str + 'th'
 	}
 
 	protected registerChildTypes(type: AstType, childTypes: AstType[][], startIndex: number = 0) {
 		this.register(type, (n) => {
 			for (let i = startIndex; i < startIndex + childTypes.length; i++) {
 				if (!n.children || n.children.length <= i) {
-					this.logError("Expected " + this.formatOrdinal(i + 1) + " child of " + type + " to be " + childTypes[i - startIndex].join(" or ") + " but node has no " + this.formatOrdinal(i + 1) + " child", n)
+					this.logError('Expected ' + this.formatOrdinal(i + 1) + ' child of ' + type + ' to be ' + childTypes[i - startIndex].join(' or ') + ' but node has no ' + this.formatOrdinal(i + 1) + ' child', n)
 					n.valid = false
 				} else {
 					let child = n.children[i]
@@ -216,7 +216,7 @@ export class SchwaValidator extends Validator {
 							}
 						}
 						if (!validType) {
-							this.logError("Expected " + this.formatOrdinal(i + 1) + " child of " + type + " to be " + childTypes[i - startIndex].join(" or ") + " but found " + child.type + " instead", child)
+							this.logError('Expected ' + this.formatOrdinal(i + 1) + ' child of ' + type + ' to be ' + childTypes[i - startIndex].join(' or ') + ' but found ' + child.type + ' instead', child)
 							n.valid = false
 						}
 					}
@@ -239,7 +239,7 @@ export class SchwaValidator extends Validator {
 							}
 						}
 						if (!validType) {
-							this.logError("Expected child of " + type + " to be " + childrenTypes.join(" or ") + " but found " + child.type + " instead", child)
+							this.logError('Expected child of ' + type + ' to be ' + childrenTypes.join(' or ') + ' but found ' + child.type + ' instead', child)
 							n.valid = false
 						}
 					}
@@ -251,13 +251,13 @@ export class SchwaValidator extends Validator {
 	protected registerNextSiblingType(type: AstType, siblingTypes: AstType[]) {
 		this.register(type, (n) => {
 			if (!n.parent) {
-				this.logError("Expected next sibling of " + type + " to be " + siblingTypes.join(" or ") + " but node has no parent", n)
+				this.logError('Expected next sibling of ' + type + ' to be ' + siblingTypes.join(' or ') + ' but node has no parent', n)
 				n.valid = false
 				return
 			}
 			let index = n.parent.children.indexOf(n)
 			if (index == n.parent.children.length - 1) {
-				this.logError("Expected next sibling of " + type + " to be " + siblingTypes.join(" or ") + " but node has no next sibling", n)
+				this.logError('Expected next sibling of ' + type + ' to be ' + siblingTypes.join(' or ') + ' but node has no next sibling', n)
 				n.valid = false
 			} else {
 				let sibling = n.parent.children[index + 1]
@@ -270,7 +270,7 @@ export class SchwaValidator extends Validator {
 						}
 					}
 					if (!validType) {
-						this.logError("Expected next sibling of " + type + " to be " + siblingTypes.join(" or ") + " but found " + sibling.type + " instead", sibling)
+						this.logError('Expected next sibling of ' + type + ' to be ' + siblingTypes.join(' or ') + ' but found ' + sibling.type + ' instead', sibling)
 						n.valid = false
 					}
 				}
@@ -281,13 +281,13 @@ export class SchwaValidator extends Validator {
 	protected registerPreviousSiblingType(type: AstType, siblingTypes: AstType[]) {
 		this.register(type, (n) => {
 			if (!n.parent) {
-				this.logError("Expected next sibling of " + type + " to be " + siblingTypes.join(" or ") + " but node has no parent", n)
+				this.logError('Expected next sibling of ' + type + ' to be ' + siblingTypes.join(' or ') + ' but node has no parent', n)
 				n.valid = false
 				return
 			}
 			let index = n.parent.children.indexOf(n)
 			if (index == 0) {
-				this.logError("Expected previous sibling of " + type + " to be " + siblingTypes.join(" or ") + " but node has no previous sibling", n)
+				this.logError('Expected previous sibling of ' + type + ' to be ' + siblingTypes.join(' or ') + ' but node has no previous sibling', n)
 				n.valid = false
 			} else {
 				let sibling = n.parent.children[index - 1]
@@ -300,7 +300,7 @@ export class SchwaValidator extends Validator {
 						}
 					}
 					if (!validType) {
-						this.logError("Expected previous sibling of " + type + " to be " + siblingTypes.join(" or ") + " but found " + sibling.type + " instead", sibling)
+						this.logError('Expected previous sibling of ' + type + ' to be ' + siblingTypes.join(' or ') + ' but found ' + sibling.type + ' instead', sibling)
 						n.valid = false
 					}
 				}

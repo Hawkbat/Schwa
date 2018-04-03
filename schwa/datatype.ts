@@ -1,16 +1,16 @@
-import { TokenType } from "./token"
+import { TokenType } from './token'
 
 export enum DataType {
-	None = "void",
-	Invalid = "invalid",
-	Type = "type",
-	Int = "int",
-	UInt = "uint",
-	Long = "long",
-	ULong = "ulong",
-	Float = "float",
-	Double = "double",
-	Bool = "bool"
+	None = 'void',
+	Invalid = 'invalid',
+	Type = 'type',
+	Int = 'int',
+	UInt = 'uint',
+	Long = 'long',
+	ULong = 'ulong',
+	Float = 'float',
+	Double = 'double',
+	Bool = 'bool'
 }
 
 export namespace DataType {

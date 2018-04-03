@@ -1,4 +1,4 @@
-import { AstNode } from "./ast"
+import { AstNode } from './ast'
 
 export class Variable {
 	public alias: string = ''
@@ -17,7 +17,7 @@ export class Variable {
 		if (untilNode && this.node) return path
 		let p: Scope | null = this.scope
 		while (p) {
-			if (p.id) path = p.id + "." + path
+			if (p.id) path = p.id + '.' + path
 			if (untilNode && p.node) break
 			p = p.parent
 		}
@@ -60,7 +60,7 @@ export class Function {
 		let path = this.id
 		let p: Scope | null = this.scope
 		while (p) {
-			if (p.id) path = p.id + "." + path
+			if (p.id) path = p.id + '.' + path
 			p = p.parent
 		}
 		return path
@@ -95,7 +95,7 @@ export class Struct {
 		let path = this.id
 		let p: Scope | null = this.scope
 		while (p) {
-			if (p.id) path = p.id + "." + path
+			if (p.id) path = p.id + '.' + path
 			p = p.parent
 		}
 		return path
@@ -158,7 +158,7 @@ export class Scope {
 		let path = this.id
 		let p: Scope | null = this.parent
 		while (p) {
-			if (p.id) path = p.id + "." + path
+			if (p.id) path = p.id + '.' + path
 			p = p.parent
 		}
 		return path

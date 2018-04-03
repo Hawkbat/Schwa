@@ -1,6 +1,5 @@
 import { AstNode, AstType } from './ast'
 import { Module } from './compiler'
-import * as path from 'path'
 
 export function getIdentifier(n: AstNode | null | undefined): AstNode | null | undefined {
 	if (!n) return null
@@ -37,12 +36,4 @@ export function getIdentifier(n: AstNode | null | undefined): AstNode | null | u
 		n.type == AstType.UnknownImport ||
 		n.type == AstType.Alias) return n
 	return null
-}
-
-export function getModulePath(mod: Module | null | undefined) {
-	let out = ''
-	if (mod) {
-		out += path.join(mod.dir, mod.name + '.schwa')
-	}
-	return out
 }

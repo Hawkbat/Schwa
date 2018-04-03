@@ -1,7 +1,7 @@
-import { Token, TokenType } from "./token"
-import { LogType, LogMsg, Logger } from "./log"
-import { Module } from "./compiler"
-import * as utils from "./utils"
+import { Token, TokenType } from './token'
+import { LogType, LogMsg, Logger } from './log'
+import { Module } from './compiler'
+import * as utils from './utils'
 
 export type LexerRule = (row: number, column: number) => Token | null
 
@@ -59,7 +59,7 @@ export class Lexer {
 						end++
 					}
 					let val = this.lines[row].substring(col, end)
-					this.logError("Unknown token " + JSON.stringify(val), row, col, end - col)
+					this.logError('Unknown token ' + JSON.stringify(val), row, col, end - col)
 					this.tokens.push(new Token(TokenType.Unknown, val, row, col))
 					col = end - 1
 				}
@@ -104,7 +104,7 @@ export class Lexer {
 	}
 
 	protected logError(msg: string, row: number, col: number, len: number) {
-		this.logger.log(new LogMsg(LogType.Error, "Lexer", msg, utils.getModulePath(this.mod), row, col, len))
+		this.logger.log(new LogMsg(LogType.Error, 'Lexer', msg, this.mod, row, col, len))
 	}
 }
 
@@ -117,35 +117,35 @@ export class SchwaLexer extends Lexer {
 		this.registerRegex(TokenType.None, /\s/)
 
 		// Longer matches first to keep precedence over shorter matches 
-		this.registerMatch(TokenType.ShL, "<<")
-		this.registerMatch(TokenType.ShR, ">>")
-		this.registerMatch(TokenType.RotL, "<|")
-		this.registerMatch(TokenType.RotR, "|>")
-		this.registerMatch(TokenType.Eq, "==")
-		this.registerMatch(TokenType.Ne, "!=")
-		this.registerMatch(TokenType.Le, "<=")
-		this.registerMatch(TokenType.Ge, ">=")
-		this.registerMatch(TokenType.And, "&&")
-		this.registerMatch(TokenType.Or, "||")
+		this.registerMatch(TokenType.ShL, '<<')
+		this.registerMatch(TokenType.ShR, '>>')
+		this.registerMatch(TokenType.RotL, '<|')
+		this.registerMatch(TokenType.RotR, '|>')
+		this.registerMatch(TokenType.Eq, '==')
+		this.registerMatch(TokenType.Ne, '!=')
+		this.registerMatch(TokenType.Le, '<=')
+		this.registerMatch(TokenType.Ge, '>=')
+		this.registerMatch(TokenType.And, '&&')
+		this.registerMatch(TokenType.Or, '||')
 
-		this.registerMatch(TokenType.Add, "+")
-		this.registerMatch(TokenType.Mul, "*")
-		this.registerMatch(TokenType.Div, "/")
-		this.registerMatch(TokenType.Mod, "%")
-		this.registerMatch(TokenType.AND, "&")
-		this.registerMatch(TokenType.OR, "|")
-		this.registerMatch(TokenType.XOR, "^")
-		this.registerMatch(TokenType.NOT, "~")
-		this.registerMatch(TokenType.Lt, "<")
-		this.registerMatch(TokenType.Gt, ">")
-		this.registerMatch(TokenType.Not, "!")
-		this.registerMatch(TokenType.Assign, "=")
-		this.registerMatch(TokenType.LBracket, "[")
-		this.registerMatch(TokenType.RBracket, "]")
-		this.registerMatch(TokenType.LParen, "(")
-		this.registerMatch(TokenType.RParen, ")")
-		this.registerMatch(TokenType.Comma, ",")
-		this.registerMatch(TokenType.Period, ".")
+		this.registerMatch(TokenType.Add, '+')
+		this.registerMatch(TokenType.Mul, '*')
+		this.registerMatch(TokenType.Div, '/')
+		this.registerMatch(TokenType.Mod, '%')
+		this.registerMatch(TokenType.AND, '&')
+		this.registerMatch(TokenType.OR, '|')
+		this.registerMatch(TokenType.XOR, '^')
+		this.registerMatch(TokenType.NOT, '~')
+		this.registerMatch(TokenType.Lt, '<')
+		this.registerMatch(TokenType.Gt, '>')
+		this.registerMatch(TokenType.Not, '!')
+		this.registerMatch(TokenType.Assign, '=')
+		this.registerMatch(TokenType.LBracket, '[')
+		this.registerMatch(TokenType.RBracket, ']')
+		this.registerMatch(TokenType.LParen, '(')
+		this.registerMatch(TokenType.RParen, ')')
+		this.registerMatch(TokenType.Comma, ',')
+		this.registerMatch(TokenType.Period, '.')
 
 		this.registerRegex(TokenType.ElseIf, /\belse if\b/)
 		this.registerRegex(TokenType.If, /\bif\b/)
@@ -176,6 +176,6 @@ export class SchwaLexer extends Lexer {
 		this.registerRegex(TokenType.Int, /(?:-|\b)(?:0b[0-1]+|0o[0-7]+|0x[0-9A-F]+|\d+)\b/)
 
 		// After the number regexes so it doesn't overrule negative constants
-		this.registerMatch(TokenType.Sub, "-")
+		this.registerMatch(TokenType.Sub, '-')
 	}
 }

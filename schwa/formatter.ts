@@ -1,8 +1,8 @@
-import { TokenType, Token } from "./token"
-import { AstNode, AstType } from "./ast"
-import { Logger, LogMsg, LogType } from "./log"
-import { Module } from "./compiler"
-import * as utils from "./utils"
+import { TokenType, Token } from './token'
+import { AstNode, AstType } from './ast'
+import { Logger, LogMsg, LogType } from './log'
+import { Module } from './compiler'
+import * as utils from './utils'
 
 export type FormatRule = (n: AstNode) => string
 
@@ -18,7 +18,7 @@ export class Formatter {
 	}
 
 	protected printNode(node: AstNode | undefined | null): string {
-		if (!node) return ""
+		if (!node) return ''
 		let rule = this.ruleMap[node.type]
 		if (rule) return rule(node)
 		return node.token.value
@@ -29,7 +29,7 @@ export class Formatter {
 	}
 
 	protected logError(msg: string, node: AstNode) {
-		this.logger.log(new LogMsg(LogType.Error, "Formatter", msg, utils.getModulePath(this.mod), node.token.row, node.token.column, node.token.value.length))
+		this.logger.log(new LogMsg(LogType.Error, 'Formatter', msg, this.mod, node.token.row, node.token.column, node.token.value.length))
 	}
 }
 

@@ -1,3 +1,5 @@
+import { Module } from './compiler'
+import * as path from 'path'
 
 export enum LogType {
 	Hint,
@@ -7,10 +9,10 @@ export enum LogType {
 }
 
 export class LogMsg {
-	constructor(public type: LogType, public ctx: string, public msg: string, public path: string, public row: number, public column: number, public length: number = 0) { }
+	constructor(public type: LogType, public ctx: string, public msg: string, public mod: Module | undefined, public row: number, public column: number, public length: number = 0) { }
 
 	toString() {
-		return "[" + this.ctx + "] " + LogType[this.type] + ": " + this.msg + " at " + this.path + "(" + (this.row + 1) + "," + (this.column + 1)/* + (this.length > 0 ? "-" + (this.column + 1 + this.length) : "")*/ + ")"
+		return '[' + this.ctx + '] ' + LogType[this.type] + ': ' + this.msg + (this.mod ? ' at ' + path.join(this.mod.dir, this.mod.name + '.schwa') : '') + '(' + (this.row + 1) + ',' + (this.column + 1)/* + (this.length > 0 ? '-' + (this.column + 1 + this.length) : '')*/ + ')'
 	}
 }
 
