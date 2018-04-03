@@ -12,8 +12,8 @@ export class Variable {
 
 	constructor(public node: AstNode | null, public scope: Scope, public id: string, public type: string) { }
 
-	getPath(untilNode: boolean = false): string {
-		let path = this.id
+	getPath(useAlias: boolean = true, untilNode: boolean = false): string {
+		let path = useAlias && this.alias ? this.alias : this.id
 		if (untilNode && this.node) return path
 		let p: Scope | null = this.scope
 		while (p) {
@@ -56,8 +56,8 @@ export class Function {
 
 	constructor(public node: AstNode | null, public scope: Scope, public id: string, public type: string, public params: Variable[]) { }
 
-	getPath(): string {
-		let path = this.id
+	getPath(useAlias: boolean = true): string {
+		let path = useAlias && this.alias ? this.alias : this.id
 		let p: Scope | null = this.scope
 		while (p) {
 			if (p.id) path = p.id + '.' + path
@@ -91,8 +91,8 @@ export class Struct {
 
 	constructor(public node: AstNode | null, public scope: Scope, public id: string, public fields: Variable[]) { }
 
-	getPath(): string {
-		let path = this.id
+	getPath(useAlias: boolean = true): string {
+		let path = useAlias && this.alias ? this.alias : this.id
 		let p: Scope | null = this.scope
 		while (p) {
 			if (p.id) path = p.id + '.' + path
@@ -154,8 +154,8 @@ export class Scope {
 		return null
 	}
 
-	getPath(): string {
-		let path = this.id
+	getPath(useAlias: boolean = true): string {
+		let path = useAlias && this.alias ? this.alias : this.id
 		let p: Scope | null = this.parent
 		while (p) {
 			if (p.id) path = p.id + '.' + path

@@ -123,7 +123,7 @@ export class SchwaValidator extends Validator {
 		this.registerChildCount(AstType.ScopeId, 0, 1)
 		this.registerChildrenType(AstType.ScopeId, [AstType.Alias])
 
-		this.registerParentType(AstType.Alias, [AstType.ModuleId, AstType.VariableId, AstType.FunctionId, AstType.StructId, AstType.ScopeId])
+		this.registerParentType(AstType.Alias, [AstType.ModuleId, AstType.VariableId, AstType.FunctionId, AstType.StructId, AstType.ScopeId, AstType.UnknownImport])
 		this.registerAncestorType(AstType.Alias, [AstType.Import])
 
 		this.registerChildTypes(AstType.Map, [[AstType.VariableDef], [AstType.Literal]])

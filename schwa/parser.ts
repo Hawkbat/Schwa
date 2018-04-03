@@ -225,7 +225,7 @@ export class SchwaParser extends Parser {
 		})
 		this.registerPrefix(TokenType.Import, 2, (t) => {
 			let children = []
-			if (this.match(TokenType.Name) || this.match(TokenType.Type)) {
+			if (this.match(TokenType.Export) || this.match(TokenType.Const) || this.match(TokenType.Name) || this.match(TokenType.Type)) {
 				let n = this.parseNode()
 				if (n) {
 					if (n.type == AstType.VariableDef) n.type = AstType.VariableImport

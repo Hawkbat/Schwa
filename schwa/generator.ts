@@ -116,7 +116,7 @@ export class Generator {
 				let type = this.toWasmType(param.type)
 				if (!type) continue
 				params.push(type)
-				localNamings.push(new WASM.Naming(paramIndex, param.getPath(true)))
+				localNamings.push(new WASM.Naming(paramIndex, param.getPath(true, true)))
 				this.varPathToIndex[param.getPath()] = paramIndex++
 			}
 		}
@@ -144,7 +144,9 @@ export class Generator {
 		this.funcNames.push(new WASM.Naming(this.funcPathToIndex[func.getPath()], func.id))
 		this.localNames.push(new WASM.LocalName(this.funcPathToIndex[func.getPath()], new WASM.NameMap(localNamings)))
 
-		this.imports.push(new WASM.ImportEntry(func.import, func.getPath(), WASM.ExternalKind.Function, sigIndex))
+		this.imports.push(new WASM.ImportEntry(func.import, func.getPath(false), WASM.ExternalKind.Function, sigIndex))
+		if (func.export) this.exports.push(new WASM.ExportEntry(func.id, WASM.ExternalKind.Function, this.funcPathToIndex[func.getPath()]))
+		
 		this.funcIndex++
 	}
 
@@ -154,8 +156,12 @@ export class Generator {
 		for (let gvar of vars) {
 			let type = this.toWasmType(gvar.type)
 			if (!type) continue
-			this.varPathToIndex[gvar.getPath()] = this.varIndex++
-			this.imports.push(new WASM.ImportEntry(global.import, global.getPath(), WASM.ExternalKind.Global, new WASM.GlobalType(type, !global.const)))
+			this.varPathToIndex[gvar.getPath()] = this.varIndex
+
+			this.imports.push(new WASM.ImportEntry(global.import, global.getPath(false), WASM.ExternalKind.Global, new WASM.GlobalType(type, !global.const)))
+			if (gvar.export) this.exports.push(new WASM.ExportEntry(gvar.getPath(true, true), WASM.ExternalKind.Global, this.varIndex))
+
+			this.varIndex++
 		}
 	}
 
@@ -181,7 +187,7 @@ export class Generator {
 				let type = this.toWasmType(param.type)
 				if (!type) continue
 				params.push(type)
-				localNamings.push(new WASM.Naming(paramIndex, param.getPath(true)))
+				localNamings.push(new WASM.Naming(paramIndex, param.getPath()))
 				this.varPathToIndex[param.getPath()] = paramIndex++
 			}
 		}
@@ -230,7 +236,7 @@ export class Generator {
 					let type = this.toWasmType(lvar.type)
 					if (!type) continue
 					let local = new WASM.LocalEntry(1, type)
-					localNamings.push(new WASM.Naming(index, lvar.getPath(true)))
+					localNamings.push(new WASM.Naming(index, lvar.getPath()))
 					this.varPathToIndex[lvar.getPath()] = index++
 					locals.push(local)
 				}
@@ -261,7 +267,7 @@ export class Generator {
 				}
 			}
 			if (!initExpr) initExpr = this.getDefaultInitializer(gvar.type)
-			if (gvar.export) this.exports.push(new WASM.ExportEntry(gvar.getPath(true), WASM.ExternalKind.Global, this.varIndex))
+			if (gvar.export) this.exports.push(new WASM.ExportEntry(gvar.getPath(), WASM.ExternalKind.Global, this.varIndex))
 			this.globals.push(new WASM.GlobalEntry(new WASM.GlobalType(type, !gvar.const), new WASM.InitializerExpression(initExpr)))
 			this.varIndex++
 		}
