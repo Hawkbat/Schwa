@@ -1,5 +1,5 @@
 from math import
-	export const float PI as MATH_PI
+	const export float PI as MATH_PI
 	export float addPi(float n) as mathAddPi
 	export struct Pi as MathPi
 		float value

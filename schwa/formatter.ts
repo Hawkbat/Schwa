@@ -63,8 +63,8 @@ export class SchwaFormatter extends Formatter {
 		this.register(AstType.UnknownImport, (n) => {
 			let id = n.children[0]
 			let out = ''
-			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			if (n.children.find(c => c != null && c.type == AstType.Export)) out += 'export '
+			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			out += n.token.value
 			if (id && id.type == AstType.Alias) out += ' as ' + this.printNode(id)
 			return out
@@ -83,8 +83,8 @@ export class SchwaFormatter extends Formatter {
 			let l = n.children[0]
 			let r = n.children[1]
 			let out = ''
-			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			if (n.children.find(c => c != null && c.type == AstType.Export)) out += 'export '
+			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			out += n.token.value
 			if (l) out += ' ' + this.printNode(l)
 			if (r && r.type == AstType.Literal) out += '[' + this.printNode(r) + ']'
@@ -96,8 +96,8 @@ export class SchwaFormatter extends Formatter {
 			let c1 = n.children[1]
 			let c2 = n.children[2]
 			let out = '\n'
-			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			if (n.children.find(c => c != null && c.type == AstType.Export)) out += 'export '
+			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			out += n.token.value
 			if (c0 || c1 || c2) out += ' '
 			if (c0) out += this.printNode(c0)
@@ -110,8 +110,8 @@ export class SchwaFormatter extends Formatter {
 			let c0 = n.children[0]
 			let c1 = n.children[1]
 			let out = ''
-			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			if (n.children.find(c => c != null && c.type == AstType.Export)) out += 'export '
+			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			out += n.token.value
 			if (c0 || c1) out += ' '
 			if (c0) out += this.printNode(c0)
@@ -123,8 +123,8 @@ export class SchwaFormatter extends Formatter {
 			let c0 = n.children[0]
 			let c1 = n.children[1]
 			let out = '\n'
-			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			if (n.children.find(c => c != null && c.type == AstType.Export)) out += 'export '
+			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			out += n.token.value
 			if (c0 || c1) out += ' '
 			if (c0) out += this.printNode(c0)
@@ -136,8 +136,8 @@ export class SchwaFormatter extends Formatter {
 			let c0 = n.children[0]
 			let c1 = n.children[1]
 			let out = ''
-			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			if (n.children.find(c => c != null && c.type == AstType.Export)) out += 'export '
+			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			out += n.token.value
 			if (c0 || c1) out += ' '
 			if (c0) out += this.printNode(c0)
@@ -198,8 +198,8 @@ export class SchwaFormatter extends Formatter {
 			let c0 = n.children[0]
 			let c1 = n.children[1]
 			let out = ''
-			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			if (n.children.find(c => c != null && c.type == AstType.Export)) out += 'export '
+			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			if (c0) out += this.printNode(c0)
 			out += ' = '
 			if (c1) out += this.printNode(c1)
@@ -227,8 +227,8 @@ export class SchwaFormatter extends Formatter {
 			let r = n.children[1]
 			let out = '\n'
 			out += 'map'
-			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			if (n.children.find(c => c != null && c.type == AstType.Export)) out += 'export '
+			if (n.children.find(c => c != null && c.type == AstType.Const)) out += 'const '
 			if (l) out += ' ' + this.printNode(l)
 			out += ' at '
 			if (r) out += this.printNode(r)
